@@ -1,0 +1,19 @@
+name: "Refactor/Fix Request"
+description: "프로젝트 변경"
+labels: "Refactor/Fix"
+body:
+  - type: textarea
+    attributes:
+      label: 설명
+      description: 변경 해야 하는 대상 및 원인을 작성해주세요.
+      placeholder: 변경 해야 하는 대상 및 원인을 작성해주세요.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 예상 Tasks
+      description: 변경 해야 하는 내용에 대한 Tasks를 작성해 주세요.
+      placeholder: 변경 해야 하는 내용에 대한 Tasks를 작성해 주세요.
+    validations:
+      required: true
+

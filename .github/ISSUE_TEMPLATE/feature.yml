@@ -1,0 +1,19 @@
+name: "Feature Request"
+description: "프로젝트 기능 추가"
+labels: "Feature"
+body:
+  - type: textarea
+    attributes:
+      label: 기능 설명
+      description: 새로운 기능에 대한 설명을 작성해 주세요.
+      placeholder: 새로운 기능에 대한 설명을 작성해 주세요.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 예상 Task
+      description: 해야 하는 일에 대한 Tasks를 작성해 주세요.
+      placeholder: 해야 하는 일에 대한 Tasks를 작성해 주세요.
+    validations:
+      required: false
+
