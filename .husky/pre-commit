@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🧪 Gradle 테스트 실행 중..."
+
+cd pekko && ./gradlew test
+
+if [ $? -ne 0 ]; then
+    echo "❌ 테스트 실패! 커밋이 중단되었습니다."
+    exit 1
+fi
+
+echo "✅ 모든 테스트 통과! 커밋을 진행합니다."
