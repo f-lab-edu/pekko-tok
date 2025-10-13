@@ -28,28 +28,8 @@ ext {
 	set('snippetsDir', file("build/generated-snippets"))
 }
 
-def queryDslVersion = "7.0"
-def querydslSrcDir  = layout.buildDirectory.dir("generated/querydsl").get().asFile
-
-tasks.withType(JavaCompile).configureEach {
-	options.getGeneratedSourceOutputDirectory().set(file(querydslSrcDir))
-}
-
-sourceSets {
-	main {
-		java {
-			srcDirs += querydslSrcDir
-		}
-	}
-}
-
-configurations {
-	querydsl.extendsFrom compileClasspath
-}
-
 def versions = [
 		PekkoVersion: "1.2.1",
-		PekkoManagementVersion: "1.1.1",
 		ScalaBinary: "2.13"
 ]
 
@@ -63,15 +43,11 @@ dependencies {
 	implementation "org.apache.pekko:pekko-cluster-sharding-typed_${versions.ScalaBinary}:${versions.PekkoVersion}"
 	implementation "org.apache.pekko:pekko-serialization-jackson_${versions.ScalaBinary}:${versions.PekkoVersion}"
 	implementation "org.apache.pekko:pekko-slf4j_${versions.ScalaBinary}:${versions.PekkoVersion}"
-	implementation "org.apache.pekko:pekko-management-cluster-bootstrap_${versions.ScalaBinary}:${versions.PekkoManagementVersion}"
-	implementation "org.apache.pekko:pekko-management-cluster-http_${versions.ScalaBinary}:${versions.PekkoManagementVersion}"
 	implementation "org.apache.pekko:pekko-discovery_${versions.ScalaBinary}:${versions.PekkoVersion}"
 
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation("io.github.openfeign.querydsl:querydsl-core:${queryDslVersion}")
-	implementation("io.github.openfeign.querydsl:querydsl-jpa:$queryDslVersion")
-	annotationProcessor("io.github.openfeign.querydsl:querydsl-apt:$queryDslVersion:jpa")
+	implementation 'io.projectreactor.tools:blockhound:1.0.14.RELEASE'
 
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
@@ -81,6 +57,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'org.springframework.restdocs:spring-restdocs-webtestclient'
+	testImplementation 'io.projectreactor.tools:blockhound:1.0.14.RELEASE'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
