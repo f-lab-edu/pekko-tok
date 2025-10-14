@@ -1,7 +1,7 @@
-package com.tok.pekko.config.actor;
+package com.tok.pekko.infrastructure.config.actor;
 
-import com.tok.pekko.common.actor.GuardianActor;
-import com.tok.pekko.common.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.infrastructure.actor.GuardianActor;
+import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.ArrayList;

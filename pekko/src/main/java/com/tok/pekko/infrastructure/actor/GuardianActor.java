@@ -1,6 +1,6 @@
-package com.tok.pekko.common.actor;
+package com.tok.pekko.infrastructure.actor;
 
-import com.tok.pekko.common.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;

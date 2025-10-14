@@ -1,4 +1,4 @@
-package com.tok.pekko.config.dev;
+package com.tok.pekko.infrastructure.config.dev;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
