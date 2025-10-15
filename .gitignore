@@ -21,7 +21,8 @@ cmake-build-*/
 *.iws
 
 # IntelliJ
-out/
+/out/
+/pekko/out/
 
 # JIRA plugin
 atlassian-ide-plugin.xml
