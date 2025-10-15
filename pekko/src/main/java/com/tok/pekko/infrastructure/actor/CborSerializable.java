@@ -1,4 +1,6 @@
 package com.tok.pekko.infrastructure.actor;
 
-public interface CborSerializable {
+import com.tok.pekko.domain.chat.command.ActorCommand;
+
+public interface CborSerializable extends ActorCommand {
 }
