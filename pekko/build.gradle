@@ -57,6 +57,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'org.springframework.restdocs:spring-restdocs-webtestclient'
+	testImplementation "org.apache.pekko:pekko-actor-testkit-typed_${versions.ScalaBinary}:${versions.PekkoVersion}"
+	testImplementation "org.apache.pekko:pekko-stream-testkit_${versions.ScalaBinary}:${versions.PekkoVersion}"
 	testImplementation 'io.projectreactor.tools:blockhound:1.0.14.RELEASE'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
