@@ -37,18 +37,22 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
             ClusterSharding clusterSharding = ClusterSharding.get(context.getSystem());
             Map<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders = new HashMap<>();
 
-            ActorRef<ShutdownEvent> shutdownEventAdapter = context.messageAdapter(
-                    ShutdownEvent.class,
-                    event -> new Shutdown()
-            );
-            context.getSystem()
-                   .eventStream()
-                   .tell(
-                           new EventStream.Subscribe<>(ShutdownEvent.class, shutdownEventAdapter)
-                   );
+            subscribeEventStream(context);
 
             return new NodeManagerActor(context, clusterSharding, messageStoragePort, localChatChannelReaders);
         });
+    }
+
+    private static void subscribeEventStream(ActorContext<NodeManagerActorCommand> context) {
+        ActorRef<ShutdownEvent> shutdownEventAdapter = context.messageAdapter(
+                ShutdownEvent.class,
+                event -> new Shutdown()
+        );
+        context.getSystem()
+               .eventStream()
+               .tell(
+                       new EventStream.Subscribe<>(ShutdownEvent.class, shutdownEventAdapter)
+               );
     }
 
     private NodeManagerActor(
@@ -74,13 +78,8 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
     }
 
     private Behavior<NodeManagerActorCommand> onRegisterSession(RegisterSession command) {
-        ActorRef<ClientSessionCommand> clientSessionActorRef = getContext().spawn(
-                ClientSessionActor.create(command.clientMessageSender()),
-                "client-session-" + command.userId() + ":" + command.channelId()
-        );
-        EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = clusterSharding.entityRefFor(
-                ChatChannelEntity.ENTITY_TYPE_KEY, String.valueOf(command.channelId())
-        );
+        ActorRef<ClientSessionCommand> clientSessionActorRef = spawnClientSessionActor(command);
+        EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(command.channelId());
 
         chatChannelEntityRef.tell(
                 new RequestJoin(command.userId(), clientSessionActorRef, getContext().getSelf())
@@ -91,18 +90,9 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
 
     private Behavior<NodeManagerActorCommand> onCreateReader(CreateReader command) {
         NodeReaderKey key = new NodeReaderKey(command.channelId(), command.userId());
-
-        ActorRef<ChatChannelReaderCommand> chatChannelReaerActorRef = getContext().spawn(
-                ChatChannelReaderActor.create(
-                        command.channelId(),
-                        command.messages(),
-                        messageStoragePort,
-                        command.clientActorRef()
-                ),
-                "chat-channel-reader-" + System.nanoTime() + command.channelId() + ":" + command.userId()
-        );
-
+        ActorRef<ChatChannelReaderCommand> chatChannelReaerActorRef = spawnChatChannelReaderActor(command);
         ActorRef<ChatChannelReaderCommand> oldReader = localChatChannelReaders.put(key, chatChannelReaerActorRef);
+
         if (oldReader != null) {
             oldReader.tell(new ChatChannelReaderProtocol.Shutdown());
         }
@@ -118,12 +108,7 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
         ActorRef<ChatChannelReaderCommand> removeReaderRef = localChatChannelReaders.remove(key);
 
         if (removeReaderRef != null) {
-            removeReaderRef.tell(new ChatChannelReaderProtocol.Shutdown());
-
-            EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = clusterSharding.entityRefFor(
-                    ChatChannelEntity.ENTITY_TYPE_KEY, String.valueOf(command.channelId())
-            );
-            chatChannelEntityRef.tell(new RemoveReaderSession(command.userId()));
+            removeReaderSession(command.channelId(), command.channelId(), removeReaderRef);
         }
 
         return this;
@@ -134,6 +119,39 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
                                .forEach(reader -> reader.tell(new ChatChannelReaderProtocol.Shutdown()));
 
         return Behaviors.stopped();
+    }
+
+    private ActorRef<ClientSessionCommand> spawnClientSessionActor(RegisterSession command) {
+        return getContext().spawn(
+                ClientSessionActor.create(command.clientMessageSender()),
+                "client-session-" + command.userId() + ":" + command.channelId()
+        );
+    }
+
+    private ActorRef<ChatChannelReaderCommand> spawnChatChannelReaderActor(CreateReader command) {
+        return getContext().spawn(
+                ChatChannelReaderActor.create(
+                        command.channelId(),
+                        command.messages(),
+                        messageStoragePort,
+                        command.clientActorRef()
+                ),
+                "chat-channel-reader-" + System.nanoTime() + command.channelId() + ":" + command.userId()
+        );
+    }
+
+    private void removeReaderSession(Long channelId, Long userId, ActorRef<ChatChannelReaderCommand> removeReaderRef) {
+        removeReaderRef.tell(new ChatChannelReaderProtocol.Shutdown());
+
+        EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(channelId);
+
+        chatChannelEntityRef.tell(new RemoveReaderSession(userId));
+    }
+
+    private EntityRef<ChatChannelEntityCommand> findChatChannelEntityRef(Long channelId) {
+        return clusterSharding.entityRefFor(
+                ChatChannelEntity.ENTITY_TYPE_KEY, String.valueOf(channelId)
+        );
     }
 
     public record RegisterSession(ClientMessageSender clientMessageSender, Long channelId, Long userId) implements NodeManagerActorCommand { }
