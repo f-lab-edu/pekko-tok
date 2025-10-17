@@ -1,16 +1,10 @@
 package com.tok.pekko.infrastructure.config.dev;
 
-import jakarta.annotation.PostConstruct;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import reactor.blockhound.BlockHound;
 
-@Configuration
-@Profile("dev")
-public class BlockHoundConfiguration {
+public class BlockHoundTestInstallUtils {
 
-    @PostConstruct
-    public void initialize() {
+    public static void install() {
         BlockHound.builder()
                   .nonBlockingThreadPredicate(
                           current ->

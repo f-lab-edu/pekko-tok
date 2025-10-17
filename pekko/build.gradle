@@ -72,3 +72,10 @@ tasks.named('asciidoctor') {
 	inputs.dir snippetsDir
 	dependsOn test
 }
+
+tasks.withType(Test).configureEach {
+	jvmArgs = [
+			'-XX:+AllowRedefinitionToAddDeleteMethods'
+	]
+}
+
