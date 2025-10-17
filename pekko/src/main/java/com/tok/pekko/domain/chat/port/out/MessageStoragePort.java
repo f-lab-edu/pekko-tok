@@ -8,5 +8,10 @@ public interface MessageStoragePort {
 
     void store(ChatMessage message);
 
-    void findHistory(long messageSequence, int size, ActorRef<ChatChannelReaderCommand> replyTo);
+    void findHistory(
+            Long channelId,
+            long messageSequence,
+            int size,
+            ActorRef<ChatChannelReaderCommand> replyTo
+    );
 }

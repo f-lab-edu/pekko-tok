@@ -11,10 +11,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-import com.tok.pekko.domain.chat.command.ClientSessionProtocol;
-import com.tok.pekko.domain.chat.command.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.command.ClientSessionProtocol.DeliverCommand;
-import com.tok.pekko.domain.chat.command.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.RequestHistory;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.HistoryLoaded;

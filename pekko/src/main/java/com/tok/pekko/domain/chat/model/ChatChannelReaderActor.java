@@ -1,7 +1,7 @@
 package com.tok.pekko.domain.chat.model;
 
-import com.tok.pekko.domain.chat.command.ActorCommand;
-import com.tok.pekko.domain.chat.command.ClientSessionProtocol;
+import com.tok.pekko.domain.chat.common.ActorCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.util.List;
