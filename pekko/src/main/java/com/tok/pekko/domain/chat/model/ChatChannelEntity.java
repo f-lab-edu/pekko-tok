@@ -1,0 +1,128 @@
+package com.tok.pekko.domain.chat.model;
+
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveReaderSession;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
+import org.apache.pekko.actor.typed.javadsl.ActorContext;
+import org.apache.pekko.actor.typed.javadsl.Behaviors;
+import org.apache.pekko.actor.typed.javadsl.Receive;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityTypeKey;
+
+public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand> {
+
+    public static final EntityTypeKey<ChatChannelEntityCommand> ENTITY_TYPE_KEY =
+            EntityTypeKey.create(ChatChannelEntityCommand.class, "ChatChannel");
+
+    public static Behavior<ChatChannelEntityCommand> create(
+            Long channelId,
+            ChatMessages messages,
+            MessageStoragePort messageStoragePort,
+            MessageSequenceGenerator sequenceGenerator
+    ) {
+        return Behaviors.setup(
+                context -> new ChatChannelEntity(
+                        context,
+                        channelId,
+                        messages,
+                        messageStoragePort,
+                        sequenceGenerator,
+                        new HashMap<>()
+                )
+        );
+    }
+
+    private final Long channelId;
+    private final ChatMessages messages;
+    private final MessageStoragePort messageStoragePort;
+    private final MessageSequenceGenerator sequenceGenerator;
+    private final Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers;
+
+    private ChatChannelEntity(
+            ActorContext<ChatChannelEntityCommand> context,
+            Long channelId,
+            ChatMessages messages,
+            MessageStoragePort messageStoragePort,
+            MessageSequenceGenerator sequenceGenerator,
+            Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers
+    ) {
+        super(context);
+
+        this.channelId = channelId;
+        this.messages = messages;
+        this.messageStoragePort = messageStoragePort;
+        this.sequenceGenerator = sequenceGenerator;
+        this.readers = readers;
+    }
+
+    @Override
+    public Receive<ChatChannelEntityCommand> createReceive() {
+        return newReceiveBuilder().onMessage(RequestJoin.class, this::onRequestJoin)
+                                  .onMessage(RegisterReader.class, this::onRegisterReader)
+                                  .onMessage(SendMessageCommand.class, this::onSendMessage)
+                                  .onMessage(RemoveReaderSession.class, this::onRemoveReaderSession)
+                                  .build();
+    }
+
+    private Behavior<ChatChannelEntityCommand> onRequestJoin(RequestJoin command) {
+        command.replyTo()
+                .tell(
+                        new CreateReader(
+                                messages.deepCopy(),
+                                command.clientRef(),
+                                channelId,
+                                command.userId(),
+                                getContext().getSelf()
+                        )
+                );
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onRegisterReader(RegisterReader command) {
+        ChannelReaderKey key = new ChannelReaderKey(command.userId());
+        ActorRef<ChatChannelReaderCommand> oldReader = readers.put(key, command.reader());
+
+        if (oldReader != null) {
+            oldReader.tell(new Shutdown());
+        }
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onSendMessage(SendMessageCommand command) {
+        long messageSequence = sequenceGenerator.getNextSequence();
+        ChatMessage message = ChatMessage.create(
+                channelId,
+                command.userId(),
+                messageSequence,
+                command.message(),
+                command.timestamp()
+        );
+        messages.add(message);
+        messageStoragePort.store(message);
+        readers.values()
+               .forEach(reader -> reader.tell(new SyncNewCommand(message)));
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onRemoveReaderSession(RemoveReaderSession command) {
+        ChannelReaderKey channelReaderKey = new ChannelReaderKey(command.userId());
+
+        readers.remove(channelReaderKey);
+
+        return this;
+    }
+}
