@@ -1,5 +1,6 @@
 package com.tok.pekko.adapter.in.actor;
 
+import com.tok.pekko.adapter.in.event.RegisteredEvent;
 import com.tok.pekko.adapter.in.event.ShutdownEvent;
 import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
@@ -44,15 +45,30 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
     }
 
     private static void subscribeEventStream(ActorContext<NodeManagerActorCommand> context) {
+        subscribeRegisteredEvent(context);
+        subscribeShutdownEvent(context);
+    }
+
+    private static void subscribeRegisteredEvent(ActorContext<NodeManagerActorCommand> context) {
+        ActorRef<RegisteredEvent> registeredEventAdapter = context.messageAdapter(
+                RegisteredEvent.class,
+                event -> new RegisterSession(event.clientMessageSender(), event.channelId(), event.userId())
+        );
+
+        context.getSystem()
+               .eventStream()
+               .tell(new EventStream.Subscribe<>(RegisteredEvent.class, registeredEventAdapter));
+    }
+
+    private static void subscribeShutdownEvent(ActorContext<NodeManagerActorCommand> context) {
         ActorRef<ShutdownEvent> shutdownEventAdapter = context.messageAdapter(
                 ShutdownEvent.class,
                 event -> new Shutdown()
         );
+
         context.getSystem()
                .eventStream()
-               .tell(
-                       new EventStream.Subscribe<>(ShutdownEvent.class, shutdownEventAdapter)
-               );
+               .tell(new EventStream.Subscribe<>(ShutdownEvent.class, shutdownEventAdapter));
     }
 
     private NodeManagerActor(
