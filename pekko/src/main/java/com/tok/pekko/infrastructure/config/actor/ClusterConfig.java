@@ -1,5 +1,6 @@
 package com.tok.pekko.infrastructure.config.actor;
 
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.infrastructure.actor.GuardianActor;
 import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
 import com.typesafe.config.Config;
@@ -23,12 +24,13 @@ import org.springframework.core.env.Environment;
 public class ClusterConfig {
 
     private final Environment environment;
+    private final MessageStoragePort messageStoragePort;
 
     @Bean(destroyMethod = "terminate")
     public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(),
+                GuardianActor.create(messageStoragePort),
                 "ChatCluster",
                 config
         );
