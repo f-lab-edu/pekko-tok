@@ -1,8 +1,11 @@
 package com.tok.pekko.domain.chat.model;
 
-import com.tok.pekko.domain.chat.common.ActorCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
-import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.util.List;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -94,11 +97,4 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
 
         return Behaviors.stopped();
     }
-
-    public interface ChatChannelReaderCommand extends ActorCommand { }
-
-    public record SyncNewCommand(ChatMessage message) implements ChatChannelReaderCommand { }
-    public record RequestHistory(long messageSequence, int size) implements ChatChannelReaderCommand { }
-    public record HistoryLoaded(List<ChatMessage> history) implements ChatChannelReaderCommand { }
-    public record Shutdown() implements ChatChannelReaderCommand { }
 }
