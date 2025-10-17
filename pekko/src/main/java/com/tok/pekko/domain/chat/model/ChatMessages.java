@@ -3,6 +3,8 @@ package com.tok.pekko.domain.chat.model;
 import java.util.List;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 public class ChatMessages {
 
@@ -14,19 +16,9 @@ public class ChatMessages {
         this.messages = new LinkedList<>();
     }
 
-    public ChatMessages(List<ChatMessage> messageList) {
-        if (messageList == null || messageList.isEmpty()) {
-            throw new IllegalArgumentException("관리할 메시지는 비어 있을 수 없습니다.");
-        }
-
-        this.messages = new LinkedList<>(messageList);
-    }
-
     public ChatMessages deepCopy() {
         ChatMessages copy = new ChatMessages();
-
         copy.messages.addAll(this.messages);
-
         return copy;
     }
 
@@ -40,6 +32,28 @@ public class ChatMessages {
         if (messages.size() > MAX_SIZE) {
             messages.removeLast();
         }
+    }
+
+    public void syncMessages(List<ChatMessage> newMessages) {
+        if (newMessages == null) {
+            throw new IllegalArgumentException("메시지는 null 일 수 없습니다.");
+        }
+
+        if (newMessages.isEmpty()) {
+            return;
+        }
+
+        List<ChatMessage> allMessages = new ArrayList<>(messages);
+
+        allMessages.addAll(newMessages);
+        allMessages.sort(Comparator.comparingLong(ChatMessage::messageSequence).reversed());
+
+        if (allMessages.size() > MAX_SIZE) {
+            allMessages = allMessages.subList(0, MAX_SIZE);
+        }
+
+        messages.clear();
+        messages.addAll(allMessages);
     }
 
     public List<ChatMessage> getHistory(long beforeMessageSequence, int size) {

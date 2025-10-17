@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -26,43 +27,6 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 리스트를_받아_ChatMessages를_생성한다() {
-        // given
-        List<ChatMessage> messageList = List.of(
-                ChatMessage.create(1L, 1L, 1L, "Message 1", LocalDateTime.now()),
-                ChatMessage.create(1L, 2L, 2L, "Message 2", LocalDateTime.now())
-        );
-
-        // when
-        ChatMessages chatMessages = new ChatMessages(messageList);
-
-        // then
-        assertThat(chatMessages.getRecentMessages(10)).hasSize(2);
-    }
-
-    @Test
-    void null_리스트로_생성_시_예외가_발생한다() {
-        // given
-        List<ChatMessage> nullList = null;
-
-        // when & then
-        assertThatThrownBy(() -> new ChatMessages(nullList))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("관리할 메시지는 비어 있을 수 없습니다.");
-    }
-
-    @Test
-    void 빈_리스트로_생성_시_예외가_발생한다() {
-        // given
-        List<ChatMessage> emptyList = List.of();
-
-        // when & then
-        assertThatThrownBy(() -> new ChatMessages(emptyList))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("관리할 메시지는 비어 있을 수 없습니다.");
-    }
-
-    @Test
     void 메시지를_추가한다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
@@ -73,7 +37,7 @@ class ChatMessagesTest {
 
         // then
         assertThat(chatMessages.getRecentMessages(10)).hasSize(1)
-                                                            .contains(message);
+                                                      .contains(message);
     }
 
     @Test
@@ -203,6 +167,112 @@ class ChatMessagesTest {
         assertAll(
                 () -> assertThat(original.getRecentMessages(10)).hasSize(1),
                 () -> assertThat(copy.getRecentMessages(10)).hasSize(2)
+        );
+    }
+
+    @Test
+    void null_메시지_리스트로_동기화하면_예외가_발생한다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+
+        // when & then
+        assertThatThrownBy(() -> chatMessages.syncMessages(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("메시지는 null 일 수 없습니다.");
+    }
+
+    @Test
+    void 빈_메시지_리스트로_동기화하면_아무_일도_일어나지_않는다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        ChatMessage existing = ChatMessage.create(1L, 1L, 1L, "Existing", LocalDateTime.now());
+        chatMessages.add(existing);
+
+        // when
+        chatMessages.syncMessages(List.of());
+
+        // then
+        assertAll(
+                () -> assertThat(chatMessages.getRecentMessages(10)).hasSize(1),
+                () -> assertThat(chatMessages.getRecentMessages(10)).containsExactly(existing)
+        );
+    }
+
+    @Test
+    void 새로운_메시지를_동기화하면_messageSequence_순서대로_정렬된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        List<ChatMessage> newMessages = List.of(
+                ChatMessage.create(1L, 1L, 3L, "Message 3", LocalDateTime.now()),
+                ChatMessage.create(1L, 1L, 1L, "Message 1", LocalDateTime.now()),
+                ChatMessage.create(1L, 1L, 5L, "Message 5", LocalDateTime.now())
+        );
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(10);
+        assertAll(
+                () -> assertThat(result).hasSize(3),
+                () -> assertThat(result)
+                        .extracting(ChatMessage::messageSequence)
+                        .isSortedAccordingTo(Comparator.reverseOrder()),
+                () -> assertThat(result.get(0).messageSequence()).isEqualTo(5L),
+                () -> assertThat(result.get(1).messageSequence()).isEqualTo(3L),
+                () -> assertThat(result.get(2).messageSequence()).isEqualTo(1L)
+        );
+    }
+
+    @Test
+    void 기존_메시지와_새_메시지를_동기화하면_모두_순서대로_병합된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        chatMessages.add(ChatMessage.create(1L, 1L, 2L, "Message 2", LocalDateTime.now()));
+        chatMessages.add(ChatMessage.create(1L, 1L, 6L, "Message 6", LocalDateTime.now()));
+
+        List<ChatMessage> newMessages = List.of(
+                ChatMessage.create(1L, 1L, 4L, "Message 4", LocalDateTime.now()),
+                ChatMessage.create(1L, 1L, 8L, "Message 8", LocalDateTime.now())
+        );
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(10);
+        assertAll(
+                () -> assertThat(result).hasSize(4),
+                () -> assertThat(result)
+                        .extracting(ChatMessage::messageSequence)
+                        .containsExactly(8L, 6L, 4L, 2L)
+        );
+    }
+
+    @Test
+    void 동기화_후_MAX_SIZE를_초과하면_가장_오래된_메시지가_제거된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        for (long i = 1; i <= 50; i++) {
+            chatMessages.add(ChatMessage.create(1L, 1L, i, "Message " + i, LocalDateTime.now()));
+        }
+
+        List<ChatMessage> newMessages = new java.util.ArrayList<>();
+        for (long i = 51; i <= 105; i++) {
+            newMessages.add(ChatMessage.create(1L, 1L, i, "Message " + i, LocalDateTime.now()));
+        }
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(100);
+        assertAll(
+                () -> assertThat(result).hasSize(100),
+                () -> assertThat(result.get(0).messageSequence()).isEqualTo(105L),
+                () -> assertThat(result.get(99).messageSequence()).isEqualTo(6L),
+                () -> assertThat(result)
+                        .noneMatch(msg -> msg.messageSequence() < 6L)
         );
     }
 }
