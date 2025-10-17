@@ -14,7 +14,13 @@ public class JdbcMessageRepository implements MessageRepository {
     }
 
     @Override
-    public List<ChatMessage> findAll(Long channelId, long messageSequence, int size) {
+    public List<ChatMessage> findHistory(Long channelId, long messageSequence, int size) {
+        // NO-OP
+        return List.of();
+    }
+
+    @Override
+    public List<ChatMessage> findLatest(Long channelId, int size) {
         // NO-OP
         return List.of();
     }

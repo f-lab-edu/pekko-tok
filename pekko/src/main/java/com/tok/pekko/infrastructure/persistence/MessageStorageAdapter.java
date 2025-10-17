@@ -1,7 +1,9 @@
 package com.tok.pekko.infrastructure.persistence;
 
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.infrastructure.persistence.event.LoadedHistoryEvent;
+import com.tok.pekko.infrastructure.persistence.event.LoadedRecentMessagesEvent;
 import com.tok.pekko.infrastructure.persistence.event.StoredEvent;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -37,6 +39,17 @@ public class MessageStorageAdapter implements MessageStoragePort {
                            .tell(
                                    new EventStream.Publish<>(
                                            new LoadedHistoryEvent(channelId, messageSequence, size, replyTo)
+                                   )
+                           );
+    }
+
+    @Override
+    public void findRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo) {
+        actorSystemProvider.getObject()
+                           .eventStream()
+                           .tell(
+                                   new EventStream.Publish<>(
+                                           new LoadedRecentMessagesEvent(channelId, size, replyTo)
                                    )
                            );
     }

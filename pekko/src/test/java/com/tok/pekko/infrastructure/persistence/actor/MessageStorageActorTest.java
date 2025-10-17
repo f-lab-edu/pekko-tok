@@ -1,9 +1,12 @@
 package com.tok.pekko.infrastructure.persistence.actor;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
 import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor.FetchHistory;
+import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor.FetchRecentMessages;
 import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor.MessageStoreCommand;
 import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor.Store;
 import com.tok.pekko.infrastructure.persistence.repository.MessageRepository;
@@ -92,13 +95,13 @@ class MessageStorageActorTest {
                 new ChatMessage(1L, 7L, 102L, 7L, "Message 7", LocalDateTime.of(2025, 10, 17, 15, 0, 2))
         );
 
-        given(mockMessageRepository.findAll(channelId, messageSequence, size)).willReturn(historyMessages);
+        given(mockMessageRepository.findHistory(channelId, messageSequence, size)).willReturn(historyMessages);
 
         // when
         messageStorageActor.tell(new FetchHistory(channelId, messageSequence, size, replyProbe.ref()));
 
         // then
-        verify(mockMessageRepository, timeout(1000)).findAll(channelId, messageSequence, size);
+        verify(mockMessageRepository, timeout(1000)).findHistory(channelId, messageSequence, size);
 
         HistoryLoaded historyLoaded = replyProbe.expectMessageClass(
                 HistoryLoaded.class,
@@ -124,19 +127,56 @@ class MessageStorageActorTest {
         long messageSequence = 100L;
         int size = 10;
 
-        given(mockMessageRepository.findAll(channelId, messageSequence, size)).willReturn(List.of());
+        given(mockMessageRepository.findHistory(channelId, messageSequence, size)).willReturn(List.of());
 
         // when
         messageStorageActor.tell(new FetchHistory(channelId, messageSequence, size, replyProbe.ref()));
 
         // then
-        verify(mockMessageRepository, timeout(1000)).findAll(channelId, messageSequence, size);
+        verify(mockMessageRepository, timeout(1000)).findHistory(channelId, messageSequence, size);
 
         HistoryLoaded historyLoaded = replyProbe.expectMessageClass(
                 HistoryLoaded.class,
                 Duration.ofSeconds(3)
         );
         assertThat(historyLoaded.history()).isEmpty();
+    }
+
+    @Test
+    void FetchRecentMessages_메시지를_받으면_MessageRepository에서_조회하고_replyTo에_SyncRecentMessages_메시지를_전송한다() {
+        // given
+        MessageRepository mockMessageRepository = mock(MessageRepository.class);
+        ActorRef<MessageStoreCommand> messageStorageActor = testKit.spawn(
+                MessageStorageActor.create(mockMessageRepository)
+        );
+
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+
+        Long channelId = 1L;
+        int size = 10;
+
+        List<ChatMessage> recentMessages = Arrays.asList(
+                new ChatMessage(1L, 10L, 100L, 10L, "Message 10", LocalDateTime.of(2025, 10, 17, 16, 0, 0)),
+                new ChatMessage(1L, 9L, 101L, 9L, "Message 9", LocalDateTime.of(2025, 10, 17, 15, 59, 0)),
+                new ChatMessage(1L, 8L, 102L, 8L, "Message 8", LocalDateTime.of(2025, 10, 17, 15, 58, 0))
+        );
+
+        given(mockMessageRepository.findLatest(channelId, size)).willReturn(recentMessages);
+
+        // when
+        messageStorageActor.tell(new FetchRecentMessages(channelId, size, replyProbe.ref()));
+
+        // then
+        verify(mockMessageRepository, timeout(1000)).findLatest(channelId, size);
+
+        SyncRecentMessages syncRecentMessages = replyProbe.expectMessageClass(
+                SyncRecentMessages.class,
+                Duration.ofSeconds(3)
+        );
+        assertAll(
+                () -> assertThat(syncRecentMessages.messages()).hasSize(3),
+                () -> assertThat(syncRecentMessages.messages()).isEqualTo(recentMessages)
+        );
     }
 
     @Test
@@ -182,8 +222,8 @@ class MessageStorageActorTest {
                 new ChatMessage(1L, 20L, 200L, 20L, "History 20", LocalDateTime.now())
         );
 
-        given(mockMessageRepository.findAll(eq(1L), eq(10L), eq(5))).willReturn(history1);
-        given(mockMessageRepository.findAll(eq(2L), eq(20L), eq(5))).willReturn(history2);
+        given(mockMessageRepository.findHistory(eq(1L), eq(10L), eq(5))).willReturn(history1);
+        given(mockMessageRepository.findHistory(eq(2L), eq(20L), eq(5))).willReturn(history2);
 
         // when
         messageStorageActor.tell(new FetchHistory(1L, 10L, 5, reply1Probe.ref()));

@@ -7,5 +7,7 @@ public interface MessageRepository {
 
     void save(ChatMessage chatMessage);
 
-    List<ChatMessage> findAll(Long channelId, long messageSequence, int size);
+    List<ChatMessage> findHistory(Long channelId, long messageSequence, int size);
+
+    List<ChatMessage> findLatest(Long channelId, int size);
 }

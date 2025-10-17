@@ -1,10 +1,12 @@
 package com.tok.pekko.domain.chat.port.in;
 
 import com.tok.pekko.domain.chat.common.ActorCommand;
+import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.apache.pekko.actor.typed.ActorRef;
 
 public interface ChatChannelProtocol {
@@ -15,4 +17,5 @@ public interface ChatChannelProtocol {
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessageCommand(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
+    record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
 }

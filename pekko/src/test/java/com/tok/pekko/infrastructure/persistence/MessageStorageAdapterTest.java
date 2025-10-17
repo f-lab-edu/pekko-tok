@@ -1,8 +1,10 @@
 package com.tok.pekko.infrastructure.persistence;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.infrastructure.persistence.event.LoadedHistoryEvent;
+import com.tok.pekko.infrastructure.persistence.event.LoadedRecentMessagesEvent;
 import com.tok.pekko.infrastructure.persistence.event.StoredEvent;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -94,6 +96,31 @@ class MessageStorageAdapterTest {
         );
     }
 
+    @Test
+    void EventStream에_LoadedRecentMessagesEvent_메시지를_발행한다() {
+        // given
+        TestProbe<LoadedRecentMessagesEvent> eventProbe = createLoadedRecentMessagesEventProbe();
+        MessageStorageAdapter messageStorageAdapter = createMessageStorageAdapter();
+
+        Long channelId = 3L;
+        int size = 50;
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+
+        // when
+        messageStorageAdapter.findRecentMessages(channelId, size, replyProbe.ref());
+
+        // then
+        LoadedRecentMessagesEvent loadedRecentMessagesEvent = eventProbe.expectMessageClass(
+                LoadedRecentMessagesEvent.class,
+                Duration.ofSeconds(3)
+        );
+        assertAll(
+                () -> assertThat(loadedRecentMessagesEvent.channelId()).isEqualTo(channelId),
+                () -> assertThat(loadedRecentMessagesEvent.size()).isEqualTo(size),
+                () -> assertThat(loadedRecentMessagesEvent.replyTo()).isEqualTo(replyProbe.ref())
+        );
+    }
+
     private MessageStorageAdapter createMessageStorageAdapter() {
 
         ObjectProvider<ActorSystem<?>> actorSystemProvider = new ObjectProvider<>() {
@@ -134,6 +161,14 @@ class MessageStorageAdapterTest {
         testKit.system()
                .eventStream()
                .tell(new EventStream.Subscribe<>(LoadedHistoryEvent.class, probe.ref()));
+        return probe;
+    }
+
+    private TestProbe<LoadedRecentMessagesEvent> createLoadedRecentMessagesEventProbe() {
+        TestProbe<LoadedRecentMessagesEvent> probe = testKit.createTestProbe(LoadedRecentMessagesEvent.class);
+        testKit.system()
+               .eventStream()
+               .tell(new EventStream.Subscribe<>(LoadedRecentMessagesEvent.class, probe.ref()));
         return probe;
     }
 }

@@ -1,6 +1,7 @@
 package com.tok.pekko.domain.chat.port.out;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import org.apache.pekko.actor.typed.ActorRef;
 
@@ -14,4 +15,6 @@ public interface MessageStoragePort {
             int size,
             ActorRef<ChatChannelReaderCommand> replyTo
     );
+
+    void findRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo);
 }
