@@ -5,6 +5,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
@@ -24,6 +25,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
     public static final EntityTypeKey<ChatChannelEntityCommand> ENTITY_TYPE_KEY =
             EntityTypeKey.create(ChatChannelEntityCommand.class, "ChatChannel");
+    private static final int DEFAULT_RECENT_MESSAGE_SIZE = 50;
 
     public static Behavior<ChatChannelEntityCommand> create(
             Long channelId,
@@ -32,14 +34,18 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
             MessageSequenceGenerator sequenceGenerator
     ) {
         return Behaviors.setup(
-                context -> new ChatChannelEntity(
-                        context,
-                        channelId,
-                        messages,
-                        messageStoragePort,
-                        sequenceGenerator,
-                        new HashMap<>()
-                )
+                context -> {
+                    messageStoragePort.findRecentMessages(channelId, DEFAULT_RECENT_MESSAGE_SIZE, context.getSelf());
+
+                    return new ChatChannelEntity(
+                            context,
+                            channelId,
+                            messages,
+                            messageStoragePort,
+                            sequenceGenerator,
+                            new HashMap<>()
+                    );
+                }
         );
     }
 
@@ -68,24 +74,31 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
     @Override
     public Receive<ChatChannelEntityCommand> createReceive() {
-        return newReceiveBuilder().onMessage(RequestJoin.class, this::onRequestJoin)
+        return newReceiveBuilder().onMessage(SyncRecentMessages.class, this::onSyncRecentMessages)
+                                  .onMessage(RequestJoin.class, this::onRequestJoin)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessageCommand.class, this::onSendMessage)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .build();
     }
 
+    private Behavior<ChatChannelEntityCommand> onSyncRecentMessages(SyncRecentMessages command) {
+        this.messages.syncMessages(command.messages());
+
+        return this;
+    }
+
     private Behavior<ChatChannelEntityCommand> onRequestJoin(RequestJoin command) {
         command.replyTo()
-                .tell(
-                        new CreateReader(
-                                messages.deepCopy(),
-                                command.clientRef(),
-                                channelId,
-                                command.userId(),
-                                getContext().getSelf()
-                        )
-                );
+               .tell(
+                       new CreateReader(
+                               messages.deepCopy(),
+                               command.clientRef(),
+                               channelId,
+                               command.userId(),
+                               getContext().getSelf()
+                       )
+               );
 
         return this;
     }

@@ -5,6 +5,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
@@ -23,11 +24,17 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -54,6 +61,8 @@ class ChatChannelEntityTest {
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
@@ -92,6 +101,8 @@ class ChatChannelEntityTest {
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
@@ -117,6 +128,8 @@ class ChatChannelEntityTest {
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
@@ -150,6 +163,8 @@ class ChatChannelEntityTest {
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
@@ -206,6 +221,8 @@ class ChatChannelEntityTest {
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
@@ -239,6 +256,8 @@ class ChatChannelEntityTest {
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
@@ -294,6 +313,8 @@ class ChatChannelEntityTest {
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
@@ -354,6 +375,8 @@ class ChatChannelEntityTest {
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
@@ -388,4 +411,70 @@ class ChatChannelEntityTest {
                 () -> verify(messageStoragePort).store(any(ChatMessage.class))
         );
     }
+
+    @Test
+    void SyncRecentMessages_메시지를_받으면_messages를_동기화한다() {
+        // given
+        Long channelId = 1L;
+        ChatMessages messages = new ChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
+        ActorRef<ChatChannelEntityCommand> channelEntity =
+                testKit.spawn(ChatChannelEntity.create(
+                        channelId,
+                        messages,
+                        messageStoragePort,
+                        sequenceGenerator
+                ));
+
+        List<ChatMessage> recentMessages = List.of(
+                ChatMessage.create(channelId, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 10, 0, 0)),
+                ChatMessage.create(channelId, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 10, 0, 1))
+        );
+
+        // when
+        channelEntity.tell(new SyncRecentMessages(recentMessages));
+
+        // then
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+
+        TestProbe<NodeManagerActorCommand> nodeManagerProbe = testKit.createTestProbe();
+        TestProbe<ClientSessionCommand> clientProbe = testKit.createTestProbe();
+
+        channelEntity.tell(new RequestJoin(100L, clientProbe.ref(), nodeManagerProbe.ref()));
+
+        CreateReader createReader = nodeManagerProbe.expectMessageClass(CreateReader.class);
+        assertAll(
+                () -> assertThat(createReader.messages().getRecentMessages(10)).hasSize(2),
+                () -> assertThat(createReader.messages().getRecentMessages(10)).extracting(ChatMessage::message)
+                                                                               .containsExactly("Message 2", "Message 1")
+        );
+    }
+
+    @Test
+    void 생성_시_findRecentMessages를_호출한다() {
+        // given
+        Long channelId = 1L;
+        ChatMessages messages = new ChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
+        // when
+        testKit.spawn(ChatChannelEntity.create(
+                channelId,
+                messages,
+                messageStoragePort,
+                sequenceGenerator
+        ));
+
+        // then
+        verify(messageStoragePort, timeout(1000)).findRecentMessages(eq(channelId), eq(50), any());
+    }
+
 }

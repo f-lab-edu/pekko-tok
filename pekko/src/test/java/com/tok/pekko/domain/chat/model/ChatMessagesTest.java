@@ -271,8 +271,7 @@ class ChatMessagesTest {
                 () -> assertThat(result).hasSize(100),
                 () -> assertThat(result.get(0).messageSequence()).isEqualTo(105L),
                 () -> assertThat(result.get(99).messageSequence()).isEqualTo(6L),
-                () -> assertThat(result)
-                        .noneMatch(msg -> msg.messageSequence() < 6L)
+                () -> assertThat(result).noneMatch(msg -> msg.messageSequence() < 6L)
         );
     }
 }
