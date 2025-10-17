@@ -1,0 +1,43 @@
+package com.tok.pekko.infrastructure.persistence;
+
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.infrastructure.persistence.event.LoadedHistoryEvent;
+import com.tok.pekko.infrastructure.persistence.event.StoredEvent;
+import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import lombok.RequiredArgsConstructor;
+import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.actor.typed.ActorSystem;
+import org.apache.pekko.actor.typed.eventstream.EventStream;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class MessageStorageAdapter implements MessageStoragePort {
+
+    private final ObjectProvider<ActorSystem<?>> actorSystemProvider;
+
+    @Override
+    public void store(ChatMessage message) {
+        actorSystemProvider.getObject()
+                           .eventStream()
+                           .tell(new EventStream.Publish<>(new StoredEvent(message)));
+    }
+
+    @Override
+    public void findHistory(
+            Long channelId,
+            long messageSequence,
+            int size,
+            ActorRef<ChatChannelReaderCommand> replyTo
+    ) {
+        actorSystemProvider.getObject()
+                           .eventStream()
+                           .tell(
+                                   new EventStream.Publish<>(
+                                           new LoadedHistoryEvent(channelId, messageSequence, size, replyTo)
+                                   )
+                           );
+    }
+}
