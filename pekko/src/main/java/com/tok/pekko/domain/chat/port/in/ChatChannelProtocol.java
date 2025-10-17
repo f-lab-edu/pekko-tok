@@ -14,5 +14,5 @@ public interface ChatChannelProtocol {
     record RequestJoin(Long userId, ActorRef<ClientSessionCommand> clientRef, ActorRef<NodeManagerActorCommand> replyTo) implements ChatChannelEntityCommand { }
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessageCommand(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
-    record RemoveReaderSession(Long userId) implements ChatChannelEntityCommand { }
+    record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
 }

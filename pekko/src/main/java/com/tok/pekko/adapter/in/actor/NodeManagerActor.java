@@ -6,7 +6,7 @@ import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveReaderSession;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -145,7 +145,7 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
 
         EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(channelId);
 
-        chatChannelEntityRef.tell(new RemoveReaderSession(userId));
+        chatChannelEntityRef.tell(new RemoveShutdownReader(userId));
     }
 
     private EntityRef<ChatChannelEntityCommand> findChatChannelEntityRef(Long channelId) {

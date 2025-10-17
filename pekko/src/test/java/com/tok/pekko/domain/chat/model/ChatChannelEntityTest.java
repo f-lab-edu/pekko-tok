@@ -2,7 +2,7 @@ package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveReaderSession;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -220,7 +220,7 @@ class ChatChannelEntityTest {
         channelEntity.tell(new RegisterReader(userId, readerProbe.ref()));
 
         // when
-        channelEntity.tell(new RemoveReaderSession(userId));
+        channelEntity.tell(new RemoveShutdownReader(userId));
 
         Long senderId = 200L;
         String messageContent = "Test message";

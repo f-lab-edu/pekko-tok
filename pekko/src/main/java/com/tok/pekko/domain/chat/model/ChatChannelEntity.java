@@ -2,7 +2,7 @@ package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveReaderSession;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -71,7 +71,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         return newReceiveBuilder().onMessage(RequestJoin.class, this::onRequestJoin)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessageCommand.class, this::onSendMessage)
-                                  .onMessage(RemoveReaderSession.class, this::onRemoveReaderSession)
+                                  .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .build();
     }
 
@@ -102,14 +102,8 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private Behavior<ChatChannelEntityCommand> onSendMessage(SendMessageCommand command) {
-        long messageSequence = sequenceGenerator.getNextSequence();
-        ChatMessage message = ChatMessage.create(
-                channelId,
-                command.userId(),
-                messageSequence,
-                command.message(),
-                command.timestamp()
-        );
+        ChatMessage message = createChatMessage(command);
+
         messages.add(message);
         messageStoragePort.store(message);
         readers.values()
@@ -118,11 +112,23 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         return this;
     }
 
-    private Behavior<ChatChannelEntityCommand> onRemoveReaderSession(RemoveReaderSession command) {
+    private Behavior<ChatChannelEntityCommand> onRemoveShutdownReader(RemoveShutdownReader command) {
         ChannelReaderKey channelReaderKey = new ChannelReaderKey(command.userId());
 
         readers.remove(channelReaderKey);
 
         return this;
+    }
+
+    private ChatMessage createChatMessage(SendMessageCommand command) {
+        long messageSequence = sequenceGenerator.getNextSequence();
+
+        return ChatMessage.create(
+                channelId,
+                command.userId(),
+                messageSequence,
+                command.message(),
+                command.timestamp()
+        );
     }
 }
