@@ -1,16 +1,5 @@
 package com.tok.pekko.domain.chat.model;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
@@ -21,10 +10,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCom
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -32,22 +17,29 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ChatChannelReaderActorTest {
 
     private static final ActorTestKit testKit = ActorTestKit.create();
-
-    @Mock
-    private ChatMessages mockMessages;
-
-    @Mock
-    private MessageStoragePort mockMessageStoragePort;
 
     @AfterAll
     static void tearDown() {
@@ -57,6 +49,8 @@ class ChatChannelReaderActorTest {
     @Test
     void SyncNewCommand_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_ClientSessionActor에_전달한다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -86,6 +80,8 @@ class ChatChannelReaderActorTest {
     @Test
     void LoadHistory_메시지를_받으면_메모리에_있는_메시지를_조회해_ClientSessionActor에_전달한다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -123,6 +119,8 @@ class ChatChannelReaderActorTest {
     @Test
     void LoadHistory_메시지를_받았을_때_메모리가_비어있으면_Storage에_조회를_요청한다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -167,6 +165,8 @@ class ChatChannelReaderActorTest {
     @Test
     void LoadHistory_메시지를_받았을_때_메모리와_Storage_모두_비어있으면_빈_리스트를_전달한다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -203,6 +203,8 @@ class ChatChannelReaderActorTest {
     @Test
     void ReceiveHistory_메시지를_받으면_ClientSessionActor에_히스토리를_전달한다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -230,6 +232,8 @@ class ChatChannelReaderActorTest {
     @Test
     void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown을_전달하고_ChatChannelReaderActor가_종료된다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
@@ -251,6 +255,8 @@ class ChatChannelReaderActorTest {
     @Test
     void LoadHistory_메모리에_일부만_있을_때_Storage를_조회하지_않는다() {
         // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
                 ChatChannelReaderActor.create(1L, mockMessages, mockMessageStoragePort, clientSessionProbe.ref())
