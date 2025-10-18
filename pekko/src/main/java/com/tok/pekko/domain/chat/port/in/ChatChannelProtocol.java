@@ -13,9 +13,10 @@ public interface ChatChannelProtocol {
 
     interface ChatChannelEntityCommand extends CborSerializable { }
 
+    record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
     record RequestJoin(Long userId, ActorRef<ClientSessionCommand> clientRef, ActorRef<NodeManagerActorCommand> replyTo) implements ChatChannelEntityCommand { }
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessageCommand(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
+    record SyncPersistedMessage(ChatMessage message) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
-    record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
 }

@@ -2,6 +2,7 @@ package com.tok.pekko.infrastructure.persistence.actor;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
@@ -53,7 +54,7 @@ class MessageStorageActorTest {
     }
 
     @Test
-    void Store_메시지를_받으면_MessageRepository에_메시지_저장을_요청한다() {
+    void Store_메시지를_받으면_MessageRepository에_메시지_저장을_요청하고_replyTo에_SyncPersistedMessage를_전송한다() {
         // given
         MessageRepository mockMessageRepository = mock(MessageRepository.class);
         ActorRef<MessageStoreCommand> messageStorageActor = testKit.spawn(
@@ -67,12 +68,30 @@ class MessageStorageActorTest {
                 "Test Message",
                 LocalDateTime.of(2025, 10, 17, 15, 0, 0)
         );
+        ChatMessage persistedMessage = new ChatMessage(
+                1L,
+                5L,
+                100L,
+                1L,
+                "Test Message",
+                LocalDateTime.of(2025, 10, 17, 15, 0, 0)
+        );
+
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+
+        given(mockMessageRepository.save(message)).willReturn(persistedMessage);
 
         // when
-        messageStorageActor.tell(new Store(message));
+        messageStorageActor.tell(new Store(message, replyProbe.ref()));
 
         // then
         verify(mockMessageRepository, timeout(1000)).save(message);
+
+        SyncPersistedMessage syncPersistedMessage = replyProbe.expectMessageClass(
+                SyncPersistedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncPersistedMessage.message()).isEqualTo(persistedMessage);
     }
 
     @Test
@@ -180,7 +199,7 @@ class MessageStorageActorTest {
     }
 
     @Test
-    void 여러_Store_메시지를_연속으로_받으면_모두_MessageRepository에_저장한다() {
+    void 여러_Store_메시지를_연속으로_받으면_모두_MessageRepository에_저장하고_각각_replyTo에_SyncPersistedMessage를_전송한다() {
         // given
         MessageRepository mockMessageRepository = mock(MessageRepository.class);
         ActorRef<MessageStoreCommand> messageStorageActor = testKit.spawn(
@@ -191,10 +210,22 @@ class MessageStorageActorTest {
         ChatMessage message2 = ChatMessage.create(4L, 401L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 17, 0, 1));
         ChatMessage message3 = ChatMessage.create(4L, 402L, 3L, "Message 3", LocalDateTime.of(2025, 10, 17, 17, 0, 2));
 
+        ChatMessage persistedMessage1 = new ChatMessage(4L, 10L, 400L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 17, 0, 0));
+        ChatMessage persistedMessage2 = new ChatMessage(4L, 11L, 401L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 17, 0, 1));
+        ChatMessage persistedMessage3 = new ChatMessage(4L, 12L, 402L, 3L, "Message 3", LocalDateTime.of(2025, 10, 17, 17, 0, 2));
+
+        TestProbe<ChatChannelEntityCommand> reply1Probe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelEntityCommand> reply2Probe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelEntityCommand> reply3Probe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+
+        given(mockMessageRepository.save(message1)).willReturn(persistedMessage1);
+        given(mockMessageRepository.save(message2)).willReturn(persistedMessage2);
+        given(mockMessageRepository.save(message3)).willReturn(persistedMessage3);
+
         // when
-        messageStorageActor.tell(new Store(message1));
-        messageStorageActor.tell(new Store(message2));
-        messageStorageActor.tell(new Store(message3));
+        messageStorageActor.tell(new Store(message1, reply1Probe.ref()));
+        messageStorageActor.tell(new Store(message2, reply2Probe.ref()));
+        messageStorageActor.tell(new Store(message3, reply3Probe.ref()));
 
         // then
         assertAll(
@@ -202,6 +233,24 @@ class MessageStorageActorTest {
                 () -> verify(mockMessageRepository, timeout(1000)).save(message2),
                 () -> verify(mockMessageRepository, timeout(1000)).save(message3)
         );
+
+        SyncPersistedMessage syncPersistedMessage1 = reply1Probe.expectMessageClass(
+                SyncPersistedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncPersistedMessage1.message()).isEqualTo(persistedMessage1);
+
+        SyncPersistedMessage syncPersistedMessage2 = reply2Probe.expectMessageClass(
+                SyncPersistedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncPersistedMessage2.message()).isEqualTo(persistedMessage2);
+
+        SyncPersistedMessage syncPersistedMessage3 = reply3Probe.expectMessageClass(
+                SyncPersistedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncPersistedMessage3.message()).isEqualTo(persistedMessage3);
     }
 
     @Test

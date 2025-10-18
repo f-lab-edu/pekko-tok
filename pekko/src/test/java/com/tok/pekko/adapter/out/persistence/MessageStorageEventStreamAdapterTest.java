@@ -52,9 +52,10 @@ class MessageStorageEventStreamAdapterTest {
                 "Test Message",
                 LocalDateTime.of(2025, 10, 17, 17, 0, 0)
         );
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
         // when
-        messageStorageEventStreamAdapter.store(message);
+        messageStorageEventStreamAdapter.store(message, replyProbe.ref());
 
         // then
         StoredEvent storedEvent = eventProbe.expectMessageClass(
@@ -65,7 +66,8 @@ class MessageStorageEventStreamAdapterTest {
                 () -> assertThat(storedEvent.message()).isEqualTo(message),
                 () -> assertThat(storedEvent.message().channelId()).isEqualTo(1L),
                 () -> assertThat(storedEvent.message().userId()).isEqualTo(100L),
-                () -> assertThat(storedEvent.message().message()).isEqualTo("Test Message")
+                () -> assertThat(storedEvent.message().message()).isEqualTo("Test Message"),
+                () -> assertThat(storedEvent.replyTo()).isEqualTo(replyProbe.ref())
         );
     }
 

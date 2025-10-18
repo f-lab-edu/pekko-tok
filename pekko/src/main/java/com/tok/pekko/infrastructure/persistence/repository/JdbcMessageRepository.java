@@ -8,8 +8,9 @@ import org.springframework.stereotype.Component;
 public class JdbcMessageRepository implements MessageRepository {
 
     @Override
-    public void save(ChatMessage chatMessage) {
+    public ChatMessage save(ChatMessage chatMessage) {
         // NO-OP
+        return chatMessage;
     }
 
     @Override

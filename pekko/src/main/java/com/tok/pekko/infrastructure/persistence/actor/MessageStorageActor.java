@@ -2,6 +2,7 @@ package com.tok.pekko.infrastructure.persistence.actor;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
 import com.tok.pekko.infrastructure.persistence.event.LoadedHistoryEvent;
@@ -43,7 +44,7 @@ public class MessageStorageActor extends AbstractBehavior<MessageStoreCommand> {
     private static void subscribeStoreEvent(ActorContext<MessageStoreCommand> context) {
         ActorRef<StoredEvent> storedEventAdapter = context.messageAdapter(
                 StoredEvent.class,
-                event -> new Store(event.message())
+                event -> new Store(event.message(), event.replyTo())
         );
 
         context.getSystem()
@@ -90,7 +91,10 @@ public class MessageStorageActor extends AbstractBehavior<MessageStoreCommand> {
     }
 
     private Behavior<MessageStoreCommand> onStore(Store command) {
-        messageRepository.save(command.message());
+        ChatMessage persistedMessage = messageRepository.save(command.message());
+
+        command.replyTo()
+               .tell(new SyncPersistedMessage(persistedMessage));
 
         return this;
     }
@@ -119,9 +123,22 @@ public class MessageStorageActor extends AbstractBehavior<MessageStoreCommand> {
         return this;
     }
 
-    public interface MessageStoreCommand extends CborSerializable { }
+    public interface MessageStoreCommand extends CborSerializable {
 
-    public record Store(ChatMessage message) implements MessageStoreCommand { }
-    public record FetchHistory(Long channelId, long messageSequence, int size, ActorRef<ChatChannelReaderCommand> replyTo) implements MessageStoreCommand { }
-    public record FetchRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo) implements MessageStoreCommand { }
+    }
+
+    public record Store(ChatMessage message, ActorRef<ChatChannelEntityCommand> replyTo) implements
+            MessageStoreCommand {
+
+    }
+
+    public record FetchHistory(Long channelId, long messageSequence, int size,
+                               ActorRef<ChatChannelReaderCommand> replyTo) implements MessageStoreCommand {
+
+    }
+
+    public record FetchRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo) implements
+            MessageStoreCommand {
+
+    }
 }

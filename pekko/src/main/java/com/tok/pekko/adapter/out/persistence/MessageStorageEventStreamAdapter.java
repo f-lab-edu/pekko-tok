@@ -21,10 +21,10 @@ public class MessageStorageEventStreamAdapter implements MessageStoragePort {
     private final ObjectProvider<ActorSystem<?>> actorSystemProvider;
 
     @Override
-    public void store(ChatMessage message) {
+    public void store(ChatMessage message, ActorRef<ChatChannelEntityCommand> replyTo) {
         actorSystemProvider.getObject()
                            .eventStream()
-                           .tell(new EventStream.Publish<>(new StoredEvent(message)));
+                           .tell(new EventStream.Publish<>(new StoredEvent(message, replyTo)));
     }
 
     @Override

@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface MessageRepository {
 
-    void save(ChatMessage chatMessage);
+    ChatMessage save(ChatMessage chatMessage);
 
     List<ChatMessage> findHistory(Long channelId, long messageSequence, int size);
 

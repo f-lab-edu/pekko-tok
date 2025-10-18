@@ -5,6 +5,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
@@ -78,6 +79,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                                   .onMessage(RequestJoin.class, this::onRequestJoin)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessageCommand.class, this::onSendMessage)
+                                  .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .build();
     }
@@ -117,10 +119,15 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private Behavior<ChatChannelEntityCommand> onSendMessage(SendMessageCommand command) {
         ChatMessage message = createChatMessage(command);
 
-        messages.add(message);
-        messageStoragePort.store(message);
+        messageStoragePort.store(message, getContext().getSelf());
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onSyncPersistedMessage(SyncPersistedMessage command) {
+        messages.add(command.message());
         readers.values()
-               .forEach(reader -> reader.tell(new SyncNewCommand(message)));
+               .forEach(reader -> reader.tell(new SyncNewCommand(command.message())));
 
         return this;
     }

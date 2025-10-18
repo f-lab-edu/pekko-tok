@@ -7,7 +7,7 @@ import org.apache.pekko.actor.typed.ActorRef;
 
 public interface MessageStoragePort {
 
-    void store(ChatMessage message);
+    void store(ChatMessage message, ActorRef<ChatChannelEntityCommand> replyTo);
 
     void findHistory(
             Long channelId,
