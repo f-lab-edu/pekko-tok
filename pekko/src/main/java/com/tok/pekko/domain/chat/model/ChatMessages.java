@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
+import com.tok.pekko.common.ActorThreadSafe;
 import java.util.List;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -22,6 +23,7 @@ public class ChatMessages {
         return copy;
     }
 
+    @ActorThreadSafe
     public void add(ChatMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("메시지는 null 일 수 없습니다.");
@@ -34,6 +36,7 @@ public class ChatMessages {
         }
     }
 
+    @ActorThreadSafe
     public void syncMessages(List<ChatMessage> newMessages) {
         if (newMessages == null) {
             throw new IllegalArgumentException("메시지는 null 일 수 없습니다.");
@@ -56,6 +59,7 @@ public class ChatMessages {
         messages.addAll(allMessages);
     }
 
+    @ActorThreadSafe
     public List<ChatMessage> getHistory(long beforeMessageSequence, int size) {
         validateSize(size);
 
@@ -65,6 +69,7 @@ public class ChatMessages {
                        .toList();
     }
 
+    @ActorThreadSafe
     public List<ChatMessage> getRecentMessages(int size) {
         validateSize(size);
 
@@ -73,6 +78,7 @@ public class ChatMessages {
                        .toList();
     }
 
+    @ActorThreadSafe
     public List<ChatMessage> getMessagesAfter(long afterMessageSequence) {
         return messages.stream()
                        .filter(message -> message.messageSequence() > afterMessageSequence)
