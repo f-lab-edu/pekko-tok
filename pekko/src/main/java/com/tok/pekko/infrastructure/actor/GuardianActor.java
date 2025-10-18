@@ -1,6 +1,7 @@
 package com.tok.pekko.infrastructure.actor;
 
 import com.tok.pekko.adapter.in.actor.NodeManagerActor;
+import com.tok.pekko.common.CborSerializable;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor;

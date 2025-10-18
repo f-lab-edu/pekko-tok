@@ -1,6 +1,6 @@
 package com.tok.pekko.infrastructure.persistence.event;
 
-import com.tok.pekko.domain.chat.common.ActorCommand;
+import com.tok.pekko.common.CborSerializable;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import org.apache.pekko.actor.typed.ActorRef;
 
@@ -9,5 +9,5 @@ public record LoadedHistoryEvent(
         long messageSequence,
         int size,
         ActorRef<ChatChannelReaderCommand> replyTo
-) implements ActorCommand {
+) implements CborSerializable {
 }

@@ -8,7 +8,7 @@ import com.tok.pekko.infrastructure.persistence.event.LoadedHistoryEvent;
 import com.tok.pekko.infrastructure.persistence.event.LoadedRecentMessagesEvent;
 import com.tok.pekko.infrastructure.persistence.event.StoredEvent;
 import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.infrastructure.actor.CborSerializable;
+import com.tok.pekko.common.CborSerializable;
 import com.tok.pekko.infrastructure.persistence.actor.MessageStorageActor.MessageStoreCommand;
 import com.tok.pekko.infrastructure.persistence.repository.MessageRepository;
 import java.util.List;
