@@ -1,4 +1,4 @@
-package com.tok.pekko.adapter.in.event;
+package com.tok.pekko.infrastructure.persistence.event;
 
 import com.tok.pekko.common.CborSerializable;
 

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.Mockito.mock;
 
-import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
+import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;

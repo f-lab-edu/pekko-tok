@@ -1,4 +1,4 @@
-package com.tok.pekko.infrastructure.persistence;
+package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class MessageStorageAdapterTest {
+class MessageStorageEventStreamAdapterTest {
 
     private static ActorTestKit testKit;
 
@@ -43,7 +43,7 @@ class MessageStorageAdapterTest {
     void EventStream에_StoredEvent_메시지를_발행한다() {
         // given
         TestProbe<StoredEvent> eventProbe = createStoredEventProbe();
-        MessageStorageAdapter messageStorageAdapter = createMessageStorageAdapter();
+        MessageStorageEventStreamAdapter messageStorageEventStreamAdapter = createMessageStorageAdapter();
 
         ChatMessage message = ChatMessage.create(
                 1L,
@@ -54,7 +54,7 @@ class MessageStorageAdapterTest {
         );
 
         // when
-        messageStorageAdapter.store(message);
+        messageStorageEventStreamAdapter.store(message);
 
         // then
         StoredEvent storedEvent = eventProbe.expectMessageClass(
@@ -73,7 +73,7 @@ class MessageStorageAdapterTest {
     void EventStream에_LoadedHistoryEvent_메시지를_발행한다() {
         // given
         TestProbe<LoadedHistoryEvent> eventProbe = createLoadedHistoryEventProbe();
-        MessageStorageAdapter messageStorageAdapter = createMessageStorageAdapter();
+        MessageStorageEventStreamAdapter messageStorageEventStreamAdapter = createMessageStorageAdapter();
 
         Long channelId = 2L;
         long messageSequence = 10L;
@@ -81,7 +81,7 @@ class MessageStorageAdapterTest {
         TestProbe<ChatChannelReaderCommand> replyProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
 
         // when
-        messageStorageAdapter.findHistory(channelId, messageSequence, size, replyProbe.ref());
+        messageStorageEventStreamAdapter.findHistory(channelId, messageSequence, size, replyProbe.ref());
 
         // then
         LoadedHistoryEvent loadedHistoryEvent = eventProbe.expectMessageClass(
@@ -100,14 +100,14 @@ class MessageStorageAdapterTest {
     void EventStream에_LoadedRecentMessagesEvent_메시지를_발행한다() {
         // given
         TestProbe<LoadedRecentMessagesEvent> eventProbe = createLoadedRecentMessagesEventProbe();
-        MessageStorageAdapter messageStorageAdapter = createMessageStorageAdapter();
+        MessageStorageEventStreamAdapter messageStorageEventStreamAdapter = createMessageStorageAdapter();
 
         Long channelId = 3L;
         int size = 50;
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
         // when
-        messageStorageAdapter.findRecentMessages(channelId, size, replyProbe.ref());
+        messageStorageEventStreamAdapter.findRecentMessages(channelId, size, replyProbe.ref());
 
         // then
         LoadedRecentMessagesEvent loadedRecentMessagesEvent = eventProbe.expectMessageClass(
@@ -121,7 +121,7 @@ class MessageStorageAdapterTest {
         );
     }
 
-    private MessageStorageAdapter createMessageStorageAdapter() {
+    private MessageStorageEventStreamAdapter createMessageStorageAdapter() {
 
         ObjectProvider<ActorSystem<?>> actorSystemProvider = new ObjectProvider<>() {
             @Override
@@ -145,7 +145,7 @@ class MessageStorageAdapterTest {
             }
         };
 
-        return new MessageStorageAdapter(actorSystemProvider);
+        return new MessageStorageEventStreamAdapter(actorSystemProvider);
     }
 
     private TestProbe<StoredEvent> createStoredEventProbe() {

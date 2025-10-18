@@ -1,4 +1,4 @@
-package com.tok.pekko.infrastructure.persistence;
+package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class MessageStorageAdapter implements MessageStoragePort {
+public class MessageStorageEventStreamAdapter implements MessageStoragePort {
 
     private final ObjectProvider<ActorSystem<?>> actorSystemProvider;
 

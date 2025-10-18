@@ -1,8 +1,9 @@
 package com.tok.pekko.adapter.in.actor;
 
-import com.tok.pekko.adapter.in.event.RegisteredEvent;
-import com.tok.pekko.adapter.in.event.ShutdownEvent;
-import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
+import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
+import com.tok.pekko.infrastructure.persistence.event.RegisteredEvent;
+import com.tok.pekko.infrastructure.persistence.event.ShutdownEvent;
+import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;

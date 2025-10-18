@@ -1,7 +1,6 @@
-package com.tok.pekko.adapter.out.persistence;
+package com.tok.pekko.infrastructure.persistence.repository;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.infrastructure.persistence.repository.MessageRepository;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

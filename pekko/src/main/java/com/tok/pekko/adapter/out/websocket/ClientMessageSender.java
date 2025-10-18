@@ -1,4 +1,4 @@
-package com.tok.pekko.adapter.in.websocket;
+package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import java.util.List;

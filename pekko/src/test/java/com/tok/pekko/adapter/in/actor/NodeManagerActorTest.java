@@ -1,6 +1,6 @@
 package com.tok.pekko.adapter.in.actor;
 
-import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
+import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.model.ChatMessages;

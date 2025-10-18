@@ -1,6 +1,5 @@
-package com.tok.pekko.adapter.in.actor;
+package com.tok.pekko.adapter.out.websocket;
 
-import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;

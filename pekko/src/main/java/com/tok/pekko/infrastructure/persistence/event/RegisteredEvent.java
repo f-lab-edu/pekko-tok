@@ -1,6 +1,6 @@
-package com.tok.pekko.adapter.in.event;
+package com.tok.pekko.infrastructure.persistence.event;
 
-import com.tok.pekko.adapter.in.websocket.ClientMessageSender;
+import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.common.CborSerializable;
 
 public record RegisteredEvent(
