@@ -4,7 +4,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessageCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -241,7 +241,7 @@ class ChatChannelEntityTest {
         String messageContent = "Test message";
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
 
-        channelEntity.tell(new SendMessageCommand(senderId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(senderId, messageContent, timestamp));
 
         // then
         readerProbe.expectNoMessage(Duration.ofMillis(200));
@@ -331,7 +331,7 @@ class ChatChannelEntityTest {
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
 
         // when
-        channelEntity.tell(new SendMessageCommand(userId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(userId, messageContent, timestamp));
 
         // then
         verify(messageStoragePort, timeout(1000)).store(any(ChatMessage.class), eq(channelEntity));
@@ -358,7 +358,7 @@ class ChatChannelEntityTest {
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 30, 0);
 
         // when
-        channelEntity.tell(new SendMessageCommand(userId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(userId, messageContent, timestamp));
 
         // then
         verify(messageStoragePort, timeout(1000)).store(

@@ -24,13 +24,12 @@ import org.springframework.core.env.Environment;
 public class ClusterConfig {
 
     private final Environment environment;
-    private final MessageStoragePort messageStoragePort;
 
     @Bean(destroyMethod = "terminate")
     public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(messageStoragePort),
+                GuardianActor.create(),
                 "ChatCluster",
                 config
         );

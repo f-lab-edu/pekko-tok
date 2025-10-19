@@ -13,7 +13,8 @@ public interface MessageStoragePort {
             Long channelId,
             long messageSequence,
             int size,
-            ActorRef<ChatChannelReaderCommand> replyTo
+            ActorRef<ChatChannelEntityCommand> replyTo,
+            ActorRef<ChatChannelReaderCommand> readerRef
     );
 
     void findRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo);

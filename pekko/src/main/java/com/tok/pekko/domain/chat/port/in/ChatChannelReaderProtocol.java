@@ -10,6 +10,6 @@ public interface ChatChannelReaderProtocol {
 
     record SyncNewCommand(ChatMessage message) implements ChatChannelReaderCommand { }
     record RequestHistory(long messageSequence, int size) implements ChatChannelReaderCommand { }
-    record HistoryLoaded(List<ChatMessage> history) implements ChatChannelReaderCommand { }
+    record HistoryFetched(List<ChatMessage> history) implements ChatChannelReaderCommand { }
     record Shutdown() implements ChatChannelReaderCommand { }
 }

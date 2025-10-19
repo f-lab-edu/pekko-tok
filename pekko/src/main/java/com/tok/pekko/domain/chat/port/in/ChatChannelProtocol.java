@@ -16,7 +16,9 @@ public interface ChatChannelProtocol {
     record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
     record RequestJoin(Long userId, ActorRef<ClientSessionCommand> clientRef, ActorRef<NodeManagerActorCommand> replyTo) implements ChatChannelEntityCommand { }
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
-    record SendMessageCommand(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
+    record SendMessage(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
     record SyncPersistedMessage(ChatMessage message) implements ChatChannelEntityCommand { }
+    record FetchHistory(long messageSequence, int size, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
+    record HistoryFound(List<ChatMessage> history, ActorRef<ChatChannelReaderCommand> replyTo) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
 }

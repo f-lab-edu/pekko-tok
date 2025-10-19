@@ -9,7 +9,6 @@ import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
-import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Duration;
@@ -65,11 +64,9 @@ class NodeManagerActorWithClusterTest {
     @Test
     void RegisterSession_메시지를_받으면_ClientSessionActor를_생성하고_ChatChannelEntity에_RequestJoin_메시지를_전송한다() {
         // given
-        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-
         ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                NodeManagerActor.create(mockMessageStoragePort)
+                NodeManagerActor.create()
         );
 
         Long channelId = 1L;

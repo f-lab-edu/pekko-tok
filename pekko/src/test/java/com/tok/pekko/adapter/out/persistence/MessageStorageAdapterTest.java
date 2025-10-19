@@ -2,10 +2,10 @@ package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.HistoryFound;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryLoaded;
 import com.tok.pekko.infrastructure.config.dev.BlockHoundTestInstallUtils;
 import com.tok.pekko.infrastructure.persistence.repository.MessageRepository;
 import java.util.concurrent.CountDownLatch;
@@ -136,9 +136,10 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findHistory_성공_시_replyTo에게_HistoryLoaded_메시지를_전달한다() {
+    void findHistory_성공_시_replyTo에게_HistoryFound_메시지를_전달한다() {
         // given
-        TestProbe<ChatChannelReaderCommand> replyProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
+        TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -154,23 +155,25 @@ class MessageStorageAdapterTest {
         given(messageRepository.findHistory(eq(channelId), eq(messageSequence), eq(size))).willReturn(historyMessages);
 
         // when
-        adapter.findHistory(channelId, messageSequence, size, replyProbe.ref());
+        adapter.findHistory(channelId, messageSequence, size, writerProbe.ref(), readerProbe.ref());
 
         // then
-        HistoryLoaded historyLoaded = replyProbe.expectMessageClass(
-                HistoryLoaded.class,
+        HistoryFound historyFound = writerProbe.expectMessageClass(
+                HistoryFound.class,
                 Duration.ofSeconds(3)
         );
         assertAll(
-                () -> assertThat(historyLoaded.history()).isEqualTo(historyMessages),
-                () -> assertThat(historyLoaded.history()).hasSize(2)
+                () -> assertThat(historyFound.history()).isEqualTo(historyMessages),
+                () -> assertThat(historyFound.history()).hasSize(2),
+                () -> assertThat(historyFound.replyTo()).isEqualTo(readerProbe.ref())
         );
     }
 
     @Test
     void findHistory_실패_시_replyTo에게_메시지를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelReaderCommand> replyProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
+        TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -182,16 +185,17 @@ class MessageStorageAdapterTest {
                 .willThrow(new RuntimeException("Database error"));
 
         // when
-        adapter.findHistory(channelId, messageSequence, size, replyProbe.ref());
+        adapter.findHistory(channelId, messageSequence, size, writerProbe.ref(), readerProbe.ref());
 
         // then
-        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+        writerProbe.expectNoMessage(Duration.ofSeconds(1));
     }
 
     @Test
     void findHistory_null_반환_시_replyTo에게_메시지를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelReaderCommand> replyProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
+        TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -202,10 +206,10 @@ class MessageStorageAdapterTest {
         given(messageRepository.findHistory(anyLong(), anyLong(), anyInt())).willReturn(null);
 
         // when
-        adapter.findHistory(channelId, messageSequence, size, replyProbe.ref());
+        adapter.findHistory(channelId, messageSequence, size, writerProbe.ref(), readerProbe.ref());
 
         // then
-        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+        writerProbe.expectNoMessage(Duration.ofSeconds(1));
     }
 
     @Test
@@ -309,7 +313,8 @@ class MessageStorageAdapterTest {
     @Test
     void findHistory_호출_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
-        TestProbe<ChatChannelReaderCommand> replyProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
+        TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         List<ChatMessage> historyMessages = List.of(
@@ -322,7 +327,7 @@ class MessageStorageAdapterTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> errorHolder = new AtomicReference<>();
 
-        Mono.fromRunnable(() -> adapter.findHistory(1L, 10L, 5, replyProbe.ref()))
+        Mono.fromRunnable(() -> adapter.findHistory(1L, 10L, 5, writerProbe.ref(), readerProbe.ref()))
             .subscribeOn(Schedulers.parallel())
             .doFinally(ignored -> latch.countDown())
             .subscribe(null, errorHolder::set);
@@ -332,7 +337,7 @@ class MessageStorageAdapterTest {
         // then
         assertAll(
                 () -> assertThat(errorHolder.get()).isNull(),
-                () -> replyProbe.expectMessageClass(HistoryLoaded.class, Duration.ofSeconds(1))
+                () -> writerProbe.expectMessageClass(HistoryFound.class, Duration.ofSeconds(1))
         );
     }
 

@@ -79,9 +79,8 @@ class NodeManagerActorTest {
 
         try {
             // given
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
@@ -109,9 +108,8 @@ class NodeManagerActorTest {
             // given
             TestProbe<ChatChannelEntityCommand> entityProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
@@ -151,9 +149,8 @@ class NodeManagerActorTest {
             // given
             TestProbe<ChatChannelEntityCommand> entityProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
@@ -193,9 +190,8 @@ class NodeManagerActorTest {
 
         try {
             // given
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<Void> terminationProbe = testKit.createTestProbe();
@@ -223,9 +219,8 @@ class NodeManagerActorTest {
             // given
             TestProbe<ChatChannelEntityCommand> entityProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<ClientSessionCommand> clientSession1Probe = testKit.createTestProbe(ClientSessionCommand.class);
@@ -280,9 +275,8 @@ class NodeManagerActorTest {
             // given
             TestProbe<ChatChannelEntityCommand> entityProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<ClientSessionCommand> clientSession1Probe = testKit.createTestProbe(ClientSessionCommand.class);
@@ -320,9 +314,8 @@ class NodeManagerActorTest {
             // given
             TestProbe<ChatChannelEntityCommand> entityProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
 
-            MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
             ActorRef<NodeManagerActorCommand> nodeManagerActor = testKit.spawn(
-                    NodeManagerActor.create(mockMessageStoragePort)
+                    NodeManagerActor.create()
             );
 
             TestProbe<ClientSessionCommand> clientSession1Probe = testKit.createTestProbe(ClientSessionCommand.class);

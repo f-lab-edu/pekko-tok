@@ -15,7 +15,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
 import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
-import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -31,17 +30,16 @@ import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> {
 
     private final ClusterSharding clusterSharding;
-    private final MessageStoragePort messageStoragePort;
     private final Map<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders;
 
-    public static Behavior<NodeManagerActorCommand> create(MessageStoragePort messageStoragePort) {
+    public static Behavior<NodeManagerActorCommand> create() {
         return Behaviors.setup(context -> {
             ClusterSharding clusterSharding = ClusterSharding.get(context.getSystem());
             Map<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders = new HashMap<>();
 
             subscribeEventStream(context);
 
-            return new NodeManagerActor(context, clusterSharding, messageStoragePort, localChatChannelReaders);
+            return new NodeManagerActor(context, clusterSharding, localChatChannelReaders);
         });
     }
 
@@ -75,13 +73,11 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
     private NodeManagerActor(
             ActorContext<NodeManagerActorCommand> context,
             ClusterSharding clusterSharding,
-            MessageStoragePort messageStoragePort,
             Map<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders
     ) {
         super(context);
 
         this.clusterSharding = clusterSharding;
-        this.messageStoragePort = messageStoragePort;
         this.localChatChannelReaders = localChatChannelReaders;
     }
 
@@ -150,7 +146,6 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
                 ChatChannelReaderActor.create(
                         command.channelId(),
                         command.messages(),
-                        messageStoragePort,
                         command.clientActorRef()
                 ),
                 "chat-channel-reader-" + System.nanoTime() + command.channelId() + ":" + command.userId()
