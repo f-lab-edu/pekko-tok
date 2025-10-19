@@ -1,7 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryFetched;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
@@ -27,7 +26,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +81,7 @@ class ChatChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
         );
 
         ChatMessage newMessage = ChatMessage.create(
@@ -108,12 +106,12 @@ class ChatChannelReaderActorTest {
     }
 
     @Test
-    void RequestHistory_메시지를_받으면_메모리에_있는_메시지를_조회해_ClientSessionActor에_전달한다() {
+    void RequestHistory_메시지를_받으면_관리하고_있는_채팅_메시지를_조회해_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -143,12 +141,12 @@ class ChatChannelReaderActorTest {
     }
 
     @Test
-    void RequestHistory_메시지를_받았을_때_메모리가_비어있으면_Entity에_FetchHistory를_요청하고_ClientSession에는_전달하지_않는다() {
+    void RequestHistory_메시지를_받았을_때_관리하고_있는_채팅_메시지가_비어있으면_빈_리스트를_ClientSession에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(2L, mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -160,114 +158,21 @@ class ChatChannelReaderActorTest {
 
         // then
         verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
-        clientSessionProbe.expectNoMessage(Duration.ofMillis(500));
-    }
-
-    @Test
-    void RequestHistory_메모리가_비어있을_때_Entity에서_HistoryFetched를_받으면_ClientSessionActor에_히스토리를_전달한다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(3L, mockMessages, clientSessionProbe.ref())
-        );
-
-        long messageSequence = 10L;
-        int size = 5;
-        List<ChatMessage> storageMessages = Arrays.asList(
-                new ChatMessage(3L, 5L, 3001L, 5L, "Storage Message 5", LocalDateTime.now()),
-                new ChatMessage(3L, 6L, 3002L, 6L, "Storage Message 6", LocalDateTime.now())
-        );
-
-        given(mockMessages.getHistory(messageSequence, size)).willReturn(List.of());
-
-        // when
-        readerActor.tell(new RequestHistory(messageSequence, size));
-
-        // then
-        verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
-        clientSessionProbe.expectNoMessage(Duration.ofMillis(500));
-
-        readerActor.tell(new HistoryFetched(storageMessages));
 
         DeliverHistory deliveredHistory = clientSessionProbe.expectMessageClass(
                 DeliverHistory.class,
                 Duration.ofSeconds(3)
         );
-        assertAll(
-                () -> assertThat(deliveredHistory.messages()).hasSize(2),
-                () -> assertThat(deliveredHistory.messages()).isEqualTo(storageMessages)
-        );
+        assertThat(deliveredHistory.messages()).isEmpty();
     }
 
     @Test
-    void RequestHistory_메모리에_일부만_있을_때_ClientSession에_전달하고_Entity를_조회하지_않는다() {
+    void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown_메시지를_전달하고_ChatChannelReaderActor가_종료된다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(6L, mockMessages, clientSessionProbe.ref())
-        );
-
-        long messageSequence = 200L;
-        int size = 50;
-        List<ChatMessage> partialMessages = Arrays.asList(
-                new ChatMessage(6L, 195L, 7001L, 195L, "Partial 1", LocalDateTime.now()),
-                new ChatMessage(6L, 196L, 7002L, 196L, "Partial 2", LocalDateTime.now())
-        );
-        given(mockMessages.getHistory(messageSequence, size)).willReturn(partialMessages);
-
-        // when
-        readerActor.tell(new RequestHistory(messageSequence, size));
-
-        // then
-        verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
-
-        DeliverHistory deliveredHistory = clientSessionProbe.expectMessageClass(
-                DeliverHistory.class,
-                Duration.ofSeconds(3)
-        );
-        assertAll(
-                () -> assertThat(deliveredHistory.messages()).hasSize(2),
-                () -> assertThat(deliveredHistory.messages()).isEqualTo(partialMessages)
-        );
-    }
-
-    @Test
-    void HistoryFetched_메시지를_받으면_ClientSessionActor에_히스토리를_전달한다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(4L, mockMessages, clientSessionProbe.ref())
-        );
-
-        List<ChatMessage> storageMessages = Arrays.asList(
-                new ChatMessage(4L, 10L, 9001L, 10L, "Message 10", LocalDateTime.now()),
-                new ChatMessage(4L, 11L, 9002L, 11L, "Message 11", LocalDateTime.now())
-        );
-
-        // when
-        readerActor.tell(new HistoryFetched(storageMessages));
-
-        // then
-        DeliverHistory deliveredHistory = clientSessionProbe.expectMessageClass(
-                DeliverHistory.class,
-                Duration.ofSeconds(3)
-        );
-        assertAll(
-                () -> assertThat(deliveredHistory.messages()).hasSize(2),
-                () -> assertThat(deliveredHistory.messages()).isEqualTo(storageMessages)
-        );
-    }
-
-    @Test
-    void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown을_전달하고_ChatChannelReaderActor가_종료된다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(5L, mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
         );
 
         // when
@@ -281,38 +186,5 @@ class ChatChannelReaderActorTest {
 
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
         terminationProbe.expectTerminated(readerActor, Duration.ofSeconds(3));
-    }
-
-    @Test
-    void RequestHistory_메모리에_일부만_있을_때_ChatChannelEntity를_조회하지_않는다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(6L, mockMessages, clientSessionProbe.ref())
-        );
-
-        long messageSequence = 200L;
-        int size = 50;
-        List<ChatMessage> partialMessages = Arrays.asList(
-                new ChatMessage(6L, 195L, 7001L, 195L, "Partial 1", LocalDateTime.now()),
-                new ChatMessage(6L, 196L, 7002L, 196L, "Partial 2", LocalDateTime.now())
-        );
-        given(mockMessages.getHistory(messageSequence, size)).willReturn(partialMessages);
-
-        // when
-        readerActor.tell(new RequestHistory(messageSequence, size));
-
-        // then
-        verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
-
-        DeliverHistory deliveredHistory = clientSessionProbe.expectMessageClass(
-                DeliverHistory.class,
-                Duration.ofSeconds(3)
-        );
-        assertAll(
-                () -> assertThat(deliveredHistory.messages()).hasSize(2),
-                () -> assertThat(deliveredHistory.messages()).isEqualTo(partialMessages)
-        );
     }
 }

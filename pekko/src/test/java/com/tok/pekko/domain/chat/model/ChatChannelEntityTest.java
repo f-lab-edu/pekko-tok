@@ -93,7 +93,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void RegisterReader_메시지로_새로운_reader를_등록하면_기존_reader에게_메시지를_보내지_않는다() {
+    void RegisterReader_메시지로_새로운_reader를_등록하면_기존_reader에게_메시지를_전달하지_않는다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -283,14 +283,7 @@ class ChatChannelEntityTest {
         reader3Probe.expectNoMessage(Duration.ofMillis(200));
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        ChatMessage persistedMessage = new ChatMessage(
-                channelId,
-                1L,  // messageId
-                userId1,
-                1L,  // messageSequence
-                "test",
-                timestamp
-        );
+        ChatMessage persistedMessage = new ChatMessage(channelId, 1L, userId1, 1L, "test", timestamp);
         channelEntity.tell(new SyncPersistedMessage(persistedMessage));
 
         reader1Probe.expectNoMessage(Duration.ofMillis(200));
@@ -311,7 +304,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void SendCommand_메시지를_받으면_MessageStoragePort에_저장을_요청한다() {
+    void SendCommand_메시지를_받으면_MessageStoragePort에_채팅_메시지_저장을_요청한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -338,7 +331,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void SendCommand_메시지를_받으면_ChatMessage를_올바르게_생성하고_저장한다() {
+    void SendCommand_메시지를_받으면_유효한_ChatMessage를_생성하고_저장한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -496,5 +489,4 @@ class ChatChannelEntityTest {
         // then
         verify(messageStoragePort, timeout(1000)).findRecentMessages(eq(channelId), eq(50), any());
     }
-
 }

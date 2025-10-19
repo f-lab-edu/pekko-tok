@@ -143,11 +143,7 @@ public class NodeManagerActor extends AbstractBehavior<NodeManagerActorCommand> 
 
     private ActorRef<ChatChannelReaderCommand> spawnChatChannelReaderActor(CreateReader command) {
         return getContext().spawn(
-                ChatChannelReaderActor.create(
-                        command.channelId(),
-                        command.messages(),
-                        command.clientActorRef()
-                ),
+                ChatChannelReaderActor.create(command.messages(), command.clientActorRef()),
                 "chat-channel-reader-" + System.nanoTime() + command.channelId() + ":" + command.userId()
         );
     }

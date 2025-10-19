@@ -1,8 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.FetchHistory;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.HistoryFound;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
@@ -10,13 +8,11 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.HistoryFetched;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -83,8 +79,6 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessage.class, this::onSendMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
-                                  .onMessage(FetchHistory.class, this::onFetchHistory)
-                                  .onMessage(HistoryFound.class, this::onHistoryFound)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .build();
     }
@@ -133,29 +127,6 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         messages.add(command.message());
         readers.values()
                .forEach(reader -> reader.tell(new SyncNewCommand(command.message())));
-
-        return this;
-    }
-
-    private Behavior<ChatChannelEntityCommand> onFetchHistory(FetchHistory command) {
-        List<ChatMessage> history = this.messages.getHistory(command.messageSequence(), command.size());
-
-        if (history.isEmpty()) {
-            messageStoragePort.findHistory(
-                    channelId,
-                    command.messageSequence(),
-                    command.size(),
-                    getContext().getSelf(),
-                    command.reader()
-            );
-        }
-
-        return this;
-    }
-
-    private Behavior<ChatChannelEntityCommand> onHistoryFound(HistoryFound command) {
-        command.replyTo()
-                .tell(new HistoryFetched(command.history()));
 
         return this;
     }
