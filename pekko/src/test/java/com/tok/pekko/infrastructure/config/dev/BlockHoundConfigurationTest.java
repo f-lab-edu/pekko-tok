@@ -83,37 +83,6 @@ class BlockHoundConfigurationTest {
     }
 
     @Test
-    void persistence_dispatcher_스레드는_블로킹이_허용된다() {
-        // given
-        CompletableFuture<String> result = new CompletableFuture<>();
-
-        Behavior<String> testActor = Behaviors.receive((context, message) -> {
-            try {
-                String threadName = Thread.currentThread().getName();
-                Thread.sleep(10);
-                result.complete(threadName);
-            } catch (Exception e) {
-                result.completeExceptionally(e);
-            }
-            return Behaviors.stopped();
-        });
-
-        // when
-        ActorRef<String> actor = testKit.spawn(
-                testActor,
-                "persistence-test-actor",
-                org.apache.pekko.actor.typed.DispatcherSelector.fromConfig("persistence-dispatcher")
-        );
-        actor.tell("test");
-
-        // then
-        assertThatCode(() -> {
-            String threadName = result.get(3, TimeUnit.SECONDS);
-            assertThat(threadName).contains("persistence-dispatcher");
-        }).doesNotThrowAnyException();
-    }
-
-    @Test
     void Reactor_parallel_스레드는_블로킹이_감지된다() {
         // when & then
         assertThatThrownBy(

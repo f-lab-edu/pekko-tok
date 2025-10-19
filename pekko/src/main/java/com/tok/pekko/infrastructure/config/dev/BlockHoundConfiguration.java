@@ -17,10 +17,6 @@ public class BlockHoundConfiguration {
                                   thread -> {
                                       String name = thread.getName();
 
-                                      if (name.contains("persistence-dispatcher")) {
-                                          return false;
-                                      }
-
                                       if (name.contains("ChatCluster") ||
                                               name.contains("pekko") ||
                                               name.contains("akka")) {
