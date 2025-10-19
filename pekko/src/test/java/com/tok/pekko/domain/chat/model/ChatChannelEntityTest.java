@@ -367,7 +367,6 @@ class ChatChannelEntityTest {
         );
     }
 
-
     @Test
     void SyncRecentMessages_메시지를_받으면_messages를_동기화한다() {
         // given
@@ -385,8 +384,8 @@ class ChatChannelEntityTest {
                 ));
 
         List<ChatMessage> recentMessages = List.of(
-                ChatMessage.create(channelId, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 10, 0, 0)),
-                ChatMessage.create(channelId, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 10, 0, 1))
+                new ChatMessage(1L, channelId, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 10, 0, 0)),
+                new ChatMessage(2L, channelId, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 10, 0, 1))
         );
 
         // when

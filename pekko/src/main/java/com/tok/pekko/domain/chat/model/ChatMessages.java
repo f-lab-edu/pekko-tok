@@ -6,6 +6,8 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ChatMessages {
 
@@ -49,14 +51,30 @@ public class ChatMessages {
         List<ChatMessage> allMessages = new ArrayList<>(messages);
 
         allMessages.addAll(newMessages);
-        allMessages.sort(Comparator.comparingLong(ChatMessage::messageSequence).reversed());
 
-        if (allMessages.size() > MAX_SIZE) {
-            allMessages = allMessages.subList(0, MAX_SIZE);
+        List<ChatMessage> uniqueMessages = removeDuplicates(allMessages);
+
+        uniqueMessages.sort(Comparator.comparingLong(ChatMessage::messageSequence).reversed());
+
+        if (uniqueMessages.size() > MAX_SIZE) {
+            uniqueMessages = uniqueMessages.subList(0, MAX_SIZE);
         }
 
         messages.clear();
-        messages.addAll(allMessages);
+        messages.addAll(uniqueMessages);
+    }
+
+    private List<ChatMessage> removeDuplicates(List<ChatMessage> messageList) {
+        Map<Long, ChatMessage> messageIdMap = messageList.stream()
+                                                         .collect(
+                                                                 Collectors.toMap(
+                                                                         ChatMessage::messageId,
+                                                                         message -> message,
+                                                                         (existing, replacement) -> replacement
+                                                                 )
+                                                         );
+
+        return new ArrayList<>(messageIdMap.values());
     }
 
     @ActorThreadSafe
@@ -83,6 +101,10 @@ public class ChatMessages {
         return messages.stream()
                        .filter(message -> message.messageSequence() > afterMessageSequence)
                        .toList();
+    }
+
+    public List<ChatMessage> getMessages() {
+        return new ArrayList<>(messages);
     }
 
     private void validateSize(int size) {

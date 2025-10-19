@@ -30,14 +30,14 @@ class ChatMessagesTest {
     void 메시지를_추가한다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message = ChatMessage.create(1L, 1L, 1L, "Test", LocalDateTime.now());
+        ChatMessage message = new ChatMessage(1L, 1L, 1L, 1L, "Test", LocalDateTime.now());
 
         // when
         chatMessages.add(message);
 
         // then
         assertThat(chatMessages.getRecentMessages(10)).hasSize(1)
-                                                      .contains(message);
+                                                            .contains(message);
     }
 
     @Test
@@ -55,12 +55,12 @@ class ChatMessagesTest {
     void MAX_SIZE를_초과하면_가장_오래된_메시지가_제거된다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        ChatMessage firstMessage = ChatMessage.create(1L, 1L, 1L, "First", LocalDateTime.now());
+        ChatMessage firstMessage = new ChatMessage(1L, 1L, 1L, 1L, "First", LocalDateTime.now());
         chatMessages.add(firstMessage);
 
         // when
         for (long i = 2; i <= 101; i++) {
-            chatMessages.add(ChatMessage.create(1L, 1L, i, "Message " + i, LocalDateTime.now()));
+            chatMessages.add(new ChatMessage(i, 1L, 1L, i, "Message " + i, LocalDateTime.now()));
         }
 
         // then
@@ -75,9 +75,9 @@ class ChatMessagesTest {
     void 특정_메시지_시퀀스_번호_이전의_메시지_히스토리를_조회한다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        chatMessages.add(ChatMessage.create(1L, 1L, 5L, "Message 5", LocalDateTime.now()));
-        chatMessages.add(ChatMessage.create(1L, 1L, 3L, "Message 3", LocalDateTime.now()));
-        chatMessages.add(ChatMessage.create(1L, 1L, 1L, "Message 1", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(5L, 1L, 1L, 5L, "Message 5", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(3L, 1L, 1L, 3L, "Message 3", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(1L, 1L, 1L, 1L, "Message 1", LocalDateTime.now()));
 
         // when
         List<ChatMessage> history = chatMessages.getHistory(4L, 10);
@@ -85,7 +85,7 @@ class ChatMessagesTest {
         // then
         assertAll(
                 () -> assertThat(history).hasSize(2),
-                () -> assertThat(history).allMatch(msg -> msg.messageSequence() < 4L)
+                () -> assertThat(history).allMatch(message -> message.messageSequence() < 4L)
         );
     }
 
@@ -116,9 +116,9 @@ class ChatMessagesTest {
     void 지정한_개수만큼_최근_메시지를_조회한다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        ChatMessage old = ChatMessage.create(1L, 1L, 1L, "Old", LocalDateTime.now());
-        ChatMessage recent2 = ChatMessage.create(1L, 1L, 2L, "Recent 2", LocalDateTime.now());
-        ChatMessage recent1 = ChatMessage.create(1L, 1L, 3L, "Recent 1", LocalDateTime.now());
+        ChatMessage old = new ChatMessage(1L, 1L, 1L, 1L, "Old", LocalDateTime.now());
+        ChatMessage recent2 = new ChatMessage(2L, 1L, 1L, 2L, "Recent 2", LocalDateTime.now());
+        ChatMessage recent1 = new ChatMessage(3L, 1L, 1L, 3L, "Recent 1", LocalDateTime.now());
 
         chatMessages.add(old);
         chatMessages.add(recent2);
@@ -138,9 +138,9 @@ class ChatMessagesTest {
     void 특정_메시지_시퀀스_번호_이후의_메시지를_조회한다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        chatMessages.add(ChatMessage.create(1L, 1L, 5L, "Message 5", LocalDateTime.now()));
-        chatMessages.add(ChatMessage.create(1L, 1L, 3L, "Message 3", LocalDateTime.now()));
-        chatMessages.add(ChatMessage.create(1L, 1L, 1L, "Message 1", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(5L, 1L, 1L, 5L, "Message 5", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(3L, 1L, 1L, 3L, "Message 3", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(1L, 1L, 1L, 1L, "Message 1", LocalDateTime.now()));
 
         // when
         List<ChatMessage> messagesAfter = chatMessages.getMessagesAfter(2L);
@@ -148,7 +148,7 @@ class ChatMessagesTest {
         // then
         assertAll(
                 () -> assertThat(messagesAfter).hasSize(2),
-                () -> assertThat(messagesAfter).allMatch(msg -> msg.messageSequence() > 2L)
+                () -> assertThat(messagesAfter).allMatch(message -> message.messageSequence() > 2L)
         );
     }
 
@@ -156,12 +156,12 @@ class ChatMessagesTest {
     void 기존과_독립적인_복사본을_생성한다() {
         // given
         ChatMessages original = new ChatMessages();
-        ChatMessage message1 = ChatMessage.create(1L, 1L, 1L, "Original", LocalDateTime.now());
+        ChatMessage message1 = new ChatMessage(1L, 1L, 1L, 1L, "Original", LocalDateTime.now());
         original.add(message1);
 
         // when
         ChatMessages copy = original.deepCopy();
-        copy.add(ChatMessage.create(1L, 2L, 2L, "Copy Only", LocalDateTime.now()));
+        copy.add(new ChatMessage(2L, 1L, 2L, 2L, "Copy Only", LocalDateTime.now()));
 
         // then
         assertAll(
@@ -185,7 +185,7 @@ class ChatMessagesTest {
     void 빈_메시지_리스트로_동기화하면_아무_일도_일어나지_않는다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        ChatMessage existing = ChatMessage.create(1L, 1L, 1L, "Existing", LocalDateTime.now());
+        ChatMessage existing = new ChatMessage(1L, 1L, 1L, 1L, "Existing", LocalDateTime.now());
         chatMessages.add(existing);
 
         // when
@@ -203,9 +203,9 @@ class ChatMessagesTest {
         // given
         ChatMessages chatMessages = new ChatMessages();
         List<ChatMessage> newMessages = List.of(
-                ChatMessage.create(1L, 1L, 3L, "Message 3", LocalDateTime.now()),
-                ChatMessage.create(1L, 1L, 1L, "Message 1", LocalDateTime.now()),
-                ChatMessage.create(1L, 1L, 5L, "Message 5", LocalDateTime.now())
+                new ChatMessage(3L, 1L, 1L, 3L, "Message 3", LocalDateTime.now()),
+                new ChatMessage(1L, 1L, 1L, 1L, "Message 1", LocalDateTime.now()),
+                new ChatMessage(5L, 1L, 1L, 5L, "Message 5", LocalDateTime.now())
         );
 
         // when
@@ -228,12 +228,12 @@ class ChatMessagesTest {
     void 기존_메시지와_새_메시지를_동기화하면_모두_순서대로_병합된다() {
         // given
         ChatMessages chatMessages = new ChatMessages();
-        chatMessages.add(ChatMessage.create(1L, 1L, 2L, "Message 2", LocalDateTime.now()));
-        chatMessages.add(ChatMessage.create(1L, 1L, 6L, "Message 6", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(2L, 1L, 1L, 2L, "Message 2", LocalDateTime.now()));
+        chatMessages.add(new ChatMessage(6L, 1L, 1L, 6L, "Message 6", LocalDateTime.now()));
 
         List<ChatMessage> newMessages = List.of(
-                ChatMessage.create(1L, 1L, 4L, "Message 4", LocalDateTime.now()),
-                ChatMessage.create(1L, 1L, 8L, "Message 8", LocalDateTime.now())
+                new ChatMessage(4L, 1L, 1L, 4L, "Message 4", LocalDateTime.now()),
+                new ChatMessage(8L, 1L, 1L, 8L, "Message 8", LocalDateTime.now())
         );
 
         // when
@@ -254,12 +254,12 @@ class ChatMessagesTest {
         // given
         ChatMessages chatMessages = new ChatMessages();
         for (long i = 1; i <= 50; i++) {
-            chatMessages.add(ChatMessage.create(1L, 1L, i, "Message " + i, LocalDateTime.now()));
+            chatMessages.add(new ChatMessage(i, 1L, 1L, i, "Message " + i, LocalDateTime.now()));
         }
 
         List<ChatMessage> newMessages = new java.util.ArrayList<>();
         for (long i = 51; i <= 105; i++) {
-            newMessages.add(ChatMessage.create(1L, 1L, i, "Message " + i, LocalDateTime.now()));
+            newMessages.add(new ChatMessage(i, 1L, 1L, i, "Message " + i, LocalDateTime.now()));
         }
 
         // when
@@ -271,7 +271,95 @@ class ChatMessagesTest {
                 () -> assertThat(result).hasSize(100),
                 () -> assertThat(result.get(0).messageSequence()).isEqualTo(105L),
                 () -> assertThat(result.get(99).messageSequence()).isEqualTo(6L),
-                () -> assertThat(result).noneMatch(msg -> msg.messageSequence() < 6L)
+                () -> assertThat(result).noneMatch(message -> message.messageSequence() < 6L)
+        );
+    }
+
+    @Test
+    void 동기화_시_중복된_messageId를_가진_메시지는_제거된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        ChatMessage existing = new ChatMessage(1L, 1L, 1L, 100L, "Existing", LocalDateTime.now());
+        chatMessages.add(existing);
+
+        List<ChatMessage> newMessages = List.of(
+                new ChatMessage(1L, 1L, 1L, 100L, "Updated", LocalDateTime.now()),
+                new ChatMessage(2L, 1L, 1L, 200L, "New Message", LocalDateTime.now())
+        );
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(10);
+        assertAll(
+                () -> assertThat(result).hasSize(2),
+                () -> assertThat(result)
+                        .extracting(ChatMessage::messageId)
+                        .containsExactly(2L, 1L),
+                () -> assertThat(result.get(1).message()).isEqualTo("Updated")
+        );
+    }
+
+    @Test
+    void 동기화_시_여러_중복_메시지가_있어도_마지막_메시지만_유지된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+
+        List<ChatMessage> newMessages = List.of(
+                new ChatMessage(1L, 1L, 1L, 100L, "First", LocalDateTime.now()),
+                new ChatMessage(1L, 1L, 1L, 100L, "Second", LocalDateTime.now()),
+                new ChatMessage(1L, 1L, 1L, 100L, "Third", LocalDateTime.now()),
+                new ChatMessage(2L, 1L, 1L, 200L, "Unique", LocalDateTime.now())
+        );
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(10);
+        assertAll(
+                () -> assertThat(result).hasSize(2),
+                () -> assertThat(result)
+                        .extracting(ChatMessage::messageId)
+                        .containsExactly(2L, 1L),
+                () -> assertThat(result)
+                        .filteredOn(message -> message.messageId().equals(1L))
+                        .extracting(ChatMessage::message)
+                        .containsExactly("Third")
+        );
+    }
+
+    @Test
+    void 동기화_시_중복_제거_후_정렬과_크기_제한이_올바르게_적용된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        for (long i = 1; i <= 50; i++) {
+            chatMessages.add(new ChatMessage(i, 1L, 1L, i * 10, "Message " + i, LocalDateTime.now()));
+        }
+
+        List<ChatMessage> newMessages = new java.util.ArrayList<>();
+        for (long i = 1; i <= 10; i++) {
+            newMessages.add(new ChatMessage(i, 1L, 1L, i * 10, "Updated " + i, LocalDateTime.now()));
+        }
+        for (long i = 51; i <= 60; i++) {
+            newMessages.add(new ChatMessage(i, 1L, 1L, i * 10, "New Message " + i, LocalDateTime.now()));
+        }
+
+        // when
+        chatMessages.syncMessages(newMessages);
+
+        // then
+        List<ChatMessage> result = chatMessages.getRecentMessages(100);
+        assertAll(
+                () -> assertThat(result).hasSize(60),
+                () -> assertThat(result)
+                        .extracting(ChatMessage::messageSequence)
+                        .isSortedAccordingTo(Comparator.reverseOrder()),
+                () -> assertThat(result.get(0).messageSequence()).isEqualTo(600L),
+                () -> assertThat(result)
+                        .filteredOn(message -> message.messageId() <= 10L)
+                        .allMatch(message -> message.message().startsWith("Updated"))
         );
     }
 }
