@@ -31,8 +31,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     public static Behavior<ChatChannelEntityCommand> create(
             Long channelId,
             ChatMessages messages,
-            MessageStoragePort messageStoragePort,
-            MessageSequenceGenerator sequenceGenerator
+            MessageStoragePort messageStoragePort
     ) {
         return Behaviors.setup(
                 context -> {
@@ -43,7 +42,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                             channelId,
                             messages,
                             messageStoragePort,
-                            sequenceGenerator,
+                            new SnowflakeSequenceGenerator(channelId),
                             new HashMap<>()
                     );
                 }
@@ -53,7 +52,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private final Long channelId;
     private final ChatMessages messages;
     private final MessageStoragePort messageStoragePort;
-    private final MessageSequenceGenerator sequenceGenerator;
+    private final SnowflakeSequenceGenerator sequenceGenerator;
     private final Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers;
 
     private ChatChannelEntity(
@@ -61,7 +60,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
             Long channelId,
             ChatMessages messages,
             MessageStoragePort messageStoragePort,
-            MessageSequenceGenerator sequenceGenerator,
+            SnowflakeSequenceGenerator sequenceGenerator,
             Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers
     ) {
         super(context);
@@ -141,7 +140,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private ChatMessage createChatMessage(SendMessageCommand command) {
-        long messageSequence = sequenceGenerator.getNextSequence();
+        long messageSequence = sequenceGenerator.nextSequence();
 
         return ChatMessage.create(
                 channelId,

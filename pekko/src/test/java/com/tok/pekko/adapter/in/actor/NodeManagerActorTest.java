@@ -4,7 +4,6 @@ import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.model.ChatMessages;
-import com.tok.pekko.domain.chat.model.MessageSequenceGenerator;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -66,8 +65,7 @@ class NodeManagerActorTest {
                         entityContext -> ChatChannelEntity.create(
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),
-                                mockMessageStoragePort,
-                                new MessageSequenceGenerator(0L)
+                                mockMessageStoragePort
                         )
                 )
         );

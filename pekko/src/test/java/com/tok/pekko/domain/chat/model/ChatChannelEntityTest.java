@@ -61,7 +61,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -69,8 +68,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<NodeManagerActorCommand> replyProbe = testKit.createTestProbe();
@@ -100,7 +98,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -108,8 +105,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -128,7 +124,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -136,8 +131,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> oldReaderProbe = testKit.createTestProbe();
@@ -163,7 +157,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -171,8 +164,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -187,9 +179,9 @@ class ChatChannelEntityTest {
 
         ChatMessage persistedMessage = new ChatMessage(
                 channelId,
-                1L,  // messageId (persisted)
+                1L,
                 userId,
-                1L,  // messageSequence
+                1L,
                 messageContent,
                 timestamp
         );
@@ -227,7 +219,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -235,8 +226,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -263,7 +253,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -271,8 +260,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -328,7 +316,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -336,8 +323,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         Long userId = 100L;
@@ -357,7 +343,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -365,8 +350,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         Long userId = 100L;
@@ -382,7 +366,7 @@ class ChatChannelEntityTest {
                         message.messageId() == null
                                 && message.channelId().equals(channelId)
                                 && message.userId().equals(userId)
-                                && message.messageSequence() == 1L
+                                && message.messageSequence() > 0
                                 && message.message().equals(messageContent)
                                 && message.timestamp().equals(timestamp)
                 ),
@@ -397,7 +381,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -405,8 +388,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         List<ChatMessage> recentMessages = List.of(
@@ -440,7 +422,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -448,8 +429,7 @@ class ChatChannelEntityTest {
                 testKit.spawn(ChatChannelEntity.create(
                         channelId,
                         messages,
-                        messageStoragePort,
-                        sequenceGenerator
+                        messageStoragePort
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -503,7 +483,6 @@ class ChatChannelEntityTest {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        MessageSequenceGenerator sequenceGenerator = new MessageSequenceGenerator(0L);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -511,8 +490,7 @@ class ChatChannelEntityTest {
         testKit.spawn(ChatChannelEntity.create(
                 channelId,
                 messages,
-                messageStoragePort,
-                sequenceGenerator
+                messageStoragePort
         ));
 
         // then
