@@ -1,4 +1,4 @@
-package com.tok.pekko.adapter.in.actor;
+package com.tok.pekko.application.actor;
 
 public record NodeReaderKey(Long channelId, Long userId) {
 }

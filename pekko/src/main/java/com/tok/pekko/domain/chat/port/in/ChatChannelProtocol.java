@@ -1,9 +1,9 @@
 package com.tok.pekko.domain.chat.port.in;
 
-import com.tok.pekko.common.CborSerializable;
+import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.NodeManagerActorCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,7 +18,6 @@ public interface ChatChannelProtocol {
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessage(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
     record SyncPersistedMessage(ChatMessage message) implements ChatChannelEntityCommand { }
-    record FetchHistory(long messageSequence, int size, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record HistoryFound(List<ChatMessage> history, ActorRef<ChatChannelReaderCommand> replyTo) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
 }

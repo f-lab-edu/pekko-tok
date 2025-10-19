@@ -1,6 +1,6 @@
-package com.tok.pekko.domain.chat.port.in;
+package com.tok.pekko.domain.chat.port.out;
 
-import com.tok.pekko.common.CborSerializable;
+import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.model.ChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;

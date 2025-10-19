@@ -1,8 +1,8 @@
-package com.tok.pekko.infrastructure.actor;
+package com.tok.pekko.global.actor;
 
-import com.tok.pekko.adapter.in.actor.NodeManagerActor;
-import com.tok.pekko.common.CborSerializable;
-import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.application.actor.NodeManagerActor;
+import com.tok.pekko.global.common.CborSerializable;
+import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;

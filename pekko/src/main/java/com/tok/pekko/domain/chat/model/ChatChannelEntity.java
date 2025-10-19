@@ -11,7 +11,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.CreateReader;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;

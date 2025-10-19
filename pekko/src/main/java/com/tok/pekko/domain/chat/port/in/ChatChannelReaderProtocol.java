@@ -1,6 +1,6 @@
 package com.tok.pekko.domain.chat.port.in;
 
-import com.tok.pekko.common.CborSerializable;
+import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 
 public interface ChatChannelReaderProtocol {

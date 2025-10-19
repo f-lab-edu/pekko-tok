@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.Mockito.mock;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
+import com.tok.pekko.application.actor.NodeManagerActor;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.NodeManagerActorCommand;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Duration;

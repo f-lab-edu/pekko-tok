@@ -1,4 +1,4 @@
-package com.tok.pekko.common;
+package com.tok.pekko.global.common;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

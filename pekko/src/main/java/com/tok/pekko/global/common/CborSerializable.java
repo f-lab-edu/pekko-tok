@@ -1,4 +1,4 @@
-package com.tok.pekko.common;
+package com.tok.pekko.global.common;
 
 public interface CborSerializable {
 }

@@ -7,7 +7,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessag
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import com.tok.pekko.infrastructure.persistence.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.springframework.stereotype.Component;

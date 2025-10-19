@@ -1,8 +1,7 @@
-package com.tok.pekko.infrastructure.config.actor;
+package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import com.tok.pekko.infrastructure.actor.GuardianActor;
-import com.tok.pekko.infrastructure.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.global.actor.GuardianActor;
+import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.ArrayList;

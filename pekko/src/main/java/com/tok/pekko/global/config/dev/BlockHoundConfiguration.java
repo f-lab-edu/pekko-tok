@@ -1,4 +1,4 @@
-package com.tok.pekko.infrastructure.config.dev;
+package com.tok.pekko.global.config.dev;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;

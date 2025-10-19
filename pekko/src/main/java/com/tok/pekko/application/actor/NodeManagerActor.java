@@ -1,8 +1,8 @@
-package com.tok.pekko.adapter.in.actor;
+package com.tok.pekko.application.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
-import com.tok.pekko.infrastructure.persistence.event.RegisteredEvent;
-import com.tok.pekko.infrastructure.persistence.event.ShutdownEvent;
+import com.tok.pekko.application.actor.event.RegisteredEvent;
+import com.tok.pekko.application.actor.event.ShutdownEvent;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
@@ -13,8 +13,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.NodeManagerActorCommand;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.CreateReader;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;

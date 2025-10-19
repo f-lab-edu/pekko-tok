@@ -1,6 +1,7 @@
 package com.tok.pekko.adapter.in.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
+import com.tok.pekko.application.actor.NodeManagerActor;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.model.ChatMessages;
@@ -8,8 +9,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.CreateReader;
-import com.tok.pekko.domain.chat.port.in.NodeManagerProtocol.NodeManagerActorCommand;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.CreateReader;
+import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.NodeManagerActorCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;

@@ -1,6 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
-import com.tok.pekko.common.ActorThreadSafe;
+import com.tok.pekko.global.common.ActorThreadSafe;
 import java.time.Clock;
 
 public class SnowflakeSequenceGenerator {

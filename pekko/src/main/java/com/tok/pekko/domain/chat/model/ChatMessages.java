@@ -1,6 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
-import com.tok.pekko.common.ActorThreadSafe;
+import com.tok.pekko.global.common.ActorThreadSafe;
 import java.util.List;
 import java.util.Deque;
 import java.util.LinkedList;
