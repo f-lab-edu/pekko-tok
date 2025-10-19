@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
+import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
@@ -7,6 +8,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
+import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
@@ -487,5 +489,43 @@ class ChatChannelEntityTest {
 
         // then
         verify(messageStoragePort, timeout(1000)).findRecentMessages(eq(channelId), eq(50), any());
+    }
+
+    @Test
+    void RequestSyncMessages_메시지를_받으면_요청한_reader에게_DeliverSyncMessages를_전달한다() {
+        // given
+        Long channelId = 1L;
+        ChatMessages messages = new ChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
+        ActorRef<ChatChannelEntityCommand> channelEntity =
+                testKit.spawn(ChatChannelEntity.create(
+                        channelId,
+                        messages,
+                        messageStoragePort
+                ));
+
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
+        ChatMessage message1 = new ChatMessage(channelId, 1L, 100L, 1L, "Message 1", timestamp1);
+        ChatMessage message2 = new ChatMessage(channelId, 2L, 100L, 2L, "Message 2", timestamp2);
+
+        channelEntity.tell(new SyncPersistedMessage(message1));
+        channelEntity.tell(new SyncPersistedMessage(message2));
+
+        // when
+        channelEntity.tell(new RequestSyncMessages(readerProbe.ref()));
+
+        // then
+        DeliverSyncMessages delivered = readerProbe.expectMessageClass(DeliverSyncMessages.class);
+        assertAll(
+                () -> assertThat(delivered.messages()).hasSize(2),
+                () -> assertThat(delivered.messages()).extracting(ChatMessage::message)
+                                                      .containsExactly("Message 2", "Message 1")
+        );
     }
 }

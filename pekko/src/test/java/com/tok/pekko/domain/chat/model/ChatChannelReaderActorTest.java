@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
@@ -79,9 +80,10 @@ class ChatChannelReaderActorTest {
     void SyncNewCommand_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
+        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
         );
 
         ChatMessage newMessage = ChatMessage.create(
@@ -109,9 +111,10 @@ class ChatChannelReaderActorTest {
     void RequestHistory_메시지를_받으면_관리하고_있는_채팅_메시지를_조회해_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
+        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -144,9 +147,10 @@ class ChatChannelReaderActorTest {
     void RequestHistory_메시지를_받았을_때_관리하고_있는_채팅_메시지가_비어있으면_빈_리스트를_ClientSession에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
+        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -170,9 +174,10 @@ class ChatChannelReaderActorTest {
     void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown_메시지를_전달하고_ChatChannelReaderActor가_종료된다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
+        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
         );
 
         // when

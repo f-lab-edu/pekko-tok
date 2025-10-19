@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.model;
 
+import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
@@ -79,7 +80,8 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessage.class, this::onSendMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
-                                  .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
+                                  .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader).onMessage(
+                        RequestSyncMessages.class, this::onRequestSyncMessages)
                                   .build();
     }
 
@@ -139,6 +141,13 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         return this;
     }
 
+    private Behavior<ChatChannelEntityCommand> onRequestSyncMessages(RequestSyncMessages command) {
+        command.secondary()
+               .tell(new DeliverSyncMessages(messages.getMessages()));
+
+        return this;
+    }
+
     private ChatMessage createChatMessage(SendMessage command) {
         long messageSequence = sequenceGenerator.nextSequence();
 
@@ -150,4 +159,6 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                 command.timestamp()
         );
     }
+
+    record RequestSyncMessages(ActorRef<ChatChannelReaderCommand> secondary) implements ChatChannelEntityCommand { }
 }
