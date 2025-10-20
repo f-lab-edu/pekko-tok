@@ -4,7 +4,6 @@ import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessage
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
@@ -12,9 +11,6 @@ import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
-import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.CreateReader;
-import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.NodeManagerActorCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -55,43 +51,6 @@ class ChatChannelEntityTest {
     @AfterAll
     static void teardown() {
         testKit.shutdownTestKit();
-    }
-
-    @Test
-    void RequestJoin_메시지를_받으면_CreateReader_메시지를_replyTo에_전달한다() {
-        // given
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
-                        channelId,
-                        messages,
-                        messageStoragePort
-                ));
-
-        TestProbe<NodeManagerActorCommand> replyProbe = testKit.createTestProbe();
-        TestProbe<ClientSessionCommand> clientProbe = testKit.createTestProbe();
-        Long userId = 100L;
-
-        // when
-        channelEntity.tell(new RequestJoin(
-                userId,
-                clientProbe.ref(),
-                replyProbe.ref()
-        ));
-
-        // then
-        CreateReader createReader = replyProbe.expectMessageClass(CreateReader.class);
-        assertAll(
-                () -> assertThat(createReader.channelId()).isEqualTo(channelId),
-                () -> assertThat(createReader.userId()).isEqualTo(userId),
-                () -> assertThat(createReader.clientActorRef()).isEqualTo(clientProbe.ref()),
-                () -> assertThat(createReader.replyTo()).isEqualTo(channelEntity)
-        );
     }
 
     @Test
@@ -216,7 +175,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void RemoveReaderSession_메시지를_받으면_해당_reader가_ChatChannelEntity에서_제거되어_메시지를_받지_않는다() {
+    void RemoveShutdownReader_메시지를_받으면_해당_reader가_ChatChannelEntity에서_제거되어_메시지를_받지_않는다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -306,7 +265,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void SendCommand_메시지를_받으면_MessageStoragePort에_채팅_메시지_저장을_요청한다() {
+    void SendMessage_메시지를_받으면_MessageStoragePort에_채팅_메시지_저장을_요청한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -333,7 +292,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void SendCommand_메시지를_받으면_유효한_ChatMessage를_생성하고_저장한다() {
+    void SendMessage_메시지를_받으면_유효한_ChatMessage를_생성하고_저장한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -393,20 +352,15 @@ class ChatChannelEntityTest {
         // when
         channelEntity.tell(new SyncRecentMessages(recentMessages));
 
-        // then
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+        channelEntity.tell(new RequestSyncMessages(readerProbe.ref()));
 
-        TestProbe<NodeManagerActorCommand> nodeManagerProbe = testKit.createTestProbe();
-        TestProbe<ClientSessionCommand> clientProbe = testKit.createTestProbe();
-
-        channelEntity.tell(new RequestJoin(100L, clientProbe.ref(), nodeManagerProbe.ref()));
-
-        CreateReader createReader = nodeManagerProbe.expectMessageClass(CreateReader.class);
+        // then
+        DeliverSyncMessages delivered = readerProbe.expectMessageClass(DeliverSyncMessages.class);
         assertAll(
-                () -> assertThat(createReader.messages().getRecentMessages(10)).hasSize(2),
-                () -> assertThat(createReader.messages().getRecentMessages(10)).extracting(ChatMessage::message)
-                                                                               .containsExactly("Message 2", "Message 1")
+                () -> assertThat(delivered.messages()).hasSize(2),
+                () -> assertThat(delivered.messages()).extracting(ChatMessage::message)
+                                                      .containsExactly("Message 2", "Message 1")
         );
     }
 

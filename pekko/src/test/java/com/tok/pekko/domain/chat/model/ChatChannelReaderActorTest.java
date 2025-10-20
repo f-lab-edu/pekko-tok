@@ -9,16 +9,10 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
-import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
-import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
-import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
-import org.apache.pekko.cluster.typed.Cluster;
-import org.apache.pekko.cluster.typed.Join;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -31,11 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -48,27 +38,7 @@ class ChatChannelReaderActorTest {
 
     @BeforeAll
     static void setup() {
-        Config config = ConfigFactory.load();
-        testKit = ActorTestKit.create(config);
-
-        Cluster cluster = Cluster.get(testKit.system());
-        cluster.manager().tell(new Join(cluster.selfMember().address()));
-
-        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        doNothing().when(mockMessageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-        doNothing().when(mockMessageStoragePort).findHistory(anyLong(), anyLong(), anyInt(), any(), any());
-
-        ClusterSharding clusterSharding = ClusterSharding.get(testKit.system());
-        clusterSharding.init(
-                Entity.of(
-                        ChatChannelEntity.ENTITY_TYPE_KEY,
-                        entityContext -> ChatChannelEntity.create(
-                                Long.valueOf(entityContext.getEntityId()),
-                                new ChatMessages(),
-                                mockMessageStoragePort
-                        )
-                )
-        );
+        testKit = ActorTestKit.create();
     }
 
     @AfterAll
@@ -80,10 +50,11 @@ class ChatChannelReaderActorTest {
     void SyncNewCommand_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         ChatMessage newMessage = ChatMessage.create(
@@ -111,10 +82,11 @@ class ChatChannelReaderActorTest {
     void RequestHistory_메시지를_받으면_관리하고_있는_채팅_메시지를_조회해_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -147,10 +119,11 @@ class ChatChannelReaderActorTest {
     void RequestHistory_메시지를_받았을_때_관리하고_있는_채팅_메시지가_비어있으면_빈_리스트를_ClientSession에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -174,10 +147,11 @@ class ChatChannelReaderActorTest {
     void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown_메시지를_전달하고_ChatChannelReaderActor가_종료된다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
-        TestProbe<ChatChannelEntityCommand> primaryProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, primaryProbe.ref(), clientSessionProbe.ref())
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         // when

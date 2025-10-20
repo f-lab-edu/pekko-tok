@@ -4,7 +4,6 @@ import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessage
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RequestJoin;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
@@ -12,7 +11,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
-import com.tok.pekko.domain.chat.port.out.NodeManagerProtocol.CreateReader;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -76,7 +74,6 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     @Override
     public Receive<ChatChannelEntityCommand> createReceive() {
         return newReceiveBuilder().onMessage(SyncRecentMessages.class, this::onSyncRecentMessages)
-                                  .onMessage(RequestJoin.class, this::onRequestJoin)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessage.class, this::onSendMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
@@ -87,21 +84,6 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
     private Behavior<ChatChannelEntityCommand> onSyncRecentMessages(SyncRecentMessages command) {
         this.messages.syncMessages(command.messages());
-
-        return this;
-    }
-
-    private Behavior<ChatChannelEntityCommand> onRequestJoin(RequestJoin command) {
-        command.replyTo()
-               .tell(
-                       new CreateReader(
-                               messages.deepCopy(),
-                               command.clientRef(),
-                               channelId,
-                               command.userId(),
-                               getContext().getSelf()
-                       )
-               );
 
         return this;
     }

@@ -19,30 +19,35 @@ import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 import org.apache.pekko.actor.typed.javadsl.TimerScheduler;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 
 public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCommand> {
 
     public static Behavior<ChatChannelReaderCommand> create(
             ChatMessages messages,
-            ActorRef<ChatChannelEntityCommand> primary,
+            EntityRef<ChatChannelEntityCommand> channelEntity,
             ActorRef<ClientSessionCommand> clientSession
     ) {
-        return Behaviors.setup(context ->
-                Behaviors.withTimers(timers ->
-                        new ChatChannelReaderActor(context, messages, timers, primary, clientSession)
-                )
+        return Behaviors.setup(
+                context -> {
+                    channelEntity.tell(new RequestSyncMessages(context.getSelf()));
+
+                    return Behaviors.withTimers(timers ->
+                            new ChatChannelReaderActor(context, messages, timers, channelEntity, clientSession)
+                    );
+                }
         );
     }
 
     private final ChatMessages messages;
-    private final ActorRef<ChatChannelEntityCommand> channelEntity;
+    private final EntityRef<ChatChannelEntityCommand> channelEntity;
     private final ActorRef<ClientSessionCommand> clientSession;
 
     private ChatChannelReaderActor(
             ActorContext<ChatChannelReaderCommand> context,
             ChatMessages messages,
             TimerScheduler<ChatChannelReaderCommand> timers,
-            ActorRef<ChatChannelEntityCommand> channelEntity,
+            EntityRef<ChatChannelEntityCommand> channelEntity,
             ActorRef<ClientSessionCommand> clientSession
     ) {
         super(context);
