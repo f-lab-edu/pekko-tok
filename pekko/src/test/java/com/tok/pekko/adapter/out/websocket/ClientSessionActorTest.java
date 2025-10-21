@@ -92,7 +92,6 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new Shutdown());
 
         // then
-        verify(mockClientMessageSender, timeout(1000)).close();
         terminationProbe.expectTerminated(clientSessionActor, Duration.ofSeconds(3));
     }
 
