@@ -1,7 +1,6 @@
-package com.tok.pekko.config.actor;
+package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.common.actor.GuardianActor;
-import com.tok.pekko.common.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.global.actor.GuardianActor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.ArrayList;
@@ -10,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.Address;
 import org.apache.pekko.actor.AddressFromURIString;
 import org.apache.pekko.actor.typed.ActorSystem;
+import org.apache.pekko.actor.typed.SpawnProtocol;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.typed.Cluster;
 import org.apache.pekko.cluster.typed.JoinSeedNodes;
 import org.springframework.context.annotation.Bean;
@@ -24,10 +25,15 @@ public class ClusterConfig {
 
     private final Environment environment;
 
+    @Bean
+    public ClusterSharding clusterSharding() {
+        return ClusterSharding.get(actorSystem());
+    }
+
     @Bean(destroyMethod = "terminate")
-    public ActorSystem<GuardianCommand> actorSystem() {
+    public ActorSystem<SpawnProtocol.Command> actorSystem() {
         Config config = buildConfig();
-        ActorSystem<GuardianCommand> system = ActorSystem.create(
+        ActorSystem<SpawnProtocol.Command> system = ActorSystem.create(
                 GuardianActor.create(),
                 "ChatCluster",
                 config
@@ -78,7 +84,7 @@ public class ClusterConfig {
         return systemProp != null ? systemProp : System.getenv(key);
     }
 
-    private void joinClusterSeeds(ActorSystem<GuardianCommand> system) {
+    private void joinClusterSeeds(ActorSystem<SpawnProtocol.Command> system) {
         String joinSeeds = getEnvironmentVariable("PEKKO_JOIN_SEEDS");
 
         if (joinSeeds == null || joinSeeds.isBlank()) {
@@ -116,7 +122,7 @@ public class ClusterConfig {
         return seedAddresses;
     }
 
-    private void logClusterInfo(ActorSystem<GuardianCommand> system) {
+    private void logClusterInfo(ActorSystem<SpawnProtocol.Command> system) {
         Cluster cluster = Cluster.get(system);
         Config config = system.settings()
                               .config();

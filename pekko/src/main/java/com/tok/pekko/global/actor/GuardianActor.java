@@ -1,26 +1,24 @@
-package com.tok.pekko.common.actor;
+package com.tok.pekko.global.actor;
 
-import com.tok.pekko.common.actor.GuardianActor.GuardianCommand;
 import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.SpawnProtocol;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 
-public class GuardianActor extends AbstractBehavior<GuardianCommand> {
+public class GuardianActor extends AbstractBehavior<SpawnProtocol.Command> {
 
-    public static Behavior<GuardianCommand> create() {
+    public static Behavior<SpawnProtocol.Command> create() {
         return Behaviors.setup(GuardianActor::new);
     }
 
-    private GuardianActor(ActorContext<GuardianCommand> context) {
+    private GuardianActor(ActorContext<SpawnProtocol.Command> context) {
         super(context);
     }
 
     @Override
-    public Receive<GuardianCommand> createReceive() {
+    public Receive<SpawnProtocol.Command> createReceive() {
         return newReceiveBuilder().build();
     }
-
-    public interface GuardianCommand extends CborSerializable { }
 }
