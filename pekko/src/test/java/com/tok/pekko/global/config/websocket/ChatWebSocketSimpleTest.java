@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -88,7 +87,6 @@ class ChatWebSocketSimpleTest {
     }
 
     @Test
-    @DisplayName("메시지 전송 시 EntityRef.tell()이 SendMessage와 함께 호출됨")
     void 메시지_전송_시_EntityRef로_SendMessage_메시지를_전달한다() {
         // given
         URI uri = URI.create(baseUrl + "/ws/chat?channelId=1&userId=100");
