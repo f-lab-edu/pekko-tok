@@ -4,10 +4,9 @@ import com.tok.pekko.adapter.in.websocket.ChatWebSocketHandler;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.core.Ordered;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.config.CorsRegistry;
@@ -16,23 +15,25 @@ import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter;
 
-@Profile("dev")
 @Configuration
 @RequiredArgsConstructor
+@EnableConfigurationProperties(WebSocketProperties.class)
 public class WebSocketConfig implements WebFluxConfigurer {
 
+    private final WebSocketProperties properties;
     private final ChatWebSocketHandler chatWebSocketHandler;
 
     @Bean
     public HandlerMapping webSocketHandlerMapping() {
         Map<String, WebSocketHandler> map = new HashMap<>();
-        map.put("/ws/chat", chatWebSocketHandler);
+        map.put(properties.endpoint(), chatWebSocketHandler);
 
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(map);
-        mapping.setOrder(Ordered.HIGHEST_PRECEDENCE);
-
-        mapping.setCorsConfigurations(Map.of("/ws/chat", createCorsConfiguration()));
+        mapping.setOrder(properties.handlerOrder());
+        mapping.setCorsConfigurations(
+                Map.of(properties.endpoint(), createCorsConfiguration())
+        );
 
         return mapping;
     }
@@ -44,25 +45,26 @@ public class WebSocketConfig implements WebFluxConfigurer {
 
     private CorsConfiguration createCorsConfiguration() {
         CorsConfiguration config = new CorsConfiguration();
+        WebSocketProperties.Cors cors = properties.cors();
 
-        config.setAllowCredentials(true);
-        config.addAllowedOriginPattern("http://localhost:*");
-        config.addAllowedOriginPattern("http://127.0.0.1:*");
-        config.addAllowedOriginPattern("ws://localhost:*");
-        config.addAllowedOriginPattern("ws://127.0.0.1:*");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        config.setMaxAge(3600L);
+        config.setAllowCredentials(cors.allowCredentials());
+        cors.allowedOriginPatterns().forEach(config::addAllowedOriginPattern);
+        cors.allowedMethods().forEach(config::addAllowedMethod);
+        cors.allowedHeaders().forEach(config::addAllowedHeader);
+        config.setMaxAge(cors.maxAge());
+
         return config;
     }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        WebSocketProperties.Cors cors = properties.cors();
+
         registry.addMapping("/**")
-                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600);
+                .allowedOriginPatterns(cors.allowedOriginPatterns().toArray(String[]::new))
+                .allowedMethods(cors.allowedMethods().toArray(String[]::new))
+                .allowedHeaders(cors.allowedHeaders().toArray(String[]::new))
+                .allowCredentials(cors.allowCredentials())
+                .maxAge(cors.maxAge());
     }
 }
