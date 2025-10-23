@@ -1,6 +1,6 @@
 package com.tok.pekko.global.config.websocket;
 
-import com.tok.pekko.adapter.in.websocket.ChatWebSocketHandler;
+import com.tok.pekko.adapter.in.websocket.DevChatWebSocketHandler;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +21,12 @@ import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAd
 public class WebSocketConfig implements WebFluxConfigurer {
 
     private final WebSocketProperties properties;
-    private final ChatWebSocketHandler chatWebSocketHandler;
+    private final DevChatWebSocketHandler devChatWebSocketHandler;
 
     @Bean
     public HandlerMapping webSocketHandlerMapping() {
         Map<String, WebSocketHandler> map = new HashMap<>();
-        map.put(properties.endpoint(), chatWebSocketHandler);
+        map.put(properties.endpoint(), devChatWebSocketHandler);
 
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(map);

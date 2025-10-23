@@ -15,9 +15,9 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.socket.WebSocketHandler;
@@ -28,10 +28,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-@Slf4j
+@Profile("dev")
 @Component
 @RequiredArgsConstructor
-public class ChatWebSocketHandler implements WebSocketHandler {
+public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private final Clock clock;
     private final ObjectMapper objectMapper;

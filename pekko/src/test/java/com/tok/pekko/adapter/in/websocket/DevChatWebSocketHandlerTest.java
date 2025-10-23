@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class ChatWebSocketHandlerTest {
+class DevChatWebSocketHandlerTest {
 
     @Test
     void 정상적으로_웹소켓을_연결하면_필요한_흐름을_정의하고_Actor에게_메시지를_전달한다() throws Exception {
@@ -48,7 +48,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -84,7 +84,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
         String messageContent = "테스트 메시지";
@@ -116,7 +116,7 @@ class ChatWebSocketHandlerTest {
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -138,7 +138,7 @@ class ChatWebSocketHandlerTest {
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -163,7 +163,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -195,7 +195,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -231,7 +231,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -266,7 +266,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=123&userId=456");
 
@@ -297,7 +297,7 @@ class ChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        ChatWebSocketHandler handler = new ChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=999&userId=100");
 

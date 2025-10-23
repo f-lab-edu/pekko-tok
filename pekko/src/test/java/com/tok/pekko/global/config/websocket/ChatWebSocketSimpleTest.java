@@ -1,11 +1,14 @@
 package com.tok.pekko.global.config.websocket;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tok.pekko.adapter.in.websocket.DevChatWebSocketHandler;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.application.actor.SessionActorManagementService;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,7 +23,9 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
@@ -162,5 +167,19 @@ class ChatWebSocketSimpleTest {
         // then
         verify(sessionService, timeout(200)).registerSession(any(), anyLong(), anyLong());
         verify(sessionService, timeout(200)).terminateSession(1L, 100L);
+    }
+
+    @TestConfiguration
+    static class TestConfig {
+
+        @Bean
+        public DevChatWebSocketHandler devChatWebSocketHandler(
+                Clock clock,
+                ObjectMapper objectMapper,
+                ClusterSharding clusterSharding,
+                SessionActorManagementService managementService
+        ) {
+            return new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        }
     }
 }
