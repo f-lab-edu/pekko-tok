@@ -45,8 +45,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
-        clientMessageSender.close();
-
         return Behaviors.stopped();
     }
 }

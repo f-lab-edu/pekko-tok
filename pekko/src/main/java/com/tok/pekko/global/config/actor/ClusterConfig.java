@@ -1,5 +1,8 @@
 package com.tok.pekko.global.config.actor;
 
+import com.tok.pekko.domain.chat.model.ChatChannelEntity;
+import com.tok.pekko.domain.chat.model.ChatMessages;
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -11,6 +14,7 @@ import org.apache.pekko.actor.AddressFromURIString;
 import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.actor.typed.SpawnProtocol;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
 import org.apache.pekko.cluster.typed.Cluster;
 import org.apache.pekko.cluster.typed.JoinSeedNodes;
 import org.springframework.context.annotation.Bean;
@@ -26,7 +30,20 @@ public class ClusterConfig {
     private final Environment environment;
 
     @Bean
-    public ClusterSharding clusterSharding() {
+    public ClusterSharding clusterSharding(MessageStoragePort messageStoragePort) {
+        ClusterSharding clusterSharding = ClusterSharding.get(actorSystem());
+
+        clusterSharding.init(
+                Entity.of(
+                        ChatChannelEntity.ENTITY_TYPE_KEY,
+                        entityContext -> ChatChannelEntity.create(
+                                Long.valueOf(entityContext.getEntityId()),
+                                new ChatMessages(),
+                                messageStoragePort
+                        )
+                )
+        );
+
         return ClusterSharding.get(actorSystem());
     }
 

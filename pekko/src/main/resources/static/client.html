@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebFlux WebSocket Chat Client</title>
+  <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f5f5;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .header {
+        background-color: #4CAF50;
+        color: white;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .connection-panel {
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .input-group {
+        margin-bottom: 10px;
+    }
+
+    .input-group label {
+        display: inline-block;
+        width: 100px;
+        font-weight: bold;
+    }
+
+    .input-group input {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 200px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin: 5px;
+    }
+
+    .btn-connect {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .btn-disconnect {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .btn-send {
+        background-color: #2196F3;
+        color: white;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+    }
+
+    .btn:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+
+    .status.connected {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .status.disconnected {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .chat-area {
+        padding: 20px;
+    }
+
+    .messages {
+        height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: #fafafa;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 4px;
+        background-color: white;
+        border-left: 3px solid #2196F3;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message.system {
+        background-color: #fff3cd;
+        border-left-color: #ffc107;
+        font-style: italic;
+    }
+
+    .message.error {
+        background-color: #f8d7da;
+        border-left-color: #f44336;
+    }
+
+    .message-time {
+        font-size: 11px;
+        color: #666;
+        margin-right: 10px;
+    }
+
+    .message-content {
+        margin-top: 5px;
+        word-wrap: break-word;
+    }
+
+    .input-area {
+        display: flex;
+        gap: 10px;
+    }
+
+    .input-area input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .input-area input:focus {
+        outline: none;
+        border-color: #2196F3;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>WebFlux WebSocket Chat Client</h1>
+    <p>Apache Pekko Cluster Chat Test</p>
+  </div>
+
+  <div class="connection-panel">
+    <h3>
+      연결 설정
+      <span id="status" class="status disconnected">연결 끊김</span>
+    </h3>
+
+    <div class="input-group">
+      <label for="serverUrl">서버 URL:</label>
+      <input type="text" id="serverUrl" value="ws://localhost:8080/ws/chat">
+    </div>
+
+    <div class="input-group">
+      <label for="channelId">Channel ID:</label>
+      <input type="number" id="channelId" value="1">
+    </div>
+
+    <div class="input-group">
+      <label for="userId">User ID:</label>
+      <input type="number" id="userId" value="1001">
+    </div>
+
+    <button id="connectBtn" class="btn btn-connect">연결</button>
+    <button id="disconnectBtn" class="btn btn-disconnect" disabled>연결 종료</button>
+  </div>
+
+  <div class="chat-area">
+    <h3>메시지</h3>
+    <div id="messages" class="messages"></div>
+
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." disabled>
+      <button id="sendBtn" class="btn btn-send" disabled>전송</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let socket = null;
+
+  const elements = {
+      serverUrl: document.getElementById('serverUrl'),
+      channelId: document.getElementById('channelId'),
+      userId: document.getElementById('userId'),
+      connectBtn: document.getElementById('connectBtn'),
+      disconnectBtn: document.getElementById('disconnectBtn'),
+      messageInput: document.getElementById('messageInput'),
+      sendBtn: document.getElementById('sendBtn'),
+      messages: document.getElementById('messages'),
+      status: document.getElementById('status')
+  };
+
+  // 연결 버튼 클릭
+  elements.connectBtn.addEventListener('click', connect);
+
+  // 연결 종료 버튼 클릭
+  elements.disconnectBtn.addEventListener('click', disconnect);
+
+  // 전송 버튼 클릭
+  elements.sendBtn.addEventListener('click', sendMessage);
+
+  // Enter 키로 메시지 전송
+  elements.messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+          sendMessage();
+      }
+  });
+
+  function connect() {
+      const serverUrl = elements.serverUrl.value.trim();
+      const channelId = elements.channelId.value.trim();
+      const userId = elements.userId.value.trim();
+
+      if (!serverUrl || !channelId || !userId) {
+          addSystemMessage('서버 URL, Channel ID, User ID를 모두 입력해주세요.', 'error');
+          return;
+      }
+
+      // WebSocket URL 생성 (쿼리 파라미터 포함)
+      const wsUrl = `${serverUrl}?channelId=${channelId}&userId=${userId}`;
+
+      addSystemMessage(`연결 시도 중: ${wsUrl}`);
+
+      try {
+          socket = new WebSocket(wsUrl);
+
+          socket.onopen = onOpen;
+          socket.onmessage = onMessage;
+          socket.onclose = onClose;
+          socket.onerror = onError;
+
+      } catch (error) {
+          addSystemMessage(`연결 실패: ${error.message}`, 'error');
+      }
+  }
+
+  function disconnect() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close();
+          addSystemMessage('연결 종료 요청');
+      }
+  }
+
+  function sendMessage() {
+      const message = elements.messageInput.value.trim();
+
+      if (!message) {
+          return;
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+          // 서버의 processReceive에서 message.getPayloadAsText()로 받음
+          socket.send(message);
+
+          addSystemMessage(`전송: ${message}`, 'system');
+          elements.messageInput.value = '';
+      } else {
+          addSystemMessage('WebSocket이 연결되지 않았습니다.', 'error');
+      }
+  }
+
+  function onOpen(event) {
+      addSystemMessage('✅ WebSocket 연결 성공!');
+      updateConnectionStatus(true);
+  }
+
+  function onMessage(event) {
+      try {
+          // 서버의 processSend에서 JSON으로 ChatMessage 전송
+          const data = JSON.parse(event.data);
+          addChatMessage(data);
+      } catch (error) {
+          // JSON 파싱 실패 시 일반 텍스트로 표시
+          addSystemMessage(`수신: ${event.data}`);
+      }
+  }
+
+  function onClose(event) {
+      addSystemMessage(`❌ WebSocket 연결 종료 (코드: ${event.code})`);
+      updateConnectionStatus(false);
+      socket = null;
+  }
+
+  function onError(error) {
+      addSystemMessage(`⚠️ WebSocket 에러 발생`, 'error');
+      console.error('WebSocket Error:', error);
+  }
+
+  function addChatMessage(message) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+
+      const time = new Date().toLocaleTimeString('ko-KR');
+
+      // ChatMessage 객체의 구조에 맞춰 표시
+      messageDiv.innerHTML = `
+          <div>
+              <span class="message-time">${time}</span>
+              <strong>User ${message.userId || message.senderId || 'Unknown'}</strong>
+          </div>
+          <div class="message-content">${escapeHtml(message.content || message.message || JSON.stringify(message))}</div>
+      `;
+
+      elements.messages.appendChild(messageDiv);
+      elements.messages.scrollTop = elements.messages.scrollHeight;
+  }
+
+  function addSystemMessage(text, type = 'system') {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+
+      const time = new Date().toLocaleTimeString('ko-KR');
+
+      messageDiv.innerHTML = `
+          <span class="message-time">${time}</span>
+          ${escapeHtml(text)}
+      `;
+
+      elements.messages.appendChild(messageDiv);
+      elements.messages.scrollTop = elements.messages.scrollHeight;
+  }
+
+  function updateConnectionStatus(connected) {
+      if (connected) {
+          elements.status.textContent = '연결됨';
+          elements.status.className = 'status connected';
+
+          elements.connectBtn.disabled = true;
+          elements.disconnectBtn.disabled = false;
+          elements.messageInput.disabled = false;
+          elements.sendBtn.disabled = false;
+
+          elements.serverUrl.disabled = true;
+          elements.channelId.disabled = true;
+          elements.userId.disabled = true;
+      } else {
+          elements.status.textContent = '연결 끊김';
+          elements.status.className = 'status disconnected';
+
+          elements.connectBtn.disabled = false;
+          elements.disconnectBtn.disabled = true;
+          elements.messageInput.disabled = true;
+          elements.sendBtn.disabled = true;
+
+          elements.serverUrl.disabled = false;
+          elements.channelId.disabled = false;
+          elements.userId.disabled = false;
+      }
+  }
+
+  function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+  }
+
+  // 페이지 언로드 시 연결 종료
+  window.addEventListener('beforeunload', () => {
+      if (socket) {
+          socket.close();
+      }
+  });
+</script>
+</body>
+</html>
