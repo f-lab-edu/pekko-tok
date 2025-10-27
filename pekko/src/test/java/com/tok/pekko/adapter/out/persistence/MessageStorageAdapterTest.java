@@ -3,6 +3,7 @@ package com.tok.pekko.adapter.out.persistence;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.HistoryFound;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -50,7 +51,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void store_성공_시_replyTo에게_SyncPersistedMessage_메시지를_전달한다() {
+    void 메시지_저장_성공_시_동기화_이벤트를_전달한다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -89,7 +90,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void store_실패_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 메시지_저장_실패_시_이벤트를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -112,7 +113,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void store_null_반환_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 메시지_저장_결과가_null이면_이벤트를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -135,7 +136,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findHistory_성공_시_replyTo에게_HistoryFound_메시지를_전달한다() {
+    void 히스토리_조회_성공_시_조회_결과를_전달한다() {
         // given
         TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
@@ -169,7 +170,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findHistory_실패_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 히스토리_조회_실패_시_결과를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
@@ -191,7 +192,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findHistory_null_반환_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 히스토리_조회_결과가_null이면_결과를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
@@ -212,7 +213,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findRecentMessages_성공_시_replyTo에게_SyncRecentMessages_메시지를_전달한다() {
+    void 최근_메시지_조회_성공_시_조회_결과를_전달한다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -244,7 +245,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findRecentMessages_실패_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 최근_메시지_조회_실패_시_결과를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -263,7 +264,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findRecentMessages_null_반환_시_replyTo에게_메시지를_전달하지_않는다() {
+    void 최근_메시지_조회_결과가_null이면_결과를_전달하지_않는다() {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -282,7 +283,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void store_호출_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
+    void 메시지_저장_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -310,7 +311,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findHistory_호출_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
+    void 히스토리_조회_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
         TestProbe<ChatChannelEntityCommand> writerProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
@@ -341,7 +342,7 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void findRecentMessages_호출_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
+    void 최근_메시지_조회_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
@@ -367,6 +368,72 @@ class MessageStorageAdapterTest {
         assertAll(
                 () -> assertThat(errorHolder.get()).isNull(),
                 () -> replyProbe.expectMessageClass(SyncRecentMessages.class, Duration.ofSeconds(1))
+        );
+    }
+
+    @Test
+    void 메시지_삭제_성공_시_삭제_이벤트를_전달한다() {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+
+        willDoNothing().given(messageRepository).delete(eq(messageId));
+
+        // when
+        adapter.delete(messageId, replyProbe.ref());
+
+        // then
+        SyncDeletedMessage syncDeletedMessage = replyProbe.expectMessageClass(
+                SyncDeletedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncDeletedMessage.messageId()).isEqualTo(messageId);
+    }
+
+    @Test
+    void 메시지_삭제_실패_시_이벤트를_전달하지_않는다() {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+
+        willThrow(new RuntimeException("Database error")).given(messageRepository).delete(anyLong());
+
+        // when
+        adapter.delete(messageId, replyProbe.ref());
+
+        // then
+        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+    }
+
+    @Test
+    void 메시지_삭제_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+
+        willDoNothing().given(messageRepository).delete(anyLong());
+
+        // when
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Throwable> errorHolder = new AtomicReference<>();
+
+        Mono.fromRunnable(() -> adapter.delete(messageId, replyProbe.ref()))
+            .subscribeOn(Schedulers.parallel())
+            .doFinally(ignored -> latch.countDown())
+            .subscribe(null, errorHolder::set);
+
+        latch.await();
+
+        // then
+        assertAll(
+                () -> assertThat(errorHolder.get()).isNull(),
+                () -> replyProbe.expectMessageClass(SyncDeletedMessage.class, Duration.ofSeconds(1))
         );
     }
 }

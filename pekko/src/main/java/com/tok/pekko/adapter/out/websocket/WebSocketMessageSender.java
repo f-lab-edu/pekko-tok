@@ -16,6 +16,11 @@ public class WebSocketMessageSender implements ClientMessageSender {
     }
 
     @Override
+    public void sendDeletedMessage(ChatMessage deletedMessage) {
+        sink.tryEmitNext(deletedMessage);
+    }
+
+    @Override
     public void sendMessages(List<ChatMessage> messages) {
         messages.forEach(sink::tryEmitNext);
     }

@@ -2,13 +2,16 @@ package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.DeleteMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.util.HashMap;
@@ -76,9 +79,11 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         return newReceiveBuilder().onMessage(SyncRecentMessages.class, this::onSyncRecentMessages)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessage.class, this::onSendMessage)
+                                  .onMessage(DeleteMessage.class, this::onDeleteMessage)
+                                  .onMessage(SyncDeletedMessage.class, this::onSyncDeletedMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
-                                  .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader).onMessage(
-                        RequestSyncMessages.class, this::onRequestSyncMessages)
+                                  .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
+                                  .onMessage(RequestSyncMessages.class, this::onRequestSyncMessages)
                                   .build();
     }
 
@@ -103,6 +108,20 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         ChatMessage message = createChatMessage(command);
 
         messageStoragePort.store(message, getContext().getSelf());
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onDeleteMessage(DeleteMessage command) {
+        messageStoragePort.delete(command.messageId(), getContext().getSelf());
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onSyncDeletedMessage(SyncDeletedMessage command) {
+        messages.delete(command.messageId());
+        readers.values()
+                .forEach(reader -> reader.tell(new SyncDeletion(command.messageId())));
 
         return this;
     }

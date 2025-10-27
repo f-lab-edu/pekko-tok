@@ -3,6 +3,7 @@ package com.tok.pekko.adapter.out.websocket;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -153,5 +154,29 @@ class ClientSessionActorTest {
 
         // then
         verify(mockClientMessageSender, timeout(1000)).sendMessages(emptyMessages);
+    }
+
+    @Test
+    void DeliverDeletedMessage_메시지를_받으면_ClientMessageSender로_삭제된_메시지를_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(mockClientMessageSender)
+        );
+
+        ChatMessage deletedMessage = new ChatMessage(
+                1L,
+                1L,
+                100L,
+                1L,
+                "Deleted Message",
+                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+        );
+
+        // when
+        clientSessionActor.tell(new DeliverDeletedMessage(deletedMessage));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendDeletedMessage(deletedMessage);
     }
 }

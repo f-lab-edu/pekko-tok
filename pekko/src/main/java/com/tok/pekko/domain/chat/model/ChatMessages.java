@@ -46,14 +46,17 @@ public class ChatMessages {
     }
 
     @ActorThreadSafe
-    public void delete(Long messageId) {
+    public ChatMessage delete(Long messageId) {
         validateMessageId(messageId);
 
         ChatMessageNode node = findChatMessageNode(messageId);
+        ChatMessage deletedMessage = node.data;
 
         removeNode(node);
         messageIdMap.remove(messageId);
         size--;
+
+        return deletedMessage;
     }
 
     @ActorThreadSafe

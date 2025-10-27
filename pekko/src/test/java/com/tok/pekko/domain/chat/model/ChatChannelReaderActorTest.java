@@ -4,10 +4,12 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -166,4 +168,41 @@ class ChatChannelReaderActorTest {
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
         terminationProbe.expectTerminated(readerActor, Duration.ofSeconds(3));
     }
+
+    @Test
+    void SyncDeletion_메시지를_받으면_ChatMessages에서_메시지를_삭제하고_ClientSessionActor에_전달한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+        );
+
+        Long messageId = 1L;
+        ChatMessage deletedMessage = new ChatMessage(
+                messageId,
+                1L,
+                1001L,
+                1L,
+                "Deleted Message",
+                LocalDateTime.now()
+        );
+
+        given(mockMessages.delete(messageId)).willReturn(deletedMessage);
+
+        // when
+        readerActor.tell(new SyncDeletion(messageId));
+
+        // then
+        verify(mockMessages, timeout(1000)).delete(messageId);
+
+        DeliverDeletedMessage deliveredDeletedMessage = clientSessionProbe.expectMessageClass(
+                DeliverDeletedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(deliveredDeletedMessage.deletedMessage()).isEqualTo(deletedMessage);
+    }
+
 }

@@ -5,10 +5,12 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import java.time.Duration;
 import java.util.List;
@@ -62,6 +64,7 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
     @Override
     public Receive<ChatChannelReaderCommand> createReceive() {
         return newReceiveBuilder().onMessage(SyncNewCommand.class, this::onSyncNewMessage)
+                                  .onMessage(SyncDeletion.class, this::onSyncDeletion)
                                   .onMessage(RequestHistory.class, this::onRequestHistory)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
@@ -69,9 +72,17 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
                                   .build();
     }
 
-    public Behavior<ChatChannelReaderCommand> onSyncNewMessage(SyncNewCommand command) {
+    private Behavior<ChatChannelReaderCommand> onSyncNewMessage(SyncNewCommand command) {
         messages.add(command.message());
         clientSession.tell(new DeliverCommand(command.message()));
+
+        return this;
+    }
+
+    private Behavior<ChatChannelReaderCommand> onSyncDeletion(SyncDeletion command) {
+        ChatMessage deletedMessage = messages.delete(command.messageId());
+
+        clientSession.tell(new DeliverDeletedMessage(deletedMessage));
 
         return this;
     }

@@ -14,6 +14,8 @@ public interface ChatChannelProtocol {
     record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
     record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessage(Long userId, String message, LocalDateTime timestamp) implements ChatChannelEntityCommand { }
+    record DeleteMessage(Long messageId) implements ChatChannelEntityCommand { }
+    record SyncDeletedMessage(Long messageId) implements ChatChannelEntityCommand { }
     record SyncPersistedMessage(ChatMessage message) implements ChatChannelEntityCommand { }
     record HistoryFound(List<ChatMessage> history, ActorRef<ChatChannelReaderCommand> replyTo) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }

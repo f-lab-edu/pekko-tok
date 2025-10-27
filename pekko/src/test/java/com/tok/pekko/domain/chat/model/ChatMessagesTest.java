@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -210,7 +211,7 @@ class ChatMessagesTest {
             chatMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
         }
 
-        List<ChatMessage> newMessages = new java.util.ArrayList<>();
+        List<ChatMessage> newMessages = new ArrayList<>();
         for (long i = 51; i <= 105; i++) {
             newMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
         }
@@ -282,7 +283,7 @@ class ChatMessagesTest {
             chatMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
         }
 
-        List<ChatMessage> newMessages = new java.util.ArrayList<>();
+        List<ChatMessage> newMessages = new ArrayList<>();
         for (long i = 1; i <= 10; i++) {
             newMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Updated " + i, LocalDateTime.now()));
         }
@@ -316,10 +317,11 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(2L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(deleted).isEqualTo(message2),
                 () -> assertThat(result).hasSize(2),
                 () -> assertThat(result).containsExactly(message3, message1),
                 () -> assertThat(result).doesNotContain(message2)
@@ -337,10 +339,11 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        chatMessages.delete(3L);
+        ChatMessage deleted = chatMessages.delete(3L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(deleted).isEqualTo(message3),
                 () -> assertThat(result).hasSize(2),
                 () -> assertThat(result).containsExactly(message2, message1)
         );
@@ -357,10 +360,11 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        chatMessages.delete(1L);
+        ChatMessage deleted = chatMessages.delete(1L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(deleted).isEqualTo(message1),
                 () -> assertThat(result).hasSize(2),
                 () -> assertThat(result).containsExactly(message3, message2)
         );
@@ -395,10 +399,14 @@ class ChatMessagesTest {
         chatMessages.add(message1);
         chatMessages.add(message2);
 
-        chatMessages.delete(1L);
-        chatMessages.delete(2L);
+        ChatMessage deleted1 = chatMessages.delete(1L);
+        ChatMessage deleted2 = chatMessages.delete(2L);
 
-        assertThat(chatMessages.getRecentMessages(10)).isEmpty();
+        assertAll(
+                () -> assertThat(deleted1).isEqualTo(message1),
+                () -> assertThat(deleted2).isEqualTo(message2),
+                () -> assertThat(chatMessages.getRecentMessages(10)).isEmpty()
+        );
     }
 
     @Test
@@ -409,13 +417,14 @@ class ChatMessagesTest {
 
         chatMessages.add(message1);
         chatMessages.add(message2);
-        chatMessages.delete(1L);
+        ChatMessage deleted = chatMessages.delete(1L);
 
         ChatMessage message3 = new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now());
         chatMessages.add(message3);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(deleted).isEqualTo(message1),
                 () -> assertThat(result).hasSize(2),
                 () -> assertThat(result).containsExactly(message3, message2)
         );
@@ -428,11 +437,13 @@ class ChatMessagesTest {
             chatMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
         }
 
-        chatMessages.delete(2L);
-        chatMessages.delete(4L);
+        ChatMessage deleted1 = chatMessages.delete(2L);
+        ChatMessage deleted2 = chatMessages.delete(4L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(deleted1.messageId()).isEqualTo(2L),
+                () -> assertThat(deleted2.messageId()).isEqualTo(4L),
                 () -> assertThat(result).hasSize(3),
                 () -> assertThat(result)
                         .extracting(ChatMessage::messageId)
@@ -448,10 +459,11 @@ class ChatMessagesTest {
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(4L, 40L, 400L, 4000L, "Message 4", LocalDateTime.now()));
 
-        chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(2L);
         List<ChatMessage> history = chatMessages.getHistory(3500L, 10);
 
         assertAll(
+                () -> assertThat(deleted.messageId()).isEqualTo(2L),
                 () -> assertThat(history).hasSize(2),
                 () -> assertThat(history)
                         .extracting(ChatMessage::messageId)
@@ -466,10 +478,11 @@ class ChatMessagesTest {
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now()));
 
-        chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(2L);
         List<ChatMessage> messagesAfter = chatMessages.getMessagesAfter(1500L);
 
         assertAll(
+                () -> assertThat(deleted.messageId()).isEqualTo(2L),
                 () -> assertThat(messagesAfter).hasSize(1),
                 () -> assertThat(messagesAfter)
                         .extracting(ChatMessage::messageId)
@@ -575,9 +588,12 @@ class ChatMessagesTest {
 
         ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated", LocalDateTime.now());
         chatMessages.update(updated);
-        chatMessages.delete(1L);
+        ChatMessage deleted = chatMessages.delete(1L);
 
-        assertThat(chatMessages.getRecentMessages(10)).isEmpty();
+        assertAll(
+                () -> assertThat(deleted.message()).isEqualTo("Updated"),
+                () -> assertThat(chatMessages.getRecentMessages(10)).isEmpty()
+        );
     }
 
     @Test
@@ -601,14 +617,14 @@ class ChatMessagesTest {
 
     @Test
     void 수정_후_deepCopy가_올바르게_동작한다() {
-        ChatMessages original = new ChatMessages();
+        ChatMessages chatMessages = new ChatMessages();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Original", LocalDateTime.now());
-        original.add(message);
+        chatMessages.add(message);
 
         ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated", LocalDateTime.now());
-        original.update(updated);
+        chatMessages.update(updated);
 
-        ChatMessages copy = original.deepCopy();
+        ChatMessages copy = chatMessages.deepCopy();
 
         List<ChatMessage> result = copy.getRecentMessages(10);
         assertAll(
