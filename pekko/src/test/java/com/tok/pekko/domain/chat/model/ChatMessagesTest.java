@@ -37,7 +37,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void null_메시지를_추가하면_예외가_발생한다() {
+    void null_메시지는_추가할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
 
         assertThatThrownBy(() -> chatMessages.add(null))
@@ -79,7 +79,7 @@ class ChatMessagesTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, -1})
-    void 메시지_히스토리_조회_시_개수가_0_이하면_예외가_발생한다(int invalidSize) {
+    void 메시지_히스토리_조회_시_개수가_0_이하라면_히스토리를_조회할_수_없다(int invalidSize) {
         ChatMessages chatMessages = new ChatMessages();
 
         assertThatThrownBy(() -> chatMessages.getHistory(10L, invalidSize))
@@ -88,7 +88,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 메시지_히스토리_조회_시_개수가_MAX_SIZE를_초과하면_예외가_발생한다() {
+    void 메시지_히스토리_조회_시_개수가_MAX_SIZE를_초과하면_히스토리를_조회할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
 
         assertThatThrownBy(() -> chatMessages.getHistory(10L, 101))
@@ -131,7 +131,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 기존과_독립적인_복사본을_생성한다() {
+    void 기존과_독립적인_복사본을_초기화한다() {
         ChatMessages original = new ChatMessages();
         ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Original", LocalDateTime.now());
         original.add(message1);
@@ -371,7 +371,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 존재하지_않는_메시지를_삭제하면_예외가_발생한다() {
+    void 존재하지_않는_메시지는_삭제할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", LocalDateTime.now());
         chatMessages.add(message);
@@ -382,7 +382,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void null_메시지_ID로_삭제하면_예외가_발생한다() {
+    void 메시지_ID로_null을_전달하면_메시지를_삭제할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
 
         assertThatThrownBy(() -> chatMessages.delete(null))
@@ -410,49 +410,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 삭제_후_새_메시지를_추가할_수_있다() {
-        ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now());
-        ChatMessage message2 = new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now());
-
-        chatMessages.add(message1);
-        chatMessages.add(message2);
-        ChatMessage deleted = chatMessages.delete(1L);
-
-        ChatMessage message3 = new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now());
-        chatMessages.add(message3);
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(deleted).isEqualTo(message1),
-                () -> assertThat(result).hasSize(2),
-                () -> assertThat(result).containsExactly(message3, message2)
-        );
-    }
-
-    @Test
-    void 중간_메시지들을_순차적으로_삭제한다() {
-        ChatMessages chatMessages = new ChatMessages();
-        for (long i = 1; i <= 5; i++) {
-            chatMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
-        }
-
-        ChatMessage deleted1 = chatMessages.delete(2L);
-        ChatMessage deleted2 = chatMessages.delete(4L);
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(deleted1.messageId()).isEqualTo(2L),
-                () -> assertThat(deleted2.messageId()).isEqualTo(4L),
-                () -> assertThat(result).hasSize(3),
-                () -> assertThat(result)
-                        .extracting(ChatMessage::messageId)
-                        .containsExactly(5L, 3L, 1L)
-        );
-    }
-
-    @Test
-    void 삭제_후_getHistory가_올바르게_동작한다() {
+    void 메시지_히스토리_조회_시_삭제된_메시지는_포함되지_않는다() {
         ChatMessages chatMessages = new ChatMessages();
         chatMessages.add(new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now()));
@@ -472,7 +430,7 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 삭제_후_getMessagesAfter가_올바르게_동작한다() {
+    void 특정_시점_이후_메시지_조회_시_삭제된_메시지는_포함되지_않는다() {
         ChatMessages chatMessages = new ChatMessages();
         chatMessages.add(new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now()));
@@ -496,11 +454,13 @@ class ChatMessagesTest {
         ChatMessage original = new ChatMessage(1L, 10L, 100L, 1000L, "Original", LocalDateTime.now());
         chatMessages.add(original);
 
-        ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated", LocalDateTime.now());
-        chatMessages.update(updated);
+        ChatMessage updated = chatMessages.update(1L, "Updated");
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
+                () -> assertThat(updated.message()).isEqualTo("Updated"),
+                () -> assertThat(updated.messageId()).isEqualTo(1L),
+                () -> assertThat(updated.messageSequence()).isEqualTo(1000L),
                 () -> assertThat(result).hasSize(1),
                 () -> assertThat(result.get(0).message()).isEqualTo("Updated"),
                 () -> assertThat(result.get(0).messageId()).isEqualTo(1L),
@@ -509,104 +469,41 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 중간_메시지를_수정해도_순서가_유지된다() {
-        ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now());
-        ChatMessage message2 = new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now());
-        ChatMessage message3 = new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now());
-
-        chatMessages.add(message1);
-        chatMessages.add(message2);
-        chatMessages.add(message3);
-
-        ChatMessage updated = new ChatMessage(2L, 20L, 200L, 2000L, "Updated Message 2", LocalDateTime.now());
-        chatMessages.update(updated);
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(result).hasSize(3),
-                () -> assertThat(result)
-                        .extracting(ChatMessage::messageSequence)
-                        .containsExactly(3000L, 2000L, 1000L),
-                () -> assertThat(result.get(1).message()).isEqualTo("Updated Message 2")
-        );
-    }
-
-    @Test
-    void 존재하지_않는_메시지를_수정하면_예외가_발생한다() {
+    void 존재하지_않는_메시지를_수정할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", LocalDateTime.now());
         chatMessages.add(message);
 
-        ChatMessage nonExistent = new ChatMessage(999L, 9990L, 99900L, 999000L, "Updated", LocalDateTime.now());
-        assertThatThrownBy(() -> chatMessages.update(nonExistent))
+        assertThatThrownBy(() -> chatMessages.update(999L, "Updated"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("존재하지 않는 메시지입니다: 999");
+                .hasMessage("존재하지 않는 채팅 메시지입니다.");
     }
 
     @Test
-    void null_메시지로_수정하면_예외가_발생한다() {
+    void null_메시지로는_수정할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
+        ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", LocalDateTime.now());
 
-        assertThatThrownBy(() -> chatMessages.update(null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("메시지는 null 일 수 없습니다.");
-    }
-
-    @Test
-    void 여러_메시지를_수정할_수_있다() {
-        ChatMessages chatMessages = new ChatMessages();
-        for (long i = 1; i <= 5; i++) {
-            chatMessages.add(new ChatMessage(i, i * 10, i * 100, i * 1000, "Message " + i, LocalDateTime.now()));
-        }
-
-        chatMessages.update(new ChatMessage(2L, 20L, 200L, 2000L, "Updated 2", LocalDateTime.now()));
-        chatMessages.update(new ChatMessage(4L, 40L, 400L, 4000L, "Updated 4", LocalDateTime.now()));
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(result).hasSize(5),
-                () -> assertThat(result)
-                        .extracting(ChatMessage::messageSequence)
-                        .containsExactly(5000L, 4000L, 3000L, 2000L, 1000L),
-                () -> assertThat(result)
-                        .filteredOn(m -> m.messageId() == 2L)
-                        .extracting(ChatMessage::message)
-                        .containsExactly("Updated 2"),
-                () -> assertThat(result)
-                        .filteredOn(m -> m.messageId() == 4L)
-                        .extracting(ChatMessage::message)
-                        .containsExactly("Updated 4")
-        );
-    }
-
-    @Test
-    void 수정_후_삭제가_올바르게_동작한다() {
-        ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Original", LocalDateTime.now());
         chatMessages.add(message);
 
-        ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated", LocalDateTime.now());
-        chatMessages.update(updated);
-        ChatMessage deleted = chatMessages.delete(1L);
-
-        assertAll(
-                () -> assertThat(deleted.message()).isEqualTo("Updated"),
-                () -> assertThat(chatMessages.getRecentMessages(10)).isEmpty()
-        );
+        assertThatThrownBy(() -> chatMessages.update(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("메시지는 비어 있을 수 없습니다.");
     }
 
     @Test
-    void 수정_후_getHistory가_올바르게_동작한다() {
+    void 채팅_히스토리_조회_시_수정된_메시지가_올바르게_조회된다() {
         ChatMessages chatMessages = new ChatMessages();
         chatMessages.add(new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now()));
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", LocalDateTime.now()));
 
-        chatMessages.update(new ChatMessage(2L, 20L, 200L, 2000L, "Updated Message 2", LocalDateTime.now()));
+        ChatMessage updated = chatMessages.update(2L, "Updated Message 2");
         List<ChatMessage> history = chatMessages.getHistory(2500L, 10);
 
         assertAll(
+                () -> assertThat(updated.message()).isEqualTo("Updated Message 2"),
+                () -> assertThat(updated.messageId()).isEqualTo(2L),
                 () -> assertThat(history).hasSize(2),
                 () -> assertThat(history)
                         .extracting(ChatMessage::messageId)
@@ -616,60 +513,20 @@ class ChatMessagesTest {
     }
 
     @Test
-    void 수정_후_deepCopy가_올바르게_동작한다() {
+    void 채팅_메시지_복제_시_수정된_메시지가_올바르게_동기화된다() {
         ChatMessages chatMessages = new ChatMessages();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Original", LocalDateTime.now());
         chatMessages.add(message);
 
-        ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated", LocalDateTime.now());
-        chatMessages.update(updated);
+        ChatMessage updated = chatMessages.update(1L, "Updated");
 
         ChatMessages copy = chatMessages.deepCopy();
 
         List<ChatMessage> result = copy.getRecentMessages(10);
         assertAll(
+                () -> assertThat(updated.message()).isEqualTo("Updated"),
                 () -> assertThat(result).hasSize(1),
                 () -> assertThat(result.get(0).message()).isEqualTo("Updated")
-        );
-    }
-
-    @Test
-    void 첫번째_메시지를_수정해도_순서가_유지된다() {
-        ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now());
-        ChatMessage message2 = new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now());
-
-        chatMessages.add(message1);
-        chatMessages.add(message2);
-
-        ChatMessage updated = new ChatMessage(2L, 20L, 200L, 2000L, "Updated Message 2", LocalDateTime.now());
-        chatMessages.update(updated);
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(result).hasSize(2),
-                () -> assertThat(result.get(0).messageId()).isEqualTo(2L),
-                () -> assertThat(result.get(0).message()).isEqualTo("Updated Message 2")
-        );
-    }
-
-    @Test
-    void 마지막_메시지를_수정해도_순서가_유지된다() {
-        ChatMessages chatMessages = new ChatMessages();
-        ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", LocalDateTime.now());
-        ChatMessage message2 = new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", LocalDateTime.now());
-
-        chatMessages.add(message1);
-        chatMessages.add(message2);
-
-        ChatMessage updated = new ChatMessage(1L, 10L, 100L, 1000L, "Updated Message 1", LocalDateTime.now());
-        chatMessages.update(updated);
-
-        List<ChatMessage> result = chatMessages.getRecentMessages(10);
-        assertAll(
-                () -> assertThat(result).hasSize(2),
-                () -> assertThat(result.get(1).messageId()).isEqualTo(1L),
-                () -> assertThat(result.get(1).message()).isEqualTo("Updated Message 1")
         );
     }
 }

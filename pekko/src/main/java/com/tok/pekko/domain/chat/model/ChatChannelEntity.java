@@ -9,6 +9,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
@@ -79,9 +81,11 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         return newReceiveBuilder().onMessage(SyncRecentMessages.class, this::onSyncRecentMessages)
                                   .onMessage(RegisterReader.class, this::onRegisterReader)
                                   .onMessage(SendMessage.class, this::onSendMessage)
+                                  .onMessage(UpdateMessage.class, this::onUpdateMessage)
                                   .onMessage(DeleteMessage.class, this::onDeleteMessage)
-                                  .onMessage(SyncDeletedMessage.class, this::onSyncDeletedMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
+                                  .onMessage(SyncUpdatedMessage.class, this::onSyncUpdatedMessage)
+                                  .onMessage(SyncDeletedMessage.class, this::onSyncDeletedMessage)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .onMessage(RequestSyncMessages.class, this::onRequestSyncMessages)
                                   .build();
@@ -109,6 +113,19 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
         messageStoragePort.store(message, getContext().getSelf());
 
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onUpdateMessage(UpdateMessage command) {
+        messageStoragePort.update(command.messageId(), command.updatedMessage(), getContext().getSelf());
+
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onSyncUpdatedMessage(SyncUpdatedMessage command) {
+        messages.update(command.messageId(), command.updatedMessage());
+
+        //
         return this;
     }
 

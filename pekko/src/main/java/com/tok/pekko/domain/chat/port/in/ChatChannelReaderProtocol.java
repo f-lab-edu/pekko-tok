@@ -9,6 +9,7 @@ public interface ChatChannelReaderProtocol {
 
     record SyncNewCommand(ChatMessage message) implements ChatChannelReaderCommand { }
     record SyncDeletion(Long messageId) implements ChatChannelReaderCommand { }
+    record SyncUpdate(Long messageId, String updatedMessage) implements ChatChannelReaderCommand { }
     record RequestHistory(long messageSequence, int size) implements ChatChannelReaderCommand { }
     record Shutdown() implements ChatChannelReaderCommand { }
 }

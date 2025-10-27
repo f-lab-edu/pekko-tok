@@ -74,16 +74,16 @@ public class ChatMessages {
     }
 
     @ActorThreadSafe
-    public void update(ChatMessage updatedMessage) {
-        validateChatMessage(updatedMessage);
-
-        ChatMessageNode node = messageIdMap.get(updatedMessage.messageId());
+    public ChatMessage update(Long messageId, String updatedMessage) {
+        ChatMessageNode node = messageIdMap.get(messageId);
 
         if (node == null) {
-            throw new IllegalArgumentException("존재하지 않는 메시지입니다: " + updatedMessage.messageId());
+            throw new IllegalArgumentException("존재하지 않는 채팅 메시지입니다.");
         }
 
-        node.data = updatedMessage;
+        node.data = node.data
+                        .updateMessage(updatedMessage);
+        return node.data;
     }
 
     @ActorThreadSafe

@@ -6,11 +6,13 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistor
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -205,4 +207,40 @@ class ChatChannelReaderActorTest {
         assertThat(deliveredDeletedMessage.deletedMessage()).isEqualTo(deletedMessage);
     }
 
+    @Test
+    void SyncUpdate_메시지를_받으면_ChatMessages에서_메시지를_수정하고_ClientSessionActor에_전달한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+        );
+
+        Long messageId = 1L;
+        String updatedMessageContent = "Updated Message";
+        ChatMessage updatedMessage = new ChatMessage(
+                messageId,
+                1L,
+                1001L,
+                1L,
+                updatedMessageContent,
+                LocalDateTime.now()
+        );
+
+        given(mockMessages.update(messageId, updatedMessageContent)).willReturn(updatedMessage);
+
+        // when
+        readerActor.tell(new SyncUpdate(messageId, updatedMessageContent));
+
+        // then
+        verify(mockMessages, timeout(1000)).update(messageId, updatedMessageContent);
+
+        DeliverUpdatedMessage deliveredUpdatedMessage = clientSessionProbe.expectMessageClass(
+                DeliverUpdatedMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(deliveredUpdatedMessage.updatedMessage()).isEqualTo(updatedMessage);
+    }
 }

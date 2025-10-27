@@ -10,6 +10,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
@@ -554,6 +556,77 @@ class ChatChannelEntityTest {
                 () -> assertThat(delivered.messages()).hasSize(1),
                 () -> assertThat(delivered.messages()).extracting(ChatMessage::messageId)
                                                       .containsExactly(2L)
+        );
+    }
+
+    @Test
+    void UpdateMessage_메시지를_받으면_MessageStoragePort에_메시지_수정을_요청한다() {
+        Long channelId = 1L;
+        ChatMessages messages = new ChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
+        ActorRef<ChatChannelEntityCommand> channelEntity =
+                testKit.spawn(ChatChannelEntity.create(
+                        channelId,
+                        messages,
+                        messageStoragePort
+                ));
+
+        Long messageId = 1L;
+        String updatedMessage = "Updated message";
+
+        channelEntity.tell(new UpdateMessage(messageId, updatedMessage));
+
+        verify(messageStoragePort, timeout(1000)).update(eq(messageId), eq(updatedMessage), eq(channelEntity));
+    }
+
+    @Test
+    void SyncUpdatedMessage_메시지를_받으면_messages에서_메시지가_수정된다() {
+        Long channelId = 1L;
+        ChatMessages messages = new ChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+
+        ActorRef<ChatChannelEntityCommand> channelEntity =
+                testKit.spawn(ChatChannelEntity.create(
+                        channelId,
+                        messages,
+                        messageStoragePort
+                ));
+
+        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
+        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1);
+        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2);
+
+        channelEntity.tell(new SyncPersistedMessage(message1));
+        readerProbe.expectMessageClass(SyncNewCommand.class);
+
+        channelEntity.tell(new SyncPersistedMessage(message2));
+        readerProbe.expectMessageClass(SyncNewCommand.class);
+
+        channelEntity.tell(new SyncUpdatedMessage(1L, "Updated Message 1"));
+
+        TestProbe<ChatChannelReaderCommand> syncProbe = testKit.createTestProbe();
+        channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));
+
+        DeliverSyncMessages delivered = syncProbe.expectMessageClass(DeliverSyncMessages.class);
+        assertAll(
+                () -> assertThat(delivered.messages()).hasSize(2),
+                () -> assertThat(delivered.messages())
+                        .filteredOn(msg -> msg.messageId().equals(1L))
+                        .extracting(ChatMessage::message)
+                        .containsExactly("Updated Message 1"),
+                () -> assertThat(delivered.messages())
+                        .filteredOn(msg -> msg.messageId().equals(2L))
+                        .extracting(ChatMessage::message)
+                        .containsExactly("Message 2")
         );
     }
 }

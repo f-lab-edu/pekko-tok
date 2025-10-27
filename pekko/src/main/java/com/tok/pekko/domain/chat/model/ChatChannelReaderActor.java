@@ -7,11 +7,13 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistor
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import java.time.Duration;
 import java.util.List;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -64,6 +66,7 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
     @Override
     public Receive<ChatChannelReaderCommand> createReceive() {
         return newReceiveBuilder().onMessage(SyncNewCommand.class, this::onSyncNewMessage)
+                                  .onMessage(SyncUpdate.class, this::onSyncUpdate)
                                   .onMessage(SyncDeletion.class, this::onSyncDeletion)
                                   .onMessage(RequestHistory.class, this::onRequestHistory)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
@@ -75,6 +78,14 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
     private Behavior<ChatChannelReaderCommand> onSyncNewMessage(SyncNewCommand command) {
         messages.add(command.message());
         clientSession.tell(new DeliverCommand(command.message()));
+
+        return this;
+    }
+
+    private Behavior<ChatChannelReaderCommand> onSyncUpdate(SyncUpdate command) {
+        ChatMessage updatedMessage = messages.update(command.messageId(), command.updatedMessage());
+
+        clientSession.tell(new DeliverUpdatedMessage(updatedMessage));
 
         return this;
     }

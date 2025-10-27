@@ -69,6 +69,21 @@ class WebSocketMessageSenderTest {
         verify(sink).tryEmitNext(deletedMessage);
     }
 
+    @Test
+    void 수정된_메시지를_클라이언트에게_전송한다() {
+        // given
+        @SuppressWarnings("unchecked")
+        Sinks.Many<ChatMessage> sink = mock(Sinks.Many.class);
+        WebSocketMessageSender sender = new WebSocketMessageSender(sink);
+        ChatMessage updatedMessage = createMessage(1L, "수정된 메시지");
+
+        // when
+        sender.sendUpdatedMessage(updatedMessage);
+
+        // then
+        verify(sink).tryEmitNext(updatedMessage);
+    }
+
     private ChatMessage createMessage(Long messageId, String content) {
         return ChatMessage.create(
                 1L,

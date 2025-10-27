@@ -4,6 +4,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCom
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
@@ -28,6 +29,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     @Override
     public Receive<ClientSessionCommand> createReceive() {
         return newReceiveBuilder().onMessage(DeliverCommand.class, this::onDeliverMessage)
+                                  .onMessage(DeliverUpdatedMessage.class, this::onDeliverUpdatedMessage)
                                   .onMessage(DeliverDeletedMessage.class, this::onDeliverDeletedMessage)
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(Shutdown.class, this::onShutdown)
@@ -36,6 +38,12 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private Behavior<ClientSessionCommand> onDeliverMessage(DeliverCommand command) {
         clientMessageSender.sendMessage(command.message());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onDeliverUpdatedMessage(DeliverUpdatedMessage command) {
+        clientMessageSender.sendMessage(command.updatedMessage());
 
         return this;
     }

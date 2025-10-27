@@ -14,6 +14,11 @@ public class JdbcMessageRepository implements MessageRepository {
     }
 
     @Override
+    public void update(Long messageId, String updatedMessage) {
+        // NO-OP
+    }
+
+    @Override
     public void delete(Long messageId) {
         // NO-OP
     }

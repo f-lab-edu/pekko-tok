@@ -436,4 +436,66 @@ class MessageStorageAdapterTest {
                 () -> replyProbe.expectMessageClass(SyncDeletedMessage.class, Duration.ofSeconds(1))
         );
     }
+
+    @Test
+    void 메시지_수정_성공_시_Repository의_update를_호출한다() {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+        String updatedMessage = "Updated Message";
+
+        willDoNothing().given(messageRepository).update(eq(messageId), eq(updatedMessage));
+
+        // when
+        adapter.update(messageId, updatedMessage, replyProbe.ref());
+
+        // then
+        verify(messageRepository, timeout(1000)).update(messageId, updatedMessage);
+    }
+
+    @Test
+    void 메시지_수정_실패_시_이벤트를_전달하지_않는다() {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+        String updatedMessage = "Updated Message";
+
+        willThrow(new RuntimeException("Database error")).given(messageRepository).update(anyLong(), any());
+
+        // when
+        adapter.update(messageId, updatedMessage, replyProbe.ref());
+
+        // then
+        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+    }
+
+    @Test
+    void 메시지_수정_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
+        // given
+        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
+        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Long messageId = 1L;
+        String updatedMessage = "Updated Message";
+
+        willDoNothing().given(messageRepository).update(anyLong(), any());
+
+        // when
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Throwable> errorHolder = new AtomicReference<>();
+
+        Mono.fromRunnable(() -> adapter.update(messageId, updatedMessage, replyProbe.ref()))
+            .subscribeOn(Schedulers.parallel())
+            .doFinally(ignored -> latch.countDown())
+            .subscribe(null, errorHolder::set);
+
+        latch.await();
+
+        // then
+        assertThat(errorHolder.get()).isNull();
+    }
 }
