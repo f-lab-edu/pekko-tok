@@ -28,4 +28,15 @@ public record ChatMessage(
             throw new IllegalArgumentException("메시지는 비어 있을 수 없습니다.");
         }
     }
+
+    public ChatMessage updateMessage(String message) {
+        return new ChatMessage(
+                this.messageId,
+                this.channelId,
+                this.userId,
+                this.messageSequence,
+                message,
+                timestamp
+        );
+    }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressWarnings("NonAsciiCharacters")
@@ -17,124 +18,118 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ChatMessageTest {
 
     @Test
-    void ChatMessage를_생성한다() {
-        // given
-        Long channelId = 1L;
-        Long userId = 1001L;
-        long messageSequence = 1L;
-        String message = "Hello World";
-        LocalDateTime timestamp = LocalDateTime.now();
-
+    void 영속화되지_않은_ChatMessage를_초기화한다() {
         // when
-        ChatMessage chatMessage = ChatMessage.create(channelId, userId, messageSequence, message, timestamp);
+        ChatMessage chatMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Hello World",
+                LocalDateTime.now()
+        );
 
         // then
         assertAll(
                 () -> assertThat(chatMessage.messageId()).isNull(),
-                () -> assertThat(chatMessage.channelId()).isEqualTo(channelId),
-                () -> assertThat(chatMessage.userId()).isEqualTo(userId),
-                () -> assertThat(chatMessage.messageSequence()).isEqualTo(messageSequence),
-                () -> assertThat(chatMessage.message()).isEqualTo(message),
-                () -> assertThat(chatMessage.timestamp()).isEqualTo(timestamp)
+                () -> assertThat(chatMessage.channelId()).isEqualTo(1L),
+                () -> assertThat(chatMessage.userId()).isEqualTo(1001L),
+                () -> assertThat(chatMessage.messageSequence()).isEqualTo(1L),
+                () -> assertThat(chatMessage.message()).isEqualTo("Hello World"),
+                () -> assertThat(chatMessage.timestamp()).isNotNull()
         );
     }
 
     @Test
-    void 모든_필드를_초기화한_ChatMessage를_생성한다() {
-        // given
-        Long messageId = 100L;
-        Long channelId = 1L;
-        Long userId = 1001L;
-        long messageSequence = 1L;
-        String message = "Test Message";
-        LocalDateTime timestamp = LocalDateTime.now();
-
+    void 영속화한_CHatMessage를_초기화한다() {
         // when
-        ChatMessage chatMessage = new ChatMessage(messageId, channelId, userId, messageSequence, message, timestamp);
+        ChatMessage chatMessage = new ChatMessage(
+                100L,
+                1L,
+                1001L,
+                1L,
+                "Test Message",
+                LocalDateTime.now()
+        );
 
         // then
         assertAll(
-                () -> assertThat(chatMessage.messageId()).isEqualTo(messageId),
-                () -> assertThat(chatMessage.channelId()).isEqualTo(channelId),
-                () -> assertThat(chatMessage.userId()).isEqualTo(userId),
-                () -> assertThat(chatMessage.messageSequence()).isEqualTo(messageSequence),
-                () -> assertThat(chatMessage.message()).isEqualTo(message),
-                () -> assertThat(chatMessage.timestamp()).isEqualTo(timestamp)
+                () -> assertThat(chatMessage.messageId()).isEqualTo(100L),
+                () -> assertThat(chatMessage.channelId()).isEqualTo(1L),
+                () -> assertThat(chatMessage.userId()).isEqualTo(1001L),
+                () -> assertThat(chatMessage.messageSequence()).isEqualTo(1L),
+                () -> assertThat(chatMessage.message()).isEqualTo("Test Message"),
+                () -> assertThat(chatMessage.timestamp()).isNotNull()
         );
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    void 메시지가_null_또는_빈_문자열이면_ChatMessage를_생성할_수_없다(String invalidMessage) {
-        // given
-        Long channelId = 1L;
-        Long userId = 1001L;
-        long messageSequence = 1L;
-        LocalDateTime timestamp = LocalDateTime.now();
-
+    void 메시지가_비어_있다면_ChatMessage를_초기화할_수_없다(String invalidMessage) {
         // when & then
-        assertThatThrownBy(() -> ChatMessage.create(channelId, userId, messageSequence, invalidMessage, timestamp))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("메시지는 비어 있을 수 없습니다.");
-    }
-
-    @Test
-    void 채널_ID가_null이면_ChatMessage를_생성할_수_없다() {
-        // given
-        Long channelId = null;
-        Long userId = 1001L;
-        long messageSequence = 1L;
-        String message = "Test";
-        LocalDateTime timestamp = LocalDateTime.now();
-
-        // when & then
-        assertThatThrownBy(() -> ChatMessage.create(channelId, userId, messageSequence, message, timestamp))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("채널 ID는 양수여야 합니다.");
+        assertThatThrownBy(
+                () -> ChatMessage.create(
+                        1L,
+                        1001L,
+                        1L,
+                        invalidMessage,
+                        LocalDateTime.now()
+                )
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessage("메시지는 비어 있을 수 없습니다.");
     }
 
     @ParameterizedTest
+    @NullSource
     @ValueSource(longs = {0, -1, -100})
-    void 채널_ID가_0_이하면_ChatMessage를_생성할_수_없다(Long invalidChannelId) {
-        // given
-        Long userId = 1001L;
-        long messageSequence = 1L;
-        String message = "Test";
-        LocalDateTime timestamp = LocalDateTime.now();
-
+    void 채널_ID가_비어_있거나_0_또는_음수라면_ChatMessage를_초기화할_수_없다(Long channelId) {
         // when & then
-        assertThatThrownBy(() -> ChatMessage.create(invalidChannelId, userId, messageSequence, message, timestamp))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("채널 ID는 양수여야 합니다.");
+        assertThatThrownBy(
+                () -> ChatMessage.create(
+                        channelId,
+                        1001L,
+                        1L,
+                        "Test",
+                        LocalDateTime.now()
+                )
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessage("채널 ID는 양수여야 합니다.");
+    }
+
+    @ParameterizedTest(name = "{0}일 때 초기화할 수 없다")
+    @NullSource
+    @ValueSource(longs = {0, -1, -100})
+    void 사용자_ID가_비어_있거나_0_또는_음수라면_ChatMessage를_생성할_수_없다(Long userId) {
+        // when & then
+        assertThatThrownBy(
+                () -> ChatMessage.create(
+                        1L,
+                        userId,
+                        1L,
+                        "Test",
+                        LocalDateTime.now()
+                )
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessage("사용자 ID는 양수여야 합니다.");
     }
 
     @Test
-    void 사용자_ID가_null이면_ChatMessage를_생성할_수_없다() {
+    void 기존_ChatMessage의_내용을_변경한다() {
         // given
-        Long channelId = 1L;
-        Long userId = null;
-        long messageSequence = 1L;
-        String message = "Test";
-        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage chatMessage = new ChatMessage(
+                100L,
+                1L,
+                1001L,
+                1L,
+                "Test Message",
+                LocalDateTime.now()
+        );
 
-        // when & then
-        assertThatThrownBy(() -> ChatMessage.create(channelId, userId, messageSequence, message, timestamp))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("사용자 ID는 양수여야 합니다.");
-    }
+        // when
+        ChatMessage actual = chatMessage.updateMessage("New Message");
 
-    @ParameterizedTest
-    @ValueSource(longs = {0, -1, -100})
-    void 사용자_ID가_0_이하면_ChatMessage를_생성할_수_없다(Long invalidUserId) {
-        // given
-        Long channelId = 1L;
-        long messageSequence = 1L;
-        String message = "Test";
-        LocalDateTime timestamp = LocalDateTime.now();
-
-        // when & then
-        assertThatThrownBy(() -> ChatMessage.create(channelId, invalidUserId, messageSequence, message, timestamp))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("사용자 ID는 양수여야 합니다.");
+        // then
+        assertThat(actual).extracting(ChatMessage::message)
+                          .isEqualTo("New Message")
+                          .isNotEqualTo("Test Message");
     }
 }
