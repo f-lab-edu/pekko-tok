@@ -16,6 +16,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -33,6 +35,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private static final int DEFAULT_RECENT_MESSAGE_SIZE = 50;
 
     public static Behavior<ChatChannelEntityCommand> create(
+            Clock clock,
             Long channelId,
             ChatMessages messages,
             MessageStoragePort messageStoragePort
@@ -43,6 +46,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
                     return new ChatChannelEntity(
                             context,
+                            clock,
                             channelId,
                             messages,
                             messageStoragePort,
@@ -53,6 +57,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         );
     }
 
+    private final Clock clock;
     private final Long channelId;
     private final ChatMessages messages;
     private final MessageStoragePort messageStoragePort;
@@ -61,6 +66,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
 
     private ChatChannelEntity(
             ActorContext<ChatChannelEntityCommand> context,
+            Clock clock,
             Long channelId,
             ChatMessages messages,
             MessageStoragePort messageStoragePort,
@@ -69,6 +75,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     ) {
         super(context);
 
+        this.clock = clock;
         this.channelId = channelId;
         this.messages = messages;
         this.messageStoragePort = messageStoragePort;
@@ -123,9 +130,8 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private Behavior<ChatChannelEntityCommand> onSyncUpdatedMessage(SyncUpdatedMessage command) {
-        messages.update(command.messageId(), command.updatedMessage());
+        messages.update(command.messageId(), command.updatedMessage(), LocalDateTime.now(clock));
 
-        //
         return this;
     }
 
@@ -174,7 +180,8 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                 command.userId(),
                 messageSequence,
                 command.message(),
-                command.timestamp()
+                LocalDateTime.now(clock),
+                LocalDateTime.now(clock)
         );
     }
 

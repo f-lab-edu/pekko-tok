@@ -29,6 +29,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
@@ -61,12 +63,14 @@ class ChatChannelReaderActorTest {
                 ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
+        LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage newMessage = ChatMessage.create(
                 1L,
                 1001L,
                 1L,
                 "Hello World",
-                LocalDateTime.now()
+                timestamp,
+                timestamp
         );
 
         // when
@@ -95,10 +99,13 @@ class ChatChannelReaderActorTest {
 
         long messageSequence = 100L;
         int size = 10;
+        LocalDateTime timestamp1 = LocalDateTime.now();
+        LocalDateTime timestamp2 = LocalDateTime.now();
+        LocalDateTime timestamp3 = LocalDateTime.now();
         List<ChatMessage> historyMessages = List.of(
-                new ChatMessage(1L, 90L, 2001L, 90L, "Message 90", LocalDateTime.now()),
-                new ChatMessage(1L, 91L, 2002L, 91L, "Message 91", LocalDateTime.now()),
-                new ChatMessage(1L, 92L, 2001L, 92L, "Message 92", LocalDateTime.now())
+                new ChatMessage(1L, 90L, 2001L, 90L, "Message 90", timestamp1, timestamp1),
+                new ChatMessage(1L, 91L, 2002L, 91L, "Message 91", timestamp2, timestamp2),
+                new ChatMessage(1L, 92L, 2001L, 92L, "Message 92", timestamp3, timestamp3)
         );
 
         given(mockMessages.getHistory(messageSequence, size)).willReturn(historyMessages);
@@ -183,13 +190,15 @@ class ChatChannelReaderActorTest {
         );
 
         Long messageId = 1L;
+        LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage deletedMessage = new ChatMessage(
                 messageId,
                 1L,
                 1001L,
                 1L,
                 "Deleted Message",
-                LocalDateTime.now()
+                timestamp,
+                timestamp
         );
 
         given(mockMessages.delete(messageId)).willReturn(deletedMessage);
@@ -220,22 +229,24 @@ class ChatChannelReaderActorTest {
 
         Long messageId = 1L;
         String updatedMessageContent = "Updated Message";
+        LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage updatedMessage = new ChatMessage(
                 messageId,
                 1L,
                 1001L,
                 1L,
                 updatedMessageContent,
-                LocalDateTime.now()
+                timestamp,
+                timestamp
         );
 
-        given(mockMessages.update(messageId, updatedMessageContent)).willReturn(updatedMessage);
+        given(mockMessages.update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class))).willReturn(updatedMessage);
 
         // when
-        readerActor.tell(new SyncUpdate(messageId, updatedMessageContent));
+        readerActor.tell(new SyncUpdate(messageId, updatedMessageContent, timestamp));
 
         // then
-        verify(mockMessages, timeout(1000)).update(messageId, updatedMessageContent);
+        verify(mockMessages, timeout(1000)).update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class));
 
         DeliverUpdatedMessage deliveredUpdatedMessage = clientSessionProbe.expectMessageClass(
                 DeliverUpdatedMessage.class,

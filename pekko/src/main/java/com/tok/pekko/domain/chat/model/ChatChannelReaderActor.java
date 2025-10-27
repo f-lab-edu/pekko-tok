@@ -83,7 +83,11 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
     }
 
     private Behavior<ChatChannelReaderCommand> onSyncUpdate(SyncUpdate command) {
-        ChatMessage updatedMessage = messages.update(command.messageId(), command.updatedMessage());
+        ChatMessage updatedMessage = messages.update(
+                command.messageId(),
+                command.updatedMessage(),
+                command.updatedAt()
+        );
 
         clientSession.tell(new DeliverUpdatedMessage(updatedMessage));
 

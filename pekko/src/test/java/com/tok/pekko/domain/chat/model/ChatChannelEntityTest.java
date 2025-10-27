@@ -17,6 +17,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -68,6 +69,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -91,6 +93,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -121,6 +124,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -137,11 +141,12 @@ class ChatChannelEntityTest {
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
 
         ChatMessage persistedMessage = new ChatMessage(
-                channelId,
                 1L,
+                channelId,
                 userId,
                 1L,
                 messageContent,
+                timestamp,
                 timestamp
         );
 
@@ -154,8 +159,8 @@ class ChatChannelEntityTest {
                         () -> assertThat(message.channelId()).isEqualTo(channelId),
                         () -> assertThat(message.userId()).isEqualTo(userId),
                         () -> assertThat(message.message()).isEqualTo(messageContent),
-                        () -> assertThat(message.messageSequence()).isEqualTo(1L),
-                        () -> assertThat(message.timestamp()).isEqualTo(timestamp)
+                        () -> assertThat(message.orderSequence()).isEqualTo(1L),
+                        () -> assertThat(message.createdAt()).isEqualTo(timestamp)
                 ));
 
         SyncNewMessage syncCommand2 = reader2Probe.expectMessageClass(SyncNewMessage.class);
@@ -165,8 +170,8 @@ class ChatChannelEntityTest {
                         () -> assertThat(message.channelId()).isEqualTo(channelId),
                         () -> assertThat(message.userId()).isEqualTo(userId),
                         () -> assertThat(message.message()).isEqualTo(messageContent),
-                        () -> assertThat(message.messageSequence()).isEqualTo(1L),
-                        () -> assertThat(message.timestamp()).isEqualTo(timestamp)
+                        () -> assertThat(message.orderSequence()).isEqualTo(1L),
+                        () -> assertThat(message.createdAt()).isEqualTo(timestamp)
                 ));
     }
 
@@ -180,6 +185,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -194,9 +200,8 @@ class ChatChannelEntityTest {
 
         Long senderId = 200L;
         String messageContent = "Test message";
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
 
-        channelEntity.tell(new SendMessage(senderId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(senderId, messageContent));
 
         readerProbe.expectNoMessage(Duration.ofMillis(200));
     }
@@ -211,6 +216,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -234,7 +240,7 @@ class ChatChannelEntityTest {
         reader3Probe.expectNoMessage(Duration.ofMillis(200));
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        ChatMessage persistedMessage = new ChatMessage(channelId, 1L, userId1, 1L, "test", timestamp);
+        ChatMessage persistedMessage = new ChatMessage(1L, channelId, userId1, 1L, "test", timestamp, timestamp);
         channelEntity.tell(new SyncPersistedMessage(persistedMessage));
 
         reader1Probe.expectNoMessage(Duration.ofMillis(200));
@@ -264,6 +270,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -271,9 +278,8 @@ class ChatChannelEntityTest {
 
         Long userId = 100L;
         String messageContent = "Hello, World!";
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
 
-        channelEntity.tell(new SendMessage(userId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(userId, messageContent));
 
         verify(messageStoragePort, timeout(1000)).store(any(ChatMessage.class), eq(channelEntity));
     }
@@ -288,6 +294,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -295,18 +302,16 @@ class ChatChannelEntityTest {
 
         Long userId = 100L;
         String messageContent = "Test message";
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 30, 0);
 
-        channelEntity.tell(new SendMessage(userId, messageContent, timestamp));
+        channelEntity.tell(new SendMessage(userId, messageContent));
 
         verify(messageStoragePort, timeout(1000)).store(
                 argThat(message ->
                         message.messageId() == null
                                 && message.channelId().equals(channelId)
                                 && message.userId().equals(userId)
-                                && message.messageSequence() > 0
+                                && message.orderSequence() > 0
                                 && message.message().equals(messageContent)
-                                && message.timestamp().equals(timestamp)
                 ),
                 eq(channelEntity)
         );
@@ -322,14 +327,17 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 10, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 10, 0, 1);
         List<ChatMessage> recentMessages = List.of(
-                new ChatMessage(1L, channelId, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 10, 0, 0)),
-                new ChatMessage(2L, channelId, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 10, 0, 1))
+                new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1),
+                new ChatMessage(2L, channelId, 101L, 2L, "Message 2", timestamp2, timestamp2)
         );
 
         channelEntity.tell(new SyncRecentMessages(recentMessages));
@@ -355,6 +363,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -367,9 +376,9 @@ class ChatChannelEntityTest {
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
         LocalDateTime timestamp3 = LocalDateTime.of(2025, 10, 17, 12, 0, 2);
 
-        ChatMessage message1 = new ChatMessage(channelId, 1L, 100L, 1L, "First message", timestamp1);
-        ChatMessage message2 = new ChatMessage(channelId, 2L, 100L, 2L, "Second message", timestamp2);
-        ChatMessage message3 = new ChatMessage(channelId, 3L, 100L, 3L, "Third message", timestamp3);
+        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "First message", timestamp1, timestamp1);
+        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Second message", timestamp2, timestamp2);
+        ChatMessage message3 = new ChatMessage(3L, channelId, 100L, 3L, "Third message", timestamp3, timestamp3);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
         channelEntity.tell(new SyncPersistedMessage(message2));
@@ -379,27 +388,27 @@ class ChatChannelEntityTest {
         assertThat(sync1.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
-                        () -> assertThat(message.messageSequence()).isEqualTo(1L),
+                        () -> assertThat(message.orderSequence()).isEqualTo(1L),
                         () -> assertThat(message.message()).isEqualTo("First message"),
-                        () -> assertThat(message.timestamp()).isEqualTo(timestamp1)
+                        () -> assertThat(message.createdAt()).isEqualTo(timestamp1)
                 ));
 
         SyncNewMessage sync2 = readerProbe.expectMessageClass(SyncNewMessage.class);
         assertThat(sync2.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
-                        () -> assertThat(message.messageSequence()).isEqualTo(2L),
+                        () -> assertThat(message.orderSequence()).isEqualTo(2L),
                         () -> assertThat(message.message()).isEqualTo("Second message"),
-                        () -> assertThat(message.timestamp()).isEqualTo(timestamp2)
+                        () -> assertThat(message.createdAt()).isEqualTo(timestamp2)
                 ));
 
         SyncNewMessage sync3 = readerProbe.expectMessageClass(SyncNewMessage.class);
         assertThat(sync3.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
-                        () -> assertThat(message.messageSequence()).isEqualTo(3L),
+                        () -> assertThat(message.orderSequence()).isEqualTo(3L),
                         () -> assertThat(message.message()).isEqualTo("Third message"),
-                        () -> assertThat(message.timestamp()).isEqualTo(timestamp3)
+                        () -> assertThat(message.createdAt()).isEqualTo(timestamp3)
                 ));
     }
 
@@ -412,6 +421,7 @@ class ChatChannelEntityTest {
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
         testKit.spawn(ChatChannelEntity.create(
+                Clock.systemDefaultZone(),
                 channelId,
                 messages,
                 messageStoragePort
@@ -430,6 +440,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -439,8 +450,8 @@ class ChatChannelEntityTest {
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
-        ChatMessage message1 = new ChatMessage(channelId, 1L, 100L, 1L, "Message 1", timestamp1);
-        ChatMessage message2 = new ChatMessage(channelId, 2L, 100L, 2L, "Message 2", timestamp2);
+        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1);
+        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2, timestamp2);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
         channelEntity.tell(new SyncPersistedMessage(message2));
@@ -465,6 +476,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -487,6 +499,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -499,7 +512,7 @@ class ChatChannelEntityTest {
         channelEntity.tell(new RegisterReader(200L, reader2Probe.ref()));
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        ChatMessage message = new ChatMessage(channelId, 1L, 100L, 1L, "Test", timestamp);
+        ChatMessage message = new ChatMessage(1L, channelId, 100L, 1L, "Test", timestamp, timestamp);
         channelEntity.tell(new SyncPersistedMessage(message));
 
         reader1Probe.expectMessageClass(SyncNewMessage.class);
@@ -526,6 +539,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -536,8 +550,8 @@ class ChatChannelEntityTest {
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
-        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1);
-        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2);
+        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1);
+        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2, timestamp2);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
         readerProbe.expectMessageClass(SyncNewMessage.class);
@@ -569,6 +583,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -592,6 +607,7 @@ class ChatChannelEntityTest {
 
         ActorRef<ChatChannelEntityCommand> channelEntity =
                 testKit.spawn(ChatChannelEntity.create(
+                        Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
@@ -602,8 +618,8 @@ class ChatChannelEntityTest {
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
-        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1);
-        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2);
+        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1);
+        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2, timestamp2);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
         readerProbe.expectMessageClass(SyncNewMessage.class);

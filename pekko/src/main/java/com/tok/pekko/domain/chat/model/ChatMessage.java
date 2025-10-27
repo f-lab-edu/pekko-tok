@@ -6,13 +6,21 @@ public record ChatMessage(
         Long messageId,
         Long channelId,
         Long userId,
-        long messageSequence,
+        long orderSequence,
         String message,
-        LocalDateTime timestamp
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 
-    public static ChatMessage create(Long channelId, Long userId, long messageSequence, String message, LocalDateTime timestamp) {
-        return new ChatMessage(null, channelId, userId, messageSequence, message, timestamp);
+    public static ChatMessage create(
+            Long channelId,
+            Long userId,
+            long messageSequence,
+            String message,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
+        return new ChatMessage(null, channelId, userId, messageSequence, message, createdAt, updatedAt);
     }
 
     public ChatMessage {
@@ -29,14 +37,15 @@ public record ChatMessage(
         }
     }
 
-    public ChatMessage updateMessage(String message) {
+    public ChatMessage updateMessage(String message, LocalDateTime updatedAt) {
         return new ChatMessage(
                 this.messageId,
                 this.channelId,
                 this.userId,
-                this.messageSequence,
+                this.orderSequence,
                 message,
-                timestamp
+                this.createdAt,
+                updatedAt
         );
     }
 }

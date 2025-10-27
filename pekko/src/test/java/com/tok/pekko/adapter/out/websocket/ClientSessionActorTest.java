@@ -44,12 +44,14 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
         ChatMessage message = ChatMessage.create(
                 1L,
                 100L,
                 1L,
                 "Test Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp,
+                timestamp
         );
 
         // when
@@ -67,10 +69,37 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 14, 0, 1);
+        LocalDateTime timestamp3 = LocalDateTime.of(2025, 10, 17, 14, 0, 2);
         List<ChatMessage> historyMessages = Arrays.asList(
-                new ChatMessage(1L, 1L, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 14, 0, 0)),
-                new ChatMessage(1L, 2L, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 14, 0, 1)),
-                new ChatMessage(1L, 3L, 102L, 3L, "Message 3", LocalDateTime.of(2025, 10, 17, 14, 0, 2))
+                new ChatMessage(
+                        1L,
+                        1L,
+                        100L,
+                        1L,
+                        "Message 1",
+                        timestamp1,
+                        timestamp1
+                ),
+                new ChatMessage(
+                        1L,
+                        2L,
+                        101L,
+                        2L,
+                        "Message 2",
+                        timestamp2,
+                        timestamp2
+                ),
+                new ChatMessage(
+                        1L,
+                        3L,
+                        102L,
+                        3L,
+                        "Message 3",
+                        timestamp3,
+                        timestamp3
+                )
         );
 
         // when
@@ -105,26 +134,32 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 14, 0, 1);
+        LocalDateTime timestamp3 = LocalDateTime.of(2025, 10, 17, 14, 0, 2);
         ChatMessage message1 = ChatMessage.create(
                 1L,
                 100L,
                 1L,
                 "First Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp1,
+                timestamp1
         );
         ChatMessage message2 = ChatMessage.create(
                 1L,
                 101L,
                 2L,
                 "Second Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 1)
+                timestamp2,
+                timestamp2
         );
         ChatMessage message3 = ChatMessage.create(
                 1L,
                 102L,
                 3L,
                 "Third Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 2)
+                timestamp3,
+                timestamp3
         );
 
         // when
@@ -165,13 +200,15 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
         ChatMessage deletedMessage = new ChatMessage(
                 1L,
                 1L,
                 100L,
                 1L,
                 "Deleted Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp,
+                timestamp
         );
 
         // when
@@ -189,13 +226,15 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
         ChatMessage updatedMessage = new ChatMessage(
                 1L,
                 1L,
                 100L,
                 1L,
                 "Updated Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp,
+                timestamp
         );
 
         // when

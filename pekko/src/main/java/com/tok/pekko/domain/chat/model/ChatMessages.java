@@ -1,6 +1,7 @@
 package com.tok.pekko.domain.chat.model;
 
 import com.tok.pekko.global.common.ActorThreadSafe;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -74,7 +75,7 @@ public class ChatMessages {
     }
 
     @ActorThreadSafe
-    public ChatMessage update(Long messageId, String updatedMessage) {
+    public ChatMessage update(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
         ChatMessageNode node = messageIdMap.get(messageId);
 
         if (node == null) {
@@ -82,7 +83,7 @@ public class ChatMessages {
         }
 
         node.data = node.data
-                        .updateMessage(updatedMessage);
+                        .updateMessage(updatedMessage, updatedAt);
         return node.data;
     }
 
@@ -94,7 +95,7 @@ public class ChatMessages {
         ChatMessageNode current = head.next;
 
         while (current != tail && result.size() < size) {
-            if (current.data.messageSequence() < beforeMessageSequence) {
+            if (current.data.orderSequence() < beforeMessageSequence) {
                 result.add(current.data);
             }
             current = current.next;
@@ -124,7 +125,7 @@ public class ChatMessages {
         ChatMessageNode current = head.next;
 
         while (current != tail) {
-            if (current.data.messageSequence() > afterMessageSequence) {
+            if (current.data.orderSequence() > afterMessageSequence) {
                 result.add(current.data);
             }
             current = current.next;
@@ -214,7 +215,7 @@ public class ChatMessages {
     }
 
     private List<ChatMessage> sortByMessageSequenceDescending(List<ChatMessage> messages) {
-        messages.sort(Comparator.comparingLong(ChatMessage::messageSequence).reversed());
+        messages.sort(Comparator.comparingLong(ChatMessage::orderSequence).reversed());
         return messages;
     }
 

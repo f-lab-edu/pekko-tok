@@ -25,6 +25,7 @@ class ChatMessageTest {
                 1001L,
                 1L,
                 "Hello World",
+                LocalDateTime.now(),
                 LocalDateTime.now()
         );
 
@@ -33,9 +34,9 @@ class ChatMessageTest {
                 () -> assertThat(chatMessage.messageId()).isNull(),
                 () -> assertThat(chatMessage.channelId()).isEqualTo(1L),
                 () -> assertThat(chatMessage.userId()).isEqualTo(1001L),
-                () -> assertThat(chatMessage.messageSequence()).isEqualTo(1L),
+                () -> assertThat(chatMessage.orderSequence()).isEqualTo(1L),
                 () -> assertThat(chatMessage.message()).isEqualTo("Hello World"),
-                () -> assertThat(chatMessage.timestamp()).isNotNull()
+                () -> assertThat(chatMessage.createdAt()).isNotNull()
         );
     }
 
@@ -48,6 +49,7 @@ class ChatMessageTest {
                 1001L,
                 1L,
                 "Test Message",
+                LocalDateTime.now(),
                 LocalDateTime.now()
         );
 
@@ -56,9 +58,9 @@ class ChatMessageTest {
                 () -> assertThat(chatMessage.messageId()).isEqualTo(100L),
                 () -> assertThat(chatMessage.channelId()).isEqualTo(1L),
                 () -> assertThat(chatMessage.userId()).isEqualTo(1001L),
-                () -> assertThat(chatMessage.messageSequence()).isEqualTo(1L),
+                () -> assertThat(chatMessage.orderSequence()).isEqualTo(1L),
                 () -> assertThat(chatMessage.message()).isEqualTo("Test Message"),
-                () -> assertThat(chatMessage.timestamp()).isNotNull()
+                () -> assertThat(chatMessage.createdAt()).isNotNull()
         );
     }
 
@@ -72,6 +74,7 @@ class ChatMessageTest {
                         1001L,
                         1L,
                         invalidMessage,
+                        LocalDateTime.now(),
                         LocalDateTime.now()
                 )
         ).isInstanceOf(IllegalArgumentException.class)
@@ -89,6 +92,7 @@ class ChatMessageTest {
                         1001L,
                         1L,
                         "Test",
+                        LocalDateTime.now(),
                         LocalDateTime.now()
                 )
         ).isInstanceOf(IllegalArgumentException.class)
@@ -106,6 +110,7 @@ class ChatMessageTest {
                         userId,
                         1L,
                         "Test",
+                        LocalDateTime.now(),
                         LocalDateTime.now()
                 )
         ).isInstanceOf(IllegalArgumentException.class)
@@ -121,11 +126,12 @@ class ChatMessageTest {
                 1001L,
                 1L,
                 "Test Message",
+                LocalDateTime.now(),
                 LocalDateTime.now()
         );
 
         // when
-        ChatMessage actual = chatMessage.updateMessage("New Message");
+        ChatMessage actual = chatMessage.updateMessage("New Message", LocalDateTime.now());
 
         // then
         assertThat(actual).extracting(ChatMessage::message)

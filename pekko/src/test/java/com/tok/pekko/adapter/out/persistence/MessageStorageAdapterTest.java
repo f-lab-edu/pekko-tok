@@ -61,6 +61,7 @@ class MessageStorageAdapterTest {
                 100L,
                 1L,
                 "Test Message",
+                LocalDateTime.of(2025, 10, 17, 17, 0, 0),
                 LocalDateTime.of(2025, 10, 17, 17, 0, 0)
         );
         ChatMessage persistedMessage = ChatMessage.create(
@@ -68,6 +69,7 @@ class MessageStorageAdapterTest {
                 100L,
                 1L,
                 "Test Message",
+                LocalDateTime.of(2025, 10, 17, 17, 0, 0),
                 LocalDateTime.of(2025, 10, 17, 17, 0, 0)
         );
 
@@ -100,6 +102,7 @@ class MessageStorageAdapterTest {
                 100L,
                 1L,
                 "Test Message",
+                LocalDateTime.of(2025, 10, 17, 17, 0, 0),
                 LocalDateTime.of(2025, 10, 17, 17, 0, 0)
         );
 
@@ -123,6 +126,7 @@ class MessageStorageAdapterTest {
                 100L,
                 1L,
                 "Test Message",
+                LocalDateTime.of(2025, 10, 17, 17, 0, 0),
                 LocalDateTime.of(2025, 10, 17, 17, 0, 0)
         );
 
@@ -148,8 +152,8 @@ class MessageStorageAdapterTest {
         int size = 5;
 
         List<ChatMessage> historyMessages = List.of(
-                ChatMessage.create(channelId, 100L, 1L, "Message 1", LocalDateTime.now()),
-                ChatMessage.create(channelId, 101L, 2L, "Message 2", LocalDateTime.now())
+                ChatMessage.create(channelId, 100L, 1L, "Message 1", LocalDateTime.now(), LocalDateTime.now()),
+                ChatMessage.create(channelId, 101L, 2L, "Message 2", LocalDateTime.now(), LocalDateTime.now())
         );
 
         given(messageRepository.findHistory(eq(channelId), eq(messageSequence), eq(size))).willReturn(historyMessages);
@@ -223,9 +227,9 @@ class MessageStorageAdapterTest {
         int size = 50;
 
         List<ChatMessage> recentMessages = List.of(
-                ChatMessage.create(channelId, 200L, 1L, "Recent 1", LocalDateTime.now()),
-                ChatMessage.create(channelId, 201L, 2L, "Recent 2", LocalDateTime.now()),
-                ChatMessage.create(channelId, 202L, 3L, "Recent 3", LocalDateTime.now())
+                ChatMessage.create(channelId, 200L, 1L, "Recent 1", LocalDateTime.now(), LocalDateTime.now()),
+                ChatMessage.create(channelId, 201L, 2L, "Recent 2", LocalDateTime.now(), LocalDateTime.now()),
+                ChatMessage.create(channelId, 202L, 3L, "Recent 3", LocalDateTime.now(), LocalDateTime.now())
         );
 
         given(messageRepository.findLatest(eq(channelId), eq(size))).willReturn(recentMessages);
@@ -288,7 +292,7 @@ class MessageStorageAdapterTest {
         TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
-        ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test", LocalDateTime.now());
+        ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test", LocalDateTime.now(), LocalDateTime.now());
 
         given(messageRepository.save(any())).willReturn(message);
 
@@ -318,7 +322,7 @@ class MessageStorageAdapterTest {
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         List<ChatMessage> historyMessages = List.of(
-                ChatMessage.create(1L, 100L, 1L, "Message", LocalDateTime.now())
+                ChatMessage.create(1L, 100L, 1L, "Message", LocalDateTime.now(), LocalDateTime.now())
         );
 
         given(messageRepository.findHistory(anyLong(), anyLong(), anyInt())).willReturn(historyMessages);
@@ -348,7 +352,7 @@ class MessageStorageAdapterTest {
         MessageRepository messageRepository = Mockito.mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         List<ChatMessage> recentMessages = List.of(
-                ChatMessage.create(1L, 100L, 1L, "Recent", LocalDateTime.now())
+                ChatMessage.create(1L, 100L, 1L, "Recent", LocalDateTime.now(), LocalDateTime.now())
         );
 
         given(messageRepository.findLatest(anyLong(), anyInt())).willReturn(recentMessages);

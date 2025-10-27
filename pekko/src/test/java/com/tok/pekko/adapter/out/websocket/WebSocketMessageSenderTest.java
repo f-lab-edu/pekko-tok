@@ -90,6 +90,7 @@ class WebSocketMessageSenderTest {
                 100L,
                 messageId,
                 content,
+                LocalDateTime.now(),
                 LocalDateTime.now()
         );
     }
