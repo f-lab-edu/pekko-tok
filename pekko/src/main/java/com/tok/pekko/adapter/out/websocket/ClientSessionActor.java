@@ -1,7 +1,7 @@
 package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
@@ -28,7 +28,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     @Override
     public Receive<ClientSessionCommand> createReceive() {
-        return newReceiveBuilder().onMessage(DeliverCommand.class, this::onDeliverMessage)
+        return newReceiveBuilder().onMessage(DeliverNewMessage.class, this::onDeliverNewMessage)
                                   .onMessage(DeliverUpdatedMessage.class, this::onDeliverUpdatedMessage)
                                   .onMessage(DeliverDeletedMessage.class, this::onDeliverDeletedMessage)
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
@@ -36,7 +36,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .build();
     }
 
-    private Behavior<ClientSessionCommand> onDeliverMessage(DeliverCommand command) {
+    private Behavior<ClientSessionCommand> onDeliverNewMessage(DeliverNewMessage command) {
         clientMessageSender.sendMessage(command.message());
 
         return this;

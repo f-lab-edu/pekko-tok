@@ -5,11 +5,11 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
@@ -70,13 +70,13 @@ class ChatChannelReaderActorTest {
         );
 
         // when
-        readerActor.tell(new SyncNewCommand(newMessage));
+        readerActor.tell(new SyncNewMessage(newMessage));
 
         // then
         verify(mockMessages, timeout(1000)).add(newMessage);
 
-        DeliverCommand deliveredCommand = clientSessionProbe.expectMessageClass(
-                DeliverCommand.class,
+        DeliverNewMessage deliveredCommand = clientSessionProbe.expectMessageClass(
+                DeliverNewMessage.class,
                 Duration.ofSeconds(3)
         );
         assertThat(deliveredCommand.message()).isEqualTo(newMessage);

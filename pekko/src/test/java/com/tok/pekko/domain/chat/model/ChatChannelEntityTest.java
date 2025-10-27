@@ -15,7 +15,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -147,7 +147,7 @@ class ChatChannelEntityTest {
 
         channelEntity.tell(new SyncPersistedMessage(persistedMessage));
 
-        SyncNewCommand syncCommand1 = reader1Probe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage syncCommand1 = reader1Probe.expectMessageClass(SyncNewMessage.class);
         assertThat(syncCommand1.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
@@ -158,7 +158,7 @@ class ChatChannelEntityTest {
                         () -> assertThat(message.timestamp()).isEqualTo(timestamp)
                 ));
 
-        SyncNewCommand syncCommand2 = reader2Probe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage syncCommand2 = reader2Probe.expectMessageClass(SyncNewMessage.class);
         assertThat(syncCommand2.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
@@ -239,14 +239,14 @@ class ChatChannelEntityTest {
 
         reader1Probe.expectNoMessage(Duration.ofMillis(200));
 
-        SyncNewCommand syncCommand2 = reader2Probe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage syncCommand2 = reader2Probe.expectMessageClass(SyncNewMessage.class);
         assertThat(syncCommand2.message())
                 .isNotNull()
                 .satisfies(message ->
                         assertThat(message.message()).isEqualTo("test")
                 );
 
-        SyncNewCommand syncCommand3 = reader3Probe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage syncCommand3 = reader3Probe.expectMessageClass(SyncNewMessage.class);
         assertThat(syncCommand3.message())
                 .isNotNull()
                 .satisfies(message ->
@@ -375,7 +375,7 @@ class ChatChannelEntityTest {
         channelEntity.tell(new SyncPersistedMessage(message2));
         channelEntity.tell(new SyncPersistedMessage(message3));
 
-        SyncNewCommand sync1 = readerProbe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage sync1 = readerProbe.expectMessageClass(SyncNewMessage.class);
         assertThat(sync1.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
@@ -384,7 +384,7 @@ class ChatChannelEntityTest {
                         () -> assertThat(message.timestamp()).isEqualTo(timestamp1)
                 ));
 
-        SyncNewCommand sync2 = readerProbe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage sync2 = readerProbe.expectMessageClass(SyncNewMessage.class);
         assertThat(sync2.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
@@ -393,7 +393,7 @@ class ChatChannelEntityTest {
                         () -> assertThat(message.timestamp()).isEqualTo(timestamp2)
                 ));
 
-        SyncNewCommand sync3 = readerProbe.expectMessageClass(SyncNewCommand.class);
+        SyncNewMessage sync3 = readerProbe.expectMessageClass(SyncNewMessage.class);
         assertThat(sync3.message())
                 .isNotNull()
                 .satisfies(message -> assertAll(
@@ -502,8 +502,8 @@ class ChatChannelEntityTest {
         ChatMessage message = new ChatMessage(channelId, 1L, 100L, 1L, "Test", timestamp);
         channelEntity.tell(new SyncPersistedMessage(message));
 
-        reader1Probe.expectMessageClass(SyncNewCommand.class);
-        reader2Probe.expectMessageClass(SyncNewCommand.class);
+        reader1Probe.expectMessageClass(SyncNewMessage.class);
+        reader2Probe.expectMessageClass(SyncNewMessage.class);
 
         Long messageId = 1L;
 
@@ -540,10 +540,10 @@ class ChatChannelEntityTest {
         ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
-        readerProbe.expectMessageClass(SyncNewCommand.class);
+        readerProbe.expectMessageClass(SyncNewMessage.class);
 
         channelEntity.tell(new SyncPersistedMessage(message2));
-        readerProbe.expectMessageClass(SyncNewCommand.class);
+        readerProbe.expectMessageClass(SyncNewMessage.class);
 
         channelEntity.tell(new SyncDeletedMessage(1L));
         readerProbe.expectMessageClass(SyncDeletion.class);
@@ -606,10 +606,10 @@ class ChatChannelEntityTest {
         ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2);
 
         channelEntity.tell(new SyncPersistedMessage(message1));
-        readerProbe.expectMessageClass(SyncNewCommand.class);
+        readerProbe.expectMessageClass(SyncNewMessage.class);
 
         channelEntity.tell(new SyncPersistedMessage(message2));
-        readerProbe.expectMessageClass(SyncNewCommand.class);
+        readerProbe.expectMessageClass(SyncNewMessage.class);
 
         channelEntity.tell(new SyncUpdatedMessage(1L, "Updated Message 1"));
 

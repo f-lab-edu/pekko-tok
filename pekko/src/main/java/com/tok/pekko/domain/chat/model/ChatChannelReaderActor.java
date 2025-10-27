@@ -6,11 +6,11 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
@@ -65,7 +65,7 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
 
     @Override
     public Receive<ChatChannelReaderCommand> createReceive() {
-        return newReceiveBuilder().onMessage(SyncNewCommand.class, this::onSyncNewMessage)
+        return newReceiveBuilder().onMessage(SyncNewMessage.class, this::onSyncNewMessage)
                                   .onMessage(SyncUpdate.class, this::onSyncUpdate)
                                   .onMessage(SyncDeletion.class, this::onSyncDeletion)
                                   .onMessage(RequestHistory.class, this::onRequestHistory)
@@ -75,9 +75,9 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
                                   .build();
     }
 
-    private Behavior<ChatChannelReaderCommand> onSyncNewMessage(SyncNewCommand command) {
+    private Behavior<ChatChannelReaderCommand> onSyncNewMessage(SyncNewMessage command) {
         messages.add(command.message());
-        clientSession.tell(new DeliverCommand(command.message()));
+        clientSession.tell(new DeliverNewMessage(command.message()));
 
         return this;
     }

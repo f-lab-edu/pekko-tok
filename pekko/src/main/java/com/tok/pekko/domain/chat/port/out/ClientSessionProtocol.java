@@ -8,7 +8,7 @@ public interface ClientSessionProtocol {
 
     interface ClientSessionCommand extends CborSerializable { }
 
-    record DeliverCommand(ChatMessage message) implements ClientSessionCommand { }
+    record DeliverNewMessage(ChatMessage message) implements ClientSessionCommand { }
     record DeliverUpdatedMessage(ChatMessage updatedMessage) implements ClientSessionCommand { }
     record DeliverDeletedMessage(ChatMessage deletedMessage) implements ClientSessionCommand { }
     record DeliverHistory(List<ChatMessage> messages) implements ClientSessionCommand { }

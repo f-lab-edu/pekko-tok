@@ -2,7 +2,7 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
@@ -53,7 +53,7 @@ class ClientSessionActorTest {
         );
 
         // when
-        clientSessionActor.tell(new DeliverCommand(message));
+        clientSessionActor.tell(new DeliverNewMessage(message));
 
         // then
         verify(mockClientMessageSender, timeout(1000)).sendMessage(message);
@@ -128,9 +128,9 @@ class ClientSessionActorTest {
         );
 
         // when
-        clientSessionActor.tell(new DeliverCommand(message1));
-        clientSessionActor.tell(new DeliverCommand(message2));
-        clientSessionActor.tell(new DeliverCommand(message3));
+        clientSessionActor.tell(new DeliverNewMessage(message1));
+        clientSessionActor.tell(new DeliverNewMessage(message2));
+        clientSessionActor.tell(new DeliverNewMessage(message3));
 
         // then
         assertAll(

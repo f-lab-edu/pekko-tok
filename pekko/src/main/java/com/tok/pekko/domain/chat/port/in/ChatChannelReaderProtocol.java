@@ -7,7 +7,7 @@ public interface ChatChannelReaderProtocol {
 
     interface ChatChannelReaderCommand extends CborSerializable { }
 
-    record SyncNewCommand(ChatMessage message) implements ChatChannelReaderCommand { }
+    record SyncNewMessage(ChatMessage message) implements ChatChannelReaderCommand { }
     record SyncDeletion(Long messageId) implements ChatChannelReaderCommand { }
     record SyncUpdate(Long messageId, String updatedMessage) implements ChatChannelReaderCommand { }
     record RequestHistory(long messageSequence, int size) implements ChatChannelReaderCommand { }

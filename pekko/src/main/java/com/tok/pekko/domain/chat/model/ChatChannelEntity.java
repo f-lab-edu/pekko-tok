@@ -14,7 +14,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.util.HashMap;
 import java.util.Map;
@@ -146,7 +146,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private Behavior<ChatChannelEntityCommand> onSyncPersistedMessage(SyncPersistedMessage command) {
         messages.add(command.message());
         readers.values()
-               .forEach(reader -> reader.tell(new SyncNewCommand(command.message())));
+               .forEach(reader -> reader.tell(new SyncNewMessage(command.message())));
 
         return this;
     }
