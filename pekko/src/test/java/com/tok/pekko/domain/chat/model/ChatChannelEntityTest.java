@@ -16,6 +16,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -598,7 +599,7 @@ class ChatChannelEntityTest {
     }
 
     @Test
-    void SyncUpdatedMessage_메시지를_받으면_messages에서_메시지가_수정된다() {
+    void SyncUpdatedMessage_메시지를_받으면_messages에서_메시지를_수정하고_reader에게_전파한다() {
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
@@ -628,6 +629,13 @@ class ChatChannelEntityTest {
         readerProbe.expectMessageClass(SyncNewMessage.class);
 
         channelEntity.tell(new SyncUpdatedMessage(1L, "Updated Message 1"));
+
+        SyncUpdate syncUpdate = readerProbe.expectMessageClass(SyncUpdate.class);
+        assertAll(
+                () -> assertThat(syncUpdate.messageId()).isEqualTo(1L),
+                () -> assertThat(syncUpdate.updatedMessage()).isEqualTo("Updated Message 1"),
+                () -> assertThat(syncUpdate.updatedAt()).isNotNull()
+        );
 
         TestProbe<ChatChannelReaderCommand> syncProbe = testKit.createTestProbe();
         channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));

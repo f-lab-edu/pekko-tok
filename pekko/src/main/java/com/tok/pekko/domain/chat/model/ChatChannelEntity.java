@@ -15,6 +15,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -130,8 +131,15 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private Behavior<ChatChannelEntityCommand> onSyncUpdatedMessage(SyncUpdatedMessage command) {
-        messages.update(command.messageId(), command.updatedMessage(), LocalDateTime.now(clock));
+        LocalDateTime updatedTimestamp = LocalDateTime.now(clock);
 
+        messages.update(command.messageId(), command.updatedMessage(), updatedTimestamp);
+        readers.values()
+                .forEach(
+                        reader -> reader.tell(
+                                new SyncUpdate(command.messageId(),command.updatedMessage(), updatedTimestamp)
+                        )
+                );
         return this;
     }
 
