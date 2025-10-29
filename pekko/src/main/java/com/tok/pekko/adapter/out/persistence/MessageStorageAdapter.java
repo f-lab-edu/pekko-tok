@@ -3,7 +3,9 @@ package com.tok.pekko.adapter.out.persistence;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.HistoryFound;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -24,6 +26,22 @@ public class MessageStorageAdapter implements MessageStoragePort {
         Mono.fromCallable(() -> messageRepository.save(message))
             .subscribeOn(Schedulers.boundedElastic())
             .doOnNext(persistedMessage -> replyTo.tell(new SyncPersistedMessage(persistedMessage)))
+            .subscribe();
+    }
+
+    @Override
+    public void update(Long messageId, String updatedMessage, ActorRef<ChatChannelEntityCommand> replyTo) {
+        Mono.fromRunnable(() -> messageRepository.update(messageId, updatedMessage))
+            .subscribeOn(Schedulers.boundedElastic())
+            .doOnSuccess(ignored -> replyTo.tell(new SyncUpdatedMessage(messageId, updatedMessage)))
+            .subscribe();
+    }
+
+    @Override
+    public void delete(Long messageId, ActorRef<ChatChannelEntityCommand> replyTo) {
+        Mono.fromRunnable(() -> messageRepository.delete(messageId))
+            .subscribeOn(Schedulers.boundedElastic())
+            .doOnSuccess(ignored -> replyTo.tell(new SyncDeletedMessage(messageId)))
             .subscribe();
     }
 

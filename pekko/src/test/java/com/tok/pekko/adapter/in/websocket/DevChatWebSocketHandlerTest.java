@@ -8,7 +8,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import java.net.URI;
-import java.time.Clock;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +37,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 정상적으로_웹소켓을_연결하면_필요한_흐름을_정의하고_Actor에게_메시지를_전달한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -48,7 +46,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -73,7 +71,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓으로_인한_메시지를_보낼_때_마다_EntityRe의_tell_메서드를_통해_적절한_메시지를_전달한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -84,7 +81,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
         String messageContent = "테스트 메시지";
@@ -109,14 +106,13 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_연결_시_channelId가_쿼리_파라미터에_없다면_예외가_발생한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -131,14 +127,13 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_연결_시_userId가_쿼리_파라미터에_없다면_예외가_발생한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
@@ -153,7 +148,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 메시지_직렬화에_실패하면_빈_Mono를_반환한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -163,7 +157,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -185,7 +179,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_세션_종료_시_리소스_정리에_필요한_메서드를_호출한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -195,7 +188,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -219,7 +212,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_세션으로_여러_메시지를_받으면_순차적으로_처리한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -231,7 +223,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
 
@@ -256,7 +248,6 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_연결_시_유효한_파라미터가_전달되면_파라미터를_기준으로_세션을_등록한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -266,7 +257,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=123&userId=456");
 
@@ -287,7 +278,6 @@ class DevChatWebSocketHandlerTest {
     @DisplayName("EntityRef에 올바른 channelId로 접근")
     void 웹소켓_연결_시_유효한_파라미터가_전달되면_유효한_channelId로_ChatChannelEntity를_조회한다() throws Exception {
         // given
-        Clock clock = Clock.systemDefaultZone();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         SessionActorManagementService managementService = mock(SessionActorManagementService.class);
@@ -297,7 +287,7 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
 
-        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(clock, objectMapper, clusterSharding, managementService);
+        DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
         URI uri = new URI("ws://localhost:8080/ws/chat?channelId=999&userId=100");
 

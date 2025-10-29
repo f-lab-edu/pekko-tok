@@ -7,6 +7,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -70,6 +71,7 @@ class SessionActorManagementServiceTest {
                 Entity.of(
                         ChatChannelEntity.ENTITY_TYPE_KEY,
                         entityContext -> ChatChannelEntity.create(
+                                Clock.systemDefaultZone(),
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),
                                 mockMessageStoragePort

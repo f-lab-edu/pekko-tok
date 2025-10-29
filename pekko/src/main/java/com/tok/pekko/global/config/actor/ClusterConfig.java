@@ -6,6 +6,7 @@ import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ import org.springframework.core.env.Environment;
 public class ClusterConfig {
 
     private final Environment environment;
+    private final Clock clock;
 
     @Bean
     public ClusterSharding clusterSharding(MessageStoragePort messageStoragePort) {
@@ -37,6 +39,7 @@ public class ClusterConfig {
                 Entity.of(
                         ChatChannelEntity.ENTITY_TYPE_KEY,
                         entityContext -> ChatChannelEntity.create(
+                                clock,
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),
                                 messageStoragePort

@@ -8,4 +8,8 @@ public interface ClientMessageSender {
     void sendMessage(ChatMessage message);
 
     void sendMessages(List<ChatMessage> messages);
+
+    void sendUpdatedMessage(ChatMessage updatedMessage);
+
+    void sendDeletedMessage(ChatMessage deletedMessage);
 }

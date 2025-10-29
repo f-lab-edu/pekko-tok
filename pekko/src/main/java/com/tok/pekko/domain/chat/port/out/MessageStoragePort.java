@@ -9,6 +9,10 @@ public interface MessageStoragePort {
 
     void store(ChatMessage message, ActorRef<ChatChannelEntityCommand> replyTo);
 
+    void update(Long messageId, String updatedMessage, ActorRef<ChatChannelEntityCommand> replyTo);
+
+    void delete(Long messageId, ActorRef<ChatChannelEntityCommand> replyTo);
+
     void findHistory(
             Long channelId,
             long messageSequence,

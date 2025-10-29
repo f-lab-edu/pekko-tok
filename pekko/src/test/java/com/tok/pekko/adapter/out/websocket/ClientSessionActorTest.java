@@ -2,8 +2,10 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -42,16 +44,18 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
         ChatMessage message = ChatMessage.create(
                 1L,
                 100L,
                 1L,
                 "Test Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp,
+                timestamp
         );
 
         // when
-        clientSessionActor.tell(new DeliverCommand(message));
+        clientSessionActor.tell(new DeliverNewMessage(message));
 
         // then
         verify(mockClientMessageSender, timeout(1000)).sendMessage(message);
@@ -65,10 +69,37 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 14, 0, 1);
+        LocalDateTime timestamp3 = LocalDateTime.of(2025, 10, 17, 14, 0, 2);
         List<ChatMessage> historyMessages = Arrays.asList(
-                new ChatMessage(1L, 1L, 100L, 1L, "Message 1", LocalDateTime.of(2025, 10, 17, 14, 0, 0)),
-                new ChatMessage(1L, 2L, 101L, 2L, "Message 2", LocalDateTime.of(2025, 10, 17, 14, 0, 1)),
-                new ChatMessage(1L, 3L, 102L, 3L, "Message 3", LocalDateTime.of(2025, 10, 17, 14, 0, 2))
+                new ChatMessage(
+                        1L,
+                        1L,
+                        100L,
+                        1L,
+                        "Message 1",
+                        timestamp1,
+                        timestamp1
+                ),
+                new ChatMessage(
+                        1L,
+                        2L,
+                        101L,
+                        2L,
+                        "Message 2",
+                        timestamp2,
+                        timestamp2
+                ),
+                new ChatMessage(
+                        1L,
+                        3L,
+                        102L,
+                        3L,
+                        "Message 3",
+                        timestamp3,
+                        timestamp3
+                )
         );
 
         // when
@@ -103,32 +134,38 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(mockClientMessageSender)
         );
 
+        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 14, 0, 1);
+        LocalDateTime timestamp3 = LocalDateTime.of(2025, 10, 17, 14, 0, 2);
         ChatMessage message1 = ChatMessage.create(
                 1L,
                 100L,
                 1L,
                 "First Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 0)
+                timestamp1,
+                timestamp1
         );
         ChatMessage message2 = ChatMessage.create(
                 1L,
                 101L,
                 2L,
                 "Second Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 1)
+                timestamp2,
+                timestamp2
         );
         ChatMessage message3 = ChatMessage.create(
                 1L,
                 102L,
                 3L,
                 "Third Message",
-                LocalDateTime.of(2025, 10, 17, 14, 0, 2)
+                timestamp3,
+                timestamp3
         );
 
         // when
-        clientSessionActor.tell(new DeliverCommand(message1));
-        clientSessionActor.tell(new DeliverCommand(message2));
-        clientSessionActor.tell(new DeliverCommand(message3));
+        clientSessionActor.tell(new DeliverNewMessage(message1));
+        clientSessionActor.tell(new DeliverNewMessage(message2));
+        clientSessionActor.tell(new DeliverNewMessage(message3));
 
         // then
         assertAll(
@@ -153,5 +190,57 @@ class ClientSessionActorTest {
 
         // then
         verify(mockClientMessageSender, timeout(1000)).sendMessages(emptyMessages);
+    }
+
+    @Test
+    void DeliverDeletedMessage_메시지를_받으면_ClientMessageSender로_삭제된_메시지를_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(mockClientMessageSender)
+        );
+
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        ChatMessage deletedMessage = new ChatMessage(
+                1L,
+                1L,
+                100L,
+                1L,
+                "Deleted Message",
+                timestamp,
+                timestamp
+        );
+
+        // when
+        clientSessionActor.tell(new DeliverDeletedMessage(deletedMessage));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendDeletedMessage(deletedMessage);
+    }
+
+    @Test
+    void DeliverUpdatedMessage_메시지를_받으면_ClientMessageSender로_수정된_메시지를_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(mockClientMessageSender)
+        );
+
+        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
+        ChatMessage updatedMessage = new ChatMessage(
+                1L,
+                1L,
+                100L,
+                1L,
+                "Updated Message",
+                timestamp,
+                timestamp
+        );
+
+        // when
+        clientSessionActor.tell(new DeliverUpdatedMessage(updatedMessage));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendMessage(updatedMessage);
     }
 }

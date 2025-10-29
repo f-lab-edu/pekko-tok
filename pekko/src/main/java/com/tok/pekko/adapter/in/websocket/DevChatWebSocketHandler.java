@@ -11,8 +11,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import java.net.URI;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
@@ -33,7 +31,6 @@ import reactor.core.publisher.Sinks;
 @RequiredArgsConstructor
 public class DevChatWebSocketHandler implements WebSocketHandler {
 
-    private final Clock clock;
     private final ObjectMapper objectMapper;
     private final ClusterSharding clusterSharding;
     private final SessionActorManagementService managementService;
@@ -80,8 +77,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         EntityRef<ChatChannelEntityCommand> entityRef = getEntityRef(context.channelId());
         SendMessage command = new SendMessage(
                 context.userId(),
-                message.getPayloadAsText(),
-                LocalDateTime.now(clock)
+                message.getPayloadAsText()
         );
 
         entityRef.tell(command);
