@@ -83,7 +83,7 @@ public class SessionActorManagementService {
                 actorSystem,
                 (ActorRef<ActorRef<ChatChannelReaderCommand>> replyTo) -> new SpawnProtocol.Spawn<>(
                         ChatChannelReaderActor.create(
-                                new ChatMessages(), chatChannel, clientSession
+                                channelId, new ChatMessages(), chatChannel, clientSession
                         ),
                         "chat-channel-reader-" + System.nanoTime() + "-" + channelId + ":" + userId,
                         Props.empty(),

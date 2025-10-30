@@ -3,11 +3,13 @@ package com.tok.pekko.domain.chat.model;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
@@ -28,6 +30,7 @@ import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCommand> {
 
     public static Behavior<ChatChannelReaderCommand> create(
+            Long channelId,
             ChatMessages messages,
             EntityRef<ChatChannelEntityCommand> channelEntity,
             ActorRef<ClientSessionCommand> clientSession
@@ -37,18 +40,27 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
                     channelEntity.tell(new RequestSyncMessages(context.getSelf()));
 
                     return Behaviors.withTimers(timers ->
-                            new ChatChannelReaderActor(context, messages, timers, channelEntity, clientSession)
+                            new ChatChannelReaderActor(
+                                    context,
+                                    channelId,
+                                    messages,
+                                    timers,
+                                    channelEntity,
+                                    clientSession
+                            )
                     );
                 }
         );
     }
 
+    private final Long channelId;
     private final ChatMessages messages;
     private final EntityRef<ChatChannelEntityCommand> channelEntity;
     private final ActorRef<ClientSessionCommand> clientSession;
 
     private ChatChannelReaderActor(
             ActorContext<ChatChannelReaderCommand> context,
+            Long channelId,
             ChatMessages messages,
             TimerScheduler<ChatChannelReaderCommand> timers,
             EntityRef<ChatChannelEntityCommand> channelEntity,
@@ -56,6 +68,7 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
     ) {
         super(context);
 
+        this.channelId = channelId;
         this.messages = messages;
         this.channelEntity = channelEntity;
         this.clientSession = clientSession;
@@ -71,6 +84,7 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
                                   .onMessage(RequestHistory.class, this::onRequestHistory)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
+                                  .onMessage(PingHealthCheck.class, this::onPingHealthCheck)
                                   .onMessage(Shutdown.class, this::onShutdown)
                                   .build();
     }
@@ -123,6 +137,13 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
 
     private Behavior<ChatChannelReaderCommand> onDeliverSyncMessages(DeliverSyncMessages command) {
         this.messages.syncMessages(command.messages());
+
+        return this;
+    }
+
+    private Behavior<ChatChannelReaderCommand> onPingHealthCheck(PingHealthCheck command) {
+        command.replyTo()
+               .tell(new PongHealthCheck(channelId));
 
         return this;
     }

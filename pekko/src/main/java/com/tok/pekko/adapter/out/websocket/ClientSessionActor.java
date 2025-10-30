@@ -1,11 +1,15 @@
 package com.tok.pekko.adapter.out.websocket;
 
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
@@ -15,6 +19,7 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private final ClientMessageSender clientMessageSender;
+    private final Map<Long, ActorRef<ChatChannelReaderCommand>> readers;
 
     public static Behavior<ClientSessionCommand> create(ClientMessageSender clientMessageSender) {
         return Behaviors.setup(context -> new ClientSessionActor(context, clientMessageSender));
@@ -24,6 +29,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         super(context);
 
         this.clientMessageSender = clientMessageSender;
+        this.readers = new HashMap<>();
     }
 
     @Override
@@ -33,6 +39,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(DeliverDeletedMessage.class, this::onDeliverDeletedMessage)
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(Shutdown.class, this::onShutdown)
+                                  .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .build();
     }
 
@@ -63,4 +70,12 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
         return Behaviors.stopped();
     }
+
+    private Behavior<ClientSessionCommand> onFoundChannelReaders(FoundChannelReaders command) {
+        readers.putAll(command.chatChannelReaderRefs());
+
+        return this;
+    }
+
+    public record FoundChannelReaders(Map<Long, ActorRef<ChatChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
 }

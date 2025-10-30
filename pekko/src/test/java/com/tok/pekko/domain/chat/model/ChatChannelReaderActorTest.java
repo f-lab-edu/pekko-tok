@@ -60,7 +60,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.now();
@@ -94,7 +94,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -134,7 +134,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -162,7 +162,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         // when
@@ -186,7 +186,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         Long messageId = 1L;
@@ -224,7 +224,7 @@ class ChatChannelReaderActorTest {
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(mockMessages, channelEntity, clientSessionProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref())
         );
 
         Long messageId = 1L;
