@@ -236,11 +236,9 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new FoundRegisteredChannelIds(channelIds));
 
         // then
-        GetChannelReaderActorRef request = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
-        assertAll(
-                () -> assertThat(request.channelIds()).containsAll(channelIds),
-                () -> assertThat(request.userId()).isEqualTo(100L)
-        );
+        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+
+        assertThat(actual.channelIds()).containsAll(channelIds);
     }
 
     @Test
@@ -304,11 +302,9 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new SyncJoinChannel(7L));
 
         // then
-        GetChannelReaderActorRef request = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
-        assertAll(
-                () -> assertThat(request.channelIds()).contains(7L),
-                () -> assertThat(request.userId()).isEqualTo(100L)
-        );
+        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+
+        assertThat(actual.channelIds()).contains(7L);
     }
 
     @Test

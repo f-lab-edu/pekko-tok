@@ -11,7 +11,7 @@ public interface ChatChannelProtocol {
     interface ChatChannelEntityCommand extends CborSerializable { }
 
     record SyncRecentMessages(List<ChatMessage> messages) implements ChatChannelEntityCommand { }
-    record RegisterReader(Long userId, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
+    record RegisterReader(String readerName, ActorRef<ChatChannelReaderCommand> reader) implements ChatChannelEntityCommand { }
     record SendMessage(Long userId, String message) implements ChatChannelEntityCommand { }
     record UpdateMessage(Long messageId, String updatedMessage) implements ChatChannelEntityCommand { }
     record DeleteMessage(Long messageId) implements ChatChannelEntityCommand { }
@@ -19,5 +19,5 @@ public interface ChatChannelProtocol {
     record SyncUpdatedMessage(Long messageId, String updatedMessage) implements ChatChannelEntityCommand { }
     record SyncDeletedMessage(Long messageId) implements ChatChannelEntityCommand { }
     record HistoryFound(List<ChatMessage> history, ActorRef<ChatChannelReaderCommand> replyTo) implements ChatChannelEntityCommand { }
-    record RemoveShutdownReader(Long userId) implements ChatChannelEntityCommand { }
+    record RemoveShutdownReader(String readerName) implements ChatChannelEntityCommand { }
 }

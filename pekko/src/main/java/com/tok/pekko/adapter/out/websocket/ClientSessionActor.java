@@ -129,7 +129,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onFoundRegisteredChannelIds(FoundRegisteredChannelIds command) {
-        readerRegistry.tell(new GetChannelReaderActorRef(command.channelIds(), userId, getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActorRef(command.channelIds(), getContext().getSelf()));
 
         return this;
     }
@@ -155,7 +155,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onSyncJoinChannel(SyncJoinChannel command) {
-        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), userId, getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), getContext().getSelf()));
         return this;
     }
 
@@ -210,7 +210,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             getContext().unwatch(readerRef);
         }
 
-        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), userId, getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), getContext().getSelf()));
 
         return this;
     }

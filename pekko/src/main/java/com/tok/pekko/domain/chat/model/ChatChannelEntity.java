@@ -12,7 +12,6 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
@@ -63,7 +62,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private final ChatMessages messages;
     private final MessageStoragePort messageStoragePort;
     private final SnowflakeSequenceGenerator sequenceGenerator;
-    private final Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers;
+    private final Map<String, ActorRef<ChatChannelReaderCommand>> readers;
 
     private ChatChannelEntity(
             ActorContext<ChatChannelEntityCommand> context,
@@ -72,7 +71,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
             ChatMessages messages,
             MessageStoragePort messageStoragePort,
             SnowflakeSequenceGenerator sequenceGenerator,
-            Map<ChannelReaderKey, ActorRef<ChatChannelReaderCommand>> readers
+            Map<String, ActorRef<ChatChannelReaderCommand>> readers
     ) {
         super(context);
 
@@ -106,12 +105,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private Behavior<ChatChannelEntityCommand> onRegisterReader(RegisterReader command) {
-        ChannelReaderKey key = new ChannelReaderKey(command.userId());
-        ActorRef<ChatChannelReaderCommand> oldReader = readers.put(key, command.reader());
-
-        if (oldReader != null) {
-            oldReader.tell(new Shutdown());
-        }
+        readers.put(command.readerName(), command.reader());
 
         return this;
     }
@@ -166,9 +160,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     }
 
     private Behavior<ChatChannelEntityCommand> onRemoveShutdownReader(RemoveShutdownReader command) {
-        ChannelReaderKey channelReaderKey = new ChannelReaderKey(command.userId());
-
-        readers.remove(channelReaderKey);
+        readers.remove(command.readerName());
 
         return this;
     }

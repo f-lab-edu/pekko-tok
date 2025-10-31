@@ -13,6 +13,8 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessag
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
@@ -37,11 +39,17 @@ public class ChatChannelReaderActor extends AbstractBehavior<ChatChannelReaderCo
             Long channelId,
             ChatMessages messages,
             EntityRef<ChatChannelEntityCommand> channelEntity,
-            ActorRef<ClientSessionCommand> clientSession
+            ActorRef<ClientSessionCommand> clientSession,
+            ActorRef<ChannelReaderRegistryCommand> replyTo
     ) {
         return Behaviors.setup(
                 context -> {
                     channelEntity.tell(new RequestSyncMessages(context.getSelf()));
+
+                    String readerName = context.getSelf().path().address().toString() + "/"
+                            + context.getSelf().path().name();
+
+                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName));
 
                     return Behaviors.withTimers(
                             timers -> {

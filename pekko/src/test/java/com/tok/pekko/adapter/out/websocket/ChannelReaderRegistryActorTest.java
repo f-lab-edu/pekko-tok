@@ -1,11 +1,15 @@
 package com.tok.pekko.adapter.out.websocket;
 
+import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessages;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.PongHealthCheck;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.Config;
@@ -15,6 +19,8 @@ import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -24,10 +30,15 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -71,13 +82,11 @@ class ChannelReaderRegistryActorTest {
         );
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         Long channelId = 1L;
-        Long userId = 100L;
 
         // when
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -101,12 +110,10 @@ class ChannelReaderRegistryActorTest {
         );
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         Long channelId = 2L;
-        Long userId = 100L;
 
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -117,22 +124,23 @@ class ChannelReaderRegistryActorTest {
         ActorRef<ChatChannelReaderCommand> firstReaderRef = firstFoundReaders.chatChannelReaderRefs()
                                                                              .get(channelId);
 
-        // when
-        registryActor.tell(
-                new ChannelReaderRegistryActor.GetChannelReaderActorRef(
-                        List.of(channelId),
-                        userId,
-                        clientSessionProbe.ref()
-                )
-        );
-
-        // then
-        FoundChannelReaders actual = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
-                ClientSessionCommand.class,
-                Duration.ofSeconds(5)
-        );
-        assertThat(actual).extracting(target -> target.chatChannelReaderRefs().get(channelId))
-                          .isEqualTo(firstReaderRef);
+        // when & then
+        Awaitility.await()
+                  .atMost(java.time.Duration.ofSeconds(5))
+                  .pollInterval(java.time.Duration.ofMillis(100))
+                  .untilAsserted(() -> {
+                      registryActor.tell(
+                              new ChannelReaderRegistryActor.GetChannelReaderActorRef(
+                                      List.of(channelId),
+                                      clientSessionProbe.ref()
+                              )
+                      );
+                      FoundChannelReaders actual = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
+                              ClientSessionCommand.class,
+                              Duration.ofSeconds(1)
+                      );
+                      assertThat(actual.chatChannelReaderRefs()).containsEntry(channelId, firstReaderRef);
+                  });
     }
 
     @Test
@@ -145,13 +153,11 @@ class ChannelReaderRegistryActorTest {
         Long channelId1 = 3L;
         Long channelId2 = 4L;
         Long channelId3 = 5L;
-        Long userId = 100L;
 
         // when
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId1, channelId2, channelId3),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -173,12 +179,10 @@ class ChannelReaderRegistryActorTest {
         );
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         Long channelId = 6L;
-        Long userId = 100L;
 
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -202,12 +206,10 @@ class ChannelReaderRegistryActorTest {
         );
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         Long channelId = 7L;
-        Long userId = 100L;
 
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -234,7 +236,6 @@ class ChannelReaderRegistryActorTest {
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -255,12 +256,10 @@ class ChannelReaderRegistryActorTest {
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         Long channelId1 = 8L;
         Long channelId2 = 9L;
-        Long userId = 100L;
 
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId1, channelId2),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -288,7 +287,6 @@ class ChannelReaderRegistryActorTest {
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(channelId1, channelId2),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -312,13 +310,11 @@ class ChannelReaderRegistryActorTest {
                 ChannelReaderRegistryActor.create(clusterSharding)
         );
         TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        Long userId = 100L;
 
         // when
         registryActor.tell(
                 new ChannelReaderRegistryActor.GetChannelReaderActorRef(
                         List.of(),
-                        userId,
                         clientSessionProbe.ref()
                 )
         );
@@ -329,5 +325,54 @@ class ChannelReaderRegistryActorTest {
                 Duration.ofSeconds(5)
         );
         assertThat(actual.chatChannelReaderRefs()).isEmpty();
+    }
+
+    @Test
+    void SpawnedChannelReaderActor_메시지를_받으면_readers_맵에_저장하고_RegisterReader_메시지를_ChatChannelEntity에_전송한다() {
+        // given
+        ClusterSharding mockClusterSharding = mock(ClusterSharding.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> mockEntityRef = mock(EntityRef.class);
+
+        Mockito.doReturn(mockEntityRef)
+               .when(mockClusterSharding)
+               .entityRefFor(any(), anyString());
+        Mockito.doNothing().when(mockEntityRef).tell(any(ChatChannelEntityCommand.class));
+
+        ActorRef<ChannelReaderRegistryCommand> registryActor = testKit.spawn(
+                ChannelReaderRegistryActor.create(mockClusterSharding)
+        );
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ChatChannelReaderCommand> readerActorProbe = testKit.createTestProbe(ChatChannelReaderCommand.class);
+        Long channelId = 100L;
+        String readerName = "test-reader-name";
+
+        // when
+        registryActor.tell(
+                new SpawnedChannelReaderActor(
+                        channelId,
+                        readerActorProbe.ref(),
+                        readerName
+                )
+        );
+
+        // then
+        registryActor.tell(new GetChannelReaderActorRef(List.of(channelId), clientSessionProbe.ref()));
+
+        FoundChannelReaders actual = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
+                ClientSessionCommand.class,
+                Duration.ofSeconds(5)
+        );
+        assertThat(actual.chatChannelReaderRefs()).containsEntry(channelId, readerActorProbe.ref());
+
+        ArgumentCaptor<ChatChannelEntityCommand> captor = ArgumentCaptor.forClass(ChatChannelEntityCommand.class);
+
+        verify(mockEntityRef).tell(captor.capture());
+
+        RegisterReader capturedCommand = (RegisterReader) captor.getValue();
+
+        assertThat(capturedCommand)
+                .extracting(RegisterReader::readerName, RegisterReader::reader)
+                .containsExactly(readerName, readerActorProbe.ref());
     }
 }

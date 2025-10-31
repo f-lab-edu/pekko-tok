@@ -3,10 +3,6 @@ package com.tok.pekko.global.actor;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
-import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
-import com.tok.pekko.domain.chat.model.ChatMessages;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -19,7 +15,6 @@ import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
-import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 
 public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
@@ -43,7 +38,6 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
     @Override
     public Receive<GuardianCommand> createReceive() {
         return newReceiveBuilder().onMessage(SpawnClientSession.class, this::onSpawnClientSession)
-                                  .onMessage(SpawnChatChannelReader.class, this::onSpawnChatChannelReader)
                                   .build();
     }
 
@@ -59,26 +53,8 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
         return this;
     }
 
-    private Behavior<GuardianCommand> onSpawnChatChannelReader(SpawnChatChannelReader command) {
-        ActorRef<ChatChannelReaderCommand> channelReader = getContext().spawn(
-                ChatChannelReaderActor.create(
-                        command.channelId(),
-                        new ChatMessages(),
-                        command.chatChannel(),
-                        command.clientSession()
-                ),
-                "chat-channel-reader-" + System.nanoTime() + "-" + command.channelId()
-        );
-
-        command.replyTo()
-               .tell(new SpawnedChatChannelReader(channelReader));
-        return this;
-    }
-
     public interface GuardianCommand extends CborSerializable { }
 
     public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, ChannelMembershipPort channelMembershipPort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
     public record SpawnedClientSession(ActorRef<ClientSessionCommand> clientSession) implements GuardianCommand { }
-    public record SpawnChatChannelReader(Long channelId, EntityRef<ChatChannelEntityCommand> chatChannel, ActorRef<ClientSessionCommand> clientSession, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
-    public record SpawnedChatChannelReader(ActorRef<ChatChannelReaderCommand> channelReader) implements GuardianCommand { }
 }

@@ -13,7 +13,6 @@ import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
@@ -77,42 +76,10 @@ class ChatChannelEntityTest {
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        Long userId = 100L;
 
-        channelEntity.tell(new RegisterReader(userId, readerProbe.ref()));
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         readerProbe.expectNoMessage(Duration.ofMillis(200));
-    }
-
-    @Test
-    void RegisterReader_메시지로_기존_reader를_교체하면_기존_reader에게_Shutdown_메시지를_전달한다() {
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
-                        Clock.systemDefaultZone(),
-                        channelId,
-                        messages,
-                        messageStoragePort
-                ));
-
-        TestProbe<ChatChannelReaderCommand> oldReaderProbe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> newReaderProbe = testKit.createTestProbe();
-        Long userId = 100L;
-
-        channelEntity.tell(new RegisterReader(userId, oldReaderProbe.ref()));
-        oldReaderProbe.expectNoMessage(Duration.ofMillis(200));
-
-        channelEntity.tell(new RegisterReader(userId, newReaderProbe.ref()));
-
-        Shutdown shutdown = oldReaderProbe.expectMessageClass(Shutdown.class);
-        assertThat(shutdown).isNotNull();
-
-        newReaderProbe.expectNoMessage(Duration.ofMillis(200));
     }
 
     @Test
@@ -134,8 +101,8 @@ class ChatChannelEntityTest {
         TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
         TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
 
-        channelEntity.tell(new RegisterReader(100L, reader1Probe.ref()));
-        channelEntity.tell(new RegisterReader(200L, reader2Probe.ref()));
+        channelEntity.tell(new RegisterReader("reader1", reader1Probe.ref()));
+        channelEntity.tell(new RegisterReader("reader2", reader2Probe.ref()));
 
         Long userId = 100L;
         String messageContent = "Hello, World!";
@@ -193,11 +160,9 @@ class ChatChannelEntityTest {
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        Long userId = 100L;
 
-        channelEntity.tell(new RegisterReader(userId, readerProbe.ref()));
-
-        channelEntity.tell(new RemoveShutdownReader(userId));
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
+        channelEntity.tell(new RemoveShutdownReader("reader"));
 
         Long senderId = 200L;
         String messageContent = "Test message";
@@ -205,60 +170,6 @@ class ChatChannelEntityTest {
         channelEntity.tell(new SendMessage(senderId, messageContent));
 
         readerProbe.expectNoMessage(Duration.ofMillis(200));
-    }
-
-    @Test
-    void 다른_userId로_reader를_등록하면_각각_독립적으로_관리되고_같은_userId로_재등록하면_기존_reader는_종료된다() {
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
-                        Clock.systemDefaultZone(),
-                        channelId,
-                        messages,
-                        messageStoragePort
-                ));
-
-        TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> reader3Probe = testKit.createTestProbe();
-
-        Long userId1 = 100L;
-        Long userId2 = 200L;
-
-        channelEntity.tell(new RegisterReader(userId1, reader1Probe.ref()));
-        channelEntity.tell(new RegisterReader(userId2, reader2Probe.ref()));
-        channelEntity.tell(new RegisterReader(userId1, reader3Probe.ref()));
-
-        Shutdown shutdown = reader1Probe.expectMessageClass(Shutdown.class);
-        assertThat(shutdown).isNotNull();
-
-        reader2Probe.expectNoMessage(Duration.ofMillis(200));
-        reader3Probe.expectNoMessage(Duration.ofMillis(200));
-
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        ChatMessage persistedMessage = new ChatMessage(1L, channelId, userId1, 1L, "test", timestamp, timestamp);
-        channelEntity.tell(new SyncPersistedMessage(persistedMessage));
-
-        reader1Probe.expectNoMessage(Duration.ofMillis(200));
-
-        SyncNewMessage syncCommand2 = reader2Probe.expectMessageClass(SyncNewMessage.class);
-        assertThat(syncCommand2.message())
-                .isNotNull()
-                .satisfies(message ->
-                        assertThat(message.message()).isEqualTo("test")
-                );
-
-        SyncNewMessage syncCommand3 = reader3Probe.expectMessageClass(SyncNewMessage.class);
-        assertThat(syncCommand3.message())
-                .isNotNull()
-                .satisfies(message ->
-                        assertThat(message.message()).isEqualTo("test")
-                );
     }
 
     @Test
@@ -371,7 +282,7 @@ class ChatChannelEntityTest {
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
@@ -509,8 +420,8 @@ class ChatChannelEntityTest {
         TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
         TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
 
-        channelEntity.tell(new RegisterReader(100L, reader1Probe.ref()));
-        channelEntity.tell(new RegisterReader(200L, reader2Probe.ref()));
+        channelEntity.tell(new RegisterReader("reader1", reader1Probe.ref()));
+        channelEntity.tell(new RegisterReader("reader2", reader2Probe.ref()));
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         ChatMessage message = new ChatMessage(1L, channelId, 100L, 1L, "Test", timestamp, timestamp);
@@ -547,7 +458,7 @@ class ChatChannelEntityTest {
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
@@ -615,7 +526,7 @@ class ChatChannelEntityTest {
                 ));
 
         TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        channelEntity.tell(new RegisterReader(100L, readerProbe.ref()));
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);

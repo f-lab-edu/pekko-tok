@@ -4,15 +4,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender;
-import com.tok.pekko.application.actor.SessionActorManagementService;
+import com.tok.pekko.application.actor.CreateClientSessionActorService;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import java.net.URI;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 import lombok.RequiredArgsConstructor;
+import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.springframework.context.annotation.Profile;
@@ -33,21 +36,21 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ClusterSharding clusterSharding;
-    private final SessionActorManagementService managementService;
+    private final CreateClientSessionActorService managementService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         WebSocketConnectionContext context = extractConnectionContext(session);
         Sinks.Many<ChatMessage> messageSink = createMessageSink();
 
-        registerSession(context, messageSink);
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = createClientSessionActor(context, messageSink);
 
         Flux<WebSocketMessage> inbound = handleInboundMessages(session, context);
         Flux<WebSocketMessage> outbound = handleOutboundMessages(session, messageSink);
 
         return session.send(outbound)
                       .and(inbound)
-                      .doFinally(signal -> cleanupConnection(context, messageSink));
+                      .doFinally(signal -> cleanupConnection(messageSink, clientSession));
     }
 
     private WebSocketConnectionContext extractConnectionContext(WebSocketSession session) {
@@ -60,9 +63,10 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
                     .onBackpressureBuffer();
     }
 
-    private void registerSession(WebSocketConnectionContext context, Sinks.Many<ChatMessage> sink) {
+    private CompletionStage<ActorRef<ClientSessionCommand>> createClientSessionActor(WebSocketConnectionContext context, Sinks.Many<ChatMessage> sink) {
         ClientMessageSender sender = new WebSocketMessageSender(sink);
-        managementService.registerSession(sender, context.userId(), context.channelId());
+
+        return managementService.createClientSessionActor(sender, context.userId());
     }
 
     private Flux<WebSocketMessage> handleInboundMessages(
@@ -101,11 +105,11 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         }
     }
 
-    private void cleanupConnection(WebSocketConnectionContext context, Sinks.Many<ChatMessage> sink) {
-        EntityRef<ChatChannelEntityCommand> entityRef = getEntityRef(context.channelId());
-
-        managementService.terminateSession(context.channelId(), context.userId());
-        entityRef.tell(new RemoveShutdownReader(context.userId()));
+    private void cleanupConnection(
+            Sinks.Many<ChatMessage> sink,
+            CompletionStage<ActorRef<ClientSessionCommand>> clientSession
+    ) {
+        clientSession.thenAccept(actorRef -> actorRef.tell(new Shutdown()));
         sink.tryEmitComplete();
     }
 
