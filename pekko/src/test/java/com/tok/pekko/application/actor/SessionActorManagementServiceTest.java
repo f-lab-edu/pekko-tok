@@ -4,7 +4,9 @@ import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.global.actor.GuardianActor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Clock;
@@ -12,8 +14,6 @@ import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;
-import org.apache.pekko.actor.typed.SpawnProtocol;
-import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
 import org.apache.pekko.cluster.typed.Cluster;
@@ -42,7 +42,7 @@ class SessionActorManagementServiceTest {
 
     private static Config config;
     private ActorTestKit testKit;
-    private ActorSystem<SpawnProtocol.Command> actorSystem;
+    private ActorSystem<GuardianActor.GuardianCommand> actorSystem;
     private SessionActorManagementService service;
     private ConcurrentHashMap<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders;
 
@@ -55,7 +55,7 @@ class SessionActorManagementServiceTest {
     void beforeEach() {
         testKit = ActorTestKit.create(config);
         actorSystem = ActorSystem.create(
-                Behaviors.setup(context -> SpawnProtocol.create()),
+                GuardianActor.create(),
                 "test-system",
                 config
         );
@@ -79,9 +79,12 @@ class SessionActorManagementServiceTest {
                 )
         );
 
+        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+
         localChatChannelReaders = new ConcurrentHashMap<>();
         service = new SessionActorManagementService(
                 clusterSharding,
+                mockChannelMembershipPort,
                 actorSystem,
                 localChatChannelReaders
         );

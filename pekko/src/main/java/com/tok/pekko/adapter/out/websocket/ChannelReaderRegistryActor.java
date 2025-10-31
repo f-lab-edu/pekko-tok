@@ -6,7 +6,7 @@ import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
 import com.tok.pekko.domain.chat.model.ChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheck;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromRegistry;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -103,15 +103,16 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
             Long channelId = readerEntry.getKey();
             ActorRef<ChatChannelReaderCommand> readerRef = readerEntry.getValue();
 
-            readerRef.tell(new PingHealthCheck(getContext().getSelf()));
+            readerRef.tell(new PingHealthCheckFromRegistry(getContext().getSelf()));
 
             Cancellable timeoutSchedule = getContext().scheduleOnce(
-                    Duration.ofSeconds(5L),
+                    Duration.ofSeconds(60L),
                     getContext().getSelf(),
                     new PongHealthCheckTimeout(channelId)
             );
 
             Cancellable oldSchedule = healthCheckTimeouts.put(channelId, timeoutSchedule);
+
             if (oldSchedule != null) {
                 oldSchedule.cancel();
             }
@@ -152,7 +153,6 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                    readers.remove(channelId);
                    healthCheckTimeouts.remove(channelId);
                });
-
 
         return this;
     }

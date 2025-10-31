@@ -1,24 +1,24 @@
 package com.tok.pekko.application.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
 import com.tok.pekko.domain.chat.model.ChatChannelEntity;
-import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
-import com.tok.pekko.domain.chat.model.ChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.global.actor.GuardianActor;
+import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
+import com.tok.pekko.global.actor.GuardianActor.SpawnChatChannelReader;
+import com.tok.pekko.global.actor.GuardianActor.SpawnClientSession;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;
-import org.apache.pekko.actor.typed.Props;
-import org.apache.pekko.actor.typed.SpawnProtocol;
 import org.apache.pekko.actor.typed.javadsl.AskPattern;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
@@ -29,14 +29,15 @@ import org.springframework.stereotype.Service;
 public class SessionActorManagementService {
 
     private final ClusterSharding clusterSharding;
-    private final ActorSystem<SpawnProtocol.Command> actorSystem;
+    private final ChannelMembershipPort channelMembershipPort;
+    private final ActorSystem<GuardianCommand> actorSystem;
     private final Map<NodeReaderKey, ActorRef<ChatChannelReaderCommand>> localChatChannelReaders;
 
     public void registerSession(ClientMessageSender clientMessageSender, Long userId, Long channelId) {
         EntityRef<ChatChannelEntityCommand> chatChannel = findChatChannelEntityRef(channelId);
 
-        spawnClientSession(clientMessageSender, userId, channelId)
-                .thenCompose(clientSession -> spawnChatChannelReader(chatChannel, clientSession, userId, channelId))
+        spawnClientSession(clientMessageSender, userId)
+                .thenCompose(clientSession -> spawnChatChannelReader(chatChannel, clientSession, channelId))
                 .thenAccept(
                         chatChannelReader -> {
                             localChatChannelReaders.put(new NodeReaderKey(channelId, userId), chatChannelReader);
@@ -57,41 +58,45 @@ public class SessionActorManagementService {
 
     private CompletionStage<ActorRef<ClientSessionCommand>> spawnClientSession(
             ClientMessageSender clientMessageSender,
-            Long userId,
-            Long channelId
+            Long userId
     ) {
         return AskPattern.ask(
                 actorSystem,
-                (ActorRef<ActorRef<ClientSessionCommand>> replyTo) -> new SpawnProtocol.Spawn<>(
-                        ClientSessionActor.create(clientMessageSender),
-                        "client-session-" + userId + ":" + channelId,
-                        Props.empty(),
+                (ActorRef<GuardianCommand> replyTo) -> new SpawnClientSession(
+                        userId,
+                        clientMessageSender,
+                        channelMembershipPort,
                         replyTo
                 ),
                 Duration.ofSeconds(3),
                 actorSystem.scheduler()
-        );
+        ).thenApply(response -> {
+            GuardianActor.SpawnedClientSession spawned = (GuardianActor.SpawnedClientSession) response;
+
+            return spawned.clientSession();
+        });
     }
 
     private CompletionStage<ActorRef<ChatChannelReaderCommand>> spawnChatChannelReader(
             EntityRef<ChatChannelEntityCommand> chatChannel,
             ActorRef<ClientSessionCommand> clientSession,
-            Long userId,
             Long channelId
     ) {
         return AskPattern.ask(
                 actorSystem,
-                (ActorRef<ActorRef<ChatChannelReaderCommand>> replyTo) -> new SpawnProtocol.Spawn<>(
-                        ChatChannelReaderActor.create(
-                                channelId, new ChatMessages(), chatChannel, clientSession
-                        ),
-                        "chat-channel-reader-" + System.nanoTime() + "-" + channelId + ":" + userId,
-                        Props.empty(),
+                (ActorRef<GuardianCommand> replyTo) -> new SpawnChatChannelReader(
+                        channelId,
+                        chatChannel,
+                        clientSession,
                         replyTo
                 ),
                 Duration.ofSeconds(3),
                 actorSystem.scheduler()
-        );
+        ).thenApply(response -> {
+            GuardianActor.SpawnedChatChannelReader spawned = (GuardianActor.SpawnedChatChannelReader) response;
+
+            return spawned.channelReader();
+        });
     }
 
     private void removeReaderSession(
