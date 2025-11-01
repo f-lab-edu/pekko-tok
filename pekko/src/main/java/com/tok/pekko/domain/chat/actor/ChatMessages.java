@@ -1,4 +1,4 @@
-package com.tok.pekko.domain.chat.model;
+package com.tok.pekko.domain.chat.actor;
 
 import com.tok.pekko.global.common.ActorThreadSafe;
 import java.time.LocalDateTime;

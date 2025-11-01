@@ -4,11 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender;
-import com.tok.pekko.application.actor.CreateClientSessionActorService;
-import com.tok.pekko.domain.chat.model.ChatChannelEntity;
-import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import java.net.URI;
@@ -36,7 +36,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ClusterSharding clusterSharding;
-    private final CreateClientSessionActorService managementService;
+    private final ClientSessionActorManagementService managementService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -78,7 +78,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
     }
 
     private void forwardMessageToActor(WebSocketConnectionContext context, WebSocketMessage message) {
-        EntityRef<ChatChannelEntityCommand> entityRef = getEntityRef(context.channelId());
+        EntityRef<ChannelEntityCommand> entityRef = getEntityRef(context.channelId());
         SendMessage command = new SendMessage(
                 context.userId(),
                 message.getPayloadAsText()
@@ -113,9 +113,9 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         sink.tryEmitComplete();
     }
 
-    private EntityRef<ChatChannelEntityCommand> getEntityRef(Long channelId) {
+    private EntityRef<ChannelEntityCommand> getEntityRef(Long channelId) {
         return clusterSharding.entityRefFor(
-                ChatChannelEntity.ENTITY_TYPE_KEY,
+                ChannelEntity.ENTITY_TYPE_KEY,
                 String.valueOf(channelId)
         );
     }

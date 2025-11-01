@@ -1,17 +1,17 @@
 package com.tok.pekko.domain.chat.port.out;
 
-import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import org.apache.pekko.actor.typed.ActorRef;
 
 public interface MessageStoragePort {
 
-    void store(ChatMessage message, ActorRef<ChatChannelEntityCommand> replyTo);
+    void store(ChatMessage message, ActorRef<ChannelEntityCommand> replyTo);
 
-    void update(Long messageId, String updatedMessage, ActorRef<ChatChannelEntityCommand> replyTo);
+    void update(Long messageId, String updatedMessage, ActorRef<ChannelEntityCommand> replyTo);
 
-    void delete(Long messageId, ActorRef<ChatChannelEntityCommand> replyTo);
+    void delete(Long messageId, ActorRef<ChannelEntityCommand> replyTo);
 
     void findHistory(
             Long channelId,
@@ -20,5 +20,5 @@ public interface MessageStoragePort {
             ActorRef<ClientSessionCommand> replyTo
     );
 
-    void findRecentMessages(Long channelId, int size, ActorRef<ChatChannelEntityCommand> replyTo);
+    void findRecentMessages(Long channelId, int size, ActorRef<ChannelEntityCommand> replyTo);
 }

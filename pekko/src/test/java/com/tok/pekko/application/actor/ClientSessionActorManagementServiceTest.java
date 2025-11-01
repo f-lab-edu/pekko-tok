@@ -26,7 +26,7 @@ import static org.mockito.Mockito.mock;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class CreateClientSessionActorServiceTest {
+class ClientSessionActorManagementServiceTest {
 
     static Config config;
     static ActorTestKit testKit;
@@ -58,7 +58,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -80,7 +80,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -101,7 +101,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -125,7 +125,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -152,7 +152,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -173,7 +173,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -197,7 +197,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -220,7 +220,7 @@ class CreateClientSessionActorServiceTest {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort
@@ -229,8 +229,8 @@ class CreateClientSessionActorServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.findClientSession(nonExistentUserId))
-                .isInstanceOf(CreateClientSessionActorService.ClientSessionNotFoundException.class)
-                .hasMessage("지정한 ClientSessionActo를 찾을 수 없습니다.");
+                .isInstanceOf(ClientSessionActorManagementService.ClientSessionNotFoundException.class)
+                .hasMessage("지정한 ClientSessionActor를 찾을 수 없습니다.");
     }
 
     @Test
@@ -239,7 +239,7 @@ class CreateClientSessionActorServiceTest {
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        CreateClientSessionActorService service = new CreateClientSessionActorService(
+        ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
                 mockChannelMembershipPort

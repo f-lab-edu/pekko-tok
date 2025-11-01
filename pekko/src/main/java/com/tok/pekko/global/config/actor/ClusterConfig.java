@@ -1,7 +1,7 @@
 package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.domain.chat.model.ChatChannelEntity;
-import com.tok.pekko.domain.chat.model.ChatMessages;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChatMessages;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
@@ -37,8 +37,8 @@ public class ClusterConfig {
 
         clusterSharding.init(
                 Entity.of(
-                        ChatChannelEntity.ENTITY_TYPE_KEY,
-                        entityContext -> ChatChannelEntity.create(
+                        ChannelEntity.ENTITY_TYPE_KEY,
+                        entityContext -> ChannelEntity.create(
                                 clock,
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),

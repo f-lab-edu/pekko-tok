@@ -1,8 +1,8 @@
 package com.tok.pekko.domain.chat.port.out;
 
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.global.common.CborSerializable;
-import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
 import java.util.List;
 import org.apache.pekko.actor.typed.ActorRef;
 
@@ -22,6 +22,6 @@ public interface ClientSessionProtocol {
     record LeaveChannel(Long channelId) implements ClientSessionCommand { }
     record SyncLeaveChannel(Long channelId) implements ClientSessionCommand { }
     record PongHealthCheck(Long channelId) implements ClientSessionCommand { }
-    record PingHealthCheck(ActorRef<ChatChannelReaderCommand> replyTo) implements ClientSessionCommand { }
+    record PingHealthCheck(ActorRef<ChannelReaderCommand> replyTo) implements ClientSessionCommand { }
     record Shutdown() implements ClientSessionCommand { }
 }

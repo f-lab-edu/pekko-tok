@@ -2,11 +2,11 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
-import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.GetHistory;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RegisterClientSession;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.UnregisterClientSession;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -174,8 +174,8 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        Map<Long, ActorRef<ChatChannelReaderCommand>> readers = Map.of(1L, readerProbe.ref());
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        Map<Long, ActorRef<ChannelReaderCommand>> readers = Map.of(1L, readerProbe.ref());
 
         clientSessionActor.tell(new FoundChannelReaders(readers));
         readerProbe.expectMessageClass(RegisterClientSession.class);
@@ -341,9 +341,9 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
-        TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
-        Map<Long, ActorRef<ChatChannelReaderCommand>> readers = Map.of(
+        TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> reader2Probe = testKit.createTestProbe();
+        Map<Long, ActorRef<ChannelReaderCommand>> readers = Map.of(
                 1L, reader1Probe.ref(),
                 2L, reader2Probe.ref()
         );
@@ -433,8 +433,8 @@ class ClientSessionActorTest {
                 ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        Map<Long, ActorRef<ChatChannelReaderCommand>> readers = Map.of(3L, readerProbe.ref());
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        Map<Long, ActorRef<ChannelReaderCommand>> readers = Map.of(3L, readerProbe.ref());
 
         clientSessionActor.tell(new FoundChannelReaders(readers));
         readerProbe.expectMessageClass(RegisterClientSession.class);

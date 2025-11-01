@@ -1,4 +1,4 @@
-package com.tok.pekko.domain.chat.model;
+package com.tok.pekko.domain.chat.actor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

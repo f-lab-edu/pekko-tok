@@ -1,11 +1,11 @@
 package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.GetHistory;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromClientSession;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RegisterClientSession;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.UnregisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -73,7 +73,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private final MessageStoragePort messageStoragePort;
     private final ChannelMembershipPort channelMembershipPort;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
-    private final Map<Long, ActorRef<ChatChannelReaderCommand>> readers;
+    private final Map<Long, ActorRef<ChannelReaderCommand>> readers;
     private final Map<Long, Cancellable> healthCheckTimeouts;
 
     private ClientSessionActor(
@@ -136,7 +136,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onRequestHistory(RequestHistory command) {
-        ActorRef<ChatChannelReaderCommand> reader = readers.get(command.channelId());
+        ActorRef<ChannelReaderCommand> reader = readers.get(command.channelId());
 
         if (reader == null) {
             return this;
@@ -207,7 +207,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onSyncLeaveChannel(SyncLeaveChannel command) {
-        ActorRef<ChatChannelReaderCommand> leaveReaderChannel = readers.remove(command.channelId());
+        ActorRef<ChannelReaderCommand> leaveReaderChannel = readers.remove(command.channelId());
 
         if (leaveReaderChannel != null) {
             leaveReaderChannel.tell(new UnregisterClientSession(userId));
@@ -221,9 +221,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             return this;
         }
 
-        for (Entry<Long, ActorRef<ChatChannelReaderCommand>> readerEntry : readers.entrySet()) {
+        for (Entry<Long, ActorRef<ChannelReaderCommand>> readerEntry : readers.entrySet()) {
             Long channelId = readerEntry.getKey();
-            ActorRef<ChatChannelReaderCommand> readerRef = readerEntry.getValue();
+            ActorRef<ChannelReaderCommand> readerRef = readerEntry.getValue();
 
             readerRef.tell(new PingHealthCheckFromClientSession(getContext().getSelf()));
 
@@ -246,7 +246,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onPongHealthCheckTimeout(PongHealthCheckTimeout command) {
         healthCheckTimeouts.remove(command.channelId());
 
-        ActorRef<ChatChannelReaderCommand> readerRef = readers.remove(command.channelId());
+        ActorRef<ChannelReaderCommand> readerRef = readers.remove(command.channelId());
 
         if (readerRef != null) {
             getContext().unwatch(readerRef);
@@ -296,7 +296,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return Behaviors.stopped();
     }
 
-    public record FoundChannelReaders(Map<Long, ActorRef<ChatChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
+    public record FoundChannelReaders(Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
     private record HealthCheckHeartBeat() implements ClientSessionCommand { }
     private record PongHealthCheckTimeout(Long channelId) implements ClientSessionCommand { }
 }

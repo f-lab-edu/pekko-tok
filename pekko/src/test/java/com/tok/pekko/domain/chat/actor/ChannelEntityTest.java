@@ -1,21 +1,21 @@
-package com.tok.pekko.domain.chat.model;
+package com.tok.pekko.domain.chat.actor;
 
-import com.tok.pekko.domain.chat.model.ChatChannelReaderActor.DeliverSyncMessages;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.DeleteMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
-import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.UpdateMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.DeliverSyncMessages;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.DeleteMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemoveShutdownReader;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
+import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -45,7 +45,7 @@ import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class ChatChannelEntityTest {
+class ChannelEntityTest {
 
     private static ActorTestKit testKit;
 
@@ -67,15 +67,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
 
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
@@ -90,16 +90,16 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> reader2Probe = testKit.createTestProbe();
 
         channelEntity.tell(new RegisterReader("reader1", reader1Probe.ref()));
         channelEntity.tell(new RegisterReader("reader2", reader2Probe.ref()));
@@ -151,15 +151,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
 
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
         channelEntity.tell(new RemoveShutdownReader("reader"));
@@ -180,8 +180,8 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
@@ -204,8 +204,8 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
@@ -237,8 +237,8 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
@@ -254,7 +254,7 @@ class ChatChannelEntityTest {
 
         channelEntity.tell(new SyncRecentMessages(recentMessages));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
         channelEntity.tell(new RequestSyncMessages(readerProbe.ref()));
 
         DeliverSyncMessages delivered = readerProbe.expectMessageClass(DeliverSyncMessages.class);
@@ -273,15 +273,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
@@ -332,7 +332,7 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        testKit.spawn(ChatChannelEntity.create(
+        testKit.spawn(ChannelEntity.create(
                 Clock.systemDefaultZone(),
                 channelId,
                 messages,
@@ -350,15 +350,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
         LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
@@ -386,8 +386,8 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
@@ -409,16 +409,16 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> reader1Probe = testKit.createTestProbe();
-        TestProbe<ChatChannelReaderCommand> reader2Probe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> reader2Probe = testKit.createTestProbe();
 
         channelEntity.tell(new RegisterReader("reader1", reader1Probe.ref()));
         channelEntity.tell(new RegisterReader("reader2", reader2Probe.ref()));
@@ -449,15 +449,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
@@ -474,7 +474,7 @@ class ChatChannelEntityTest {
         channelEntity.tell(new SyncDeletedMessage(1L));
         readerProbe.expectMessageClass(SyncDeletion.class);
 
-        TestProbe<ChatChannelReaderCommand> syncProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> syncProbe = testKit.createTestProbe();
         channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));
 
         DeliverSyncMessages delivered = syncProbe.expectMessageClass(DeliverSyncMessages.class);
@@ -493,8 +493,8 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
@@ -517,15 +517,15 @@ class ChatChannelEntityTest {
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
-        ActorRef<ChatChannelEntityCommand> channelEntity =
-                testKit.spawn(ChatChannelEntity.create(
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
                         messageStoragePort
                 ));
 
-        TestProbe<ChatChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
@@ -548,7 +548,7 @@ class ChatChannelEntityTest {
                 () -> assertThat(syncUpdate.updatedAt()).isNotNull()
         );
 
-        TestProbe<ChatChannelReaderCommand> syncProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderCommand> syncProbe = testKit.createTestProbe();
         channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));
 
         DeliverSyncMessages delivered = syncProbe.expectMessageClass(DeliverSyncMessages.class);

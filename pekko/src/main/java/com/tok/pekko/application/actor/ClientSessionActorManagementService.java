@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class CreateClientSessionActorService {
+public class ClientSessionActorManagementService {
 
     private final ActorSystem<GuardianCommand> actorSystem;
     private final MessageStoragePort messageStoragePort;
@@ -63,7 +63,7 @@ public class CreateClientSessionActorService {
     public static class ClientSessionNotFoundException extends IllegalStateException {
 
         public ClientSessionNotFoundException() {
-            super("지정한 ClientSessionActo를 찾을 수 없습니다.");
+            super("지정한 ClientSessionActor를 찾을 수 없습니다.");
         }
     }
 }

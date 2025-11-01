@@ -1,10 +1,10 @@
 package com.tok.pekko.adapter.out.persistence;
 
-import com.tok.pekko.domain.chat.model.ChatMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncRecentMessages;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.global.config.dev.BlockHoundTestInstallUtils;
@@ -57,7 +57,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_저장_성공_시_동기화_이벤트를_전달한다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         ChatMessage message = ChatMessage.create(
@@ -98,7 +98,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_저장_실패_시_이벤트를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         ChatMessage message = ChatMessage.create(
@@ -122,7 +122,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_저장_결과가_null이면_이벤트를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         ChatMessage message = ChatMessage.create(
@@ -220,7 +220,7 @@ class MessageStorageAdapterTest {
     @Test
     void 최근_메시지_조회_성공_시_조회_결과를_전달한다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -252,7 +252,7 @@ class MessageStorageAdapterTest {
     @Test
     void 최근_메시지_조회_실패_시_결과를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -271,7 +271,7 @@ class MessageStorageAdapterTest {
     @Test
     void 최근_메시지_조회_결과가_null이면_결과를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
 
@@ -290,7 +290,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_저장_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test", LocalDateTime.now(), LocalDateTime.now());
@@ -348,7 +348,7 @@ class MessageStorageAdapterTest {
     @Test
     void 최근_메시지_조회_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         List<ChatMessage> recentMessages = List.of(
@@ -378,7 +378,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_삭제_성공_시_삭제_이벤트를_전달한다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
@@ -399,7 +399,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_삭제_실패_시_이벤트를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
@@ -416,7 +416,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_삭제_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
@@ -444,7 +444,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_수정_성공_시_Repository의_update를_호출한다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
@@ -462,7 +462,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_수정_실패_시_이벤트를_전달하지_않는다() {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
@@ -480,7 +480,7 @@ class MessageStorageAdapterTest {
     @Test
     void 메시지_수정_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
-        TestProbe<ChatChannelEntityCommand> replyProbe = testKit.createTestProbe(ChatChannelEntityCommand.class);
+        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;

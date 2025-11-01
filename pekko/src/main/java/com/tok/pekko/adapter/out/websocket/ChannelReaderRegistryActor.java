@@ -1,14 +1,14 @@
 package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
-import com.tok.pekko.domain.chat.model.ChatChannelEntity;
-import com.tok.pekko.domain.chat.model.ChatChannelReaderActor;
-import com.tok.pekko.domain.chat.model.ChatMessages;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromRegistry;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor;
+import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemoveShutdownReader;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromRegistry;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
@@ -76,7 +76,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     }
 
     private Behavior<ChannelReaderRegistryCommand> onGetChannelReaderRef(GetChannelReaderActorRef command) {
-        Map<Long, ActorRef<ChatChannelReaderCommand>> chatChannelReaderRefs =
+        Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs =
                 command.channelIds()
                        .stream()
                        .collect(
@@ -97,7 +97,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
 
         readers.put(command.channelId(), channelReaderNode);
 
-        EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(command.channelId());
+        EntityRef<ChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(command.channelId());
 
         chatChannelEntityRef.tell(new RegisterReader(command.readerName(), command.reader()));
         return this;
@@ -110,7 +110,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
 
         for (Entry<Long, ChannelReaderNode> readerEntry : readers.entrySet()) {
             Long channelId = readerEntry.getKey();
-            ActorRef<ChatChannelReaderCommand> readerRef = readerEntry.getValue().reader;
+            ActorRef<ChannelReaderCommand> readerRef = readerEntry.getValue().reader;
 
             readerRef.tell(new PingHealthCheckFromRegistry(getContext().getSelf()));
 
@@ -164,7 +164,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                    healthCheckTimeouts.remove(channelId);
 
                    if (channelReaderNode != null) {
-                       EntityRef<ChatChannelEntityCommand> channelEntityRef = findChatChannelEntityRef(channelId);
+                       EntityRef<ChannelEntityCommand> channelEntityRef = findChatChannelEntityRef(channelId);
 
                        channelEntityRef.tell(new RemoveShutdownReader(channelReaderNode.readerName));
                    }
@@ -173,7 +173,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         return this;
     }
 
-    private ActorRef<ChatChannelReaderCommand> findSingletonChannelReaderActorRef(Long channelId) {
+    private ActorRef<ChannelReaderCommand> findSingletonChannelReaderActorRef(Long channelId) {
         ChannelReaderNode channelReaderNode = readers.get(channelId);
 
         if (channelReaderNode != null) {
@@ -183,10 +183,10 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         return spawnChatChannelReaderActor(channelId);
     }
 
-    private ActorRef<ChatChannelReaderCommand> spawnChatChannelReaderActor(Long channelId) {
-        EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(channelId);
-        ActorRef<ChatChannelReaderCommand> chatChannelReaderRef = getContext().spawn(
-                ChatChannelReaderActor.create(
+    private ActorRef<ChannelReaderCommand> spawnChatChannelReaderActor(Long channelId) {
+        EntityRef<ChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(channelId);
+        ActorRef<ChannelReaderCommand> chatChannelReaderRef = getContext().spawn(
+                ChannelReaderActor.create(
                         channelId, new ChatMessages(), chatChannelEntityRef, getContext().getSelf()
                 ),
                 "chat-channel-reader-" + System.nanoTime() + "-" + channelId
@@ -196,18 +196,18 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         return chatChannelReaderRef;
     }
 
-    private EntityRef<ChatChannelEntityCommand> findChatChannelEntityRef(Long channelId) {
+    private EntityRef<ChannelEntityCommand> findChatChannelEntityRef(Long channelId) {
         return clusterSharding.entityRefFor(
-                ChatChannelEntity.ENTITY_TYPE_KEY, String.valueOf(channelId)
+                ChannelEntity.ENTITY_TYPE_KEY, String.valueOf(channelId)
         );
     }
 
     private static class ChannelReaderNode {
 
-        private final ActorRef<ChatChannelReaderCommand> reader;
+        private final ActorRef<ChannelReaderCommand> reader;
         private final String readerName;
 
-        private ChannelReaderNode(ActorRef<ChatChannelReaderCommand> reader, String readerName) {
+        private ChannelReaderNode(ActorRef<ChannelReaderCommand> reader, String readerName) {
             this.reader = reader;
             this.readerName = readerName;
         }
