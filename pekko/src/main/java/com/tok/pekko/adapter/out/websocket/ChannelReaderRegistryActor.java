@@ -82,11 +82,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                        .collect(
                                Collectors.toMap(
                                        Function.identity(),
-                                       channelId ->
-                                               findSingletonChannelReaderActorRef(
-                                                       channelId,
-                                                       command.replyTo()
-                                               )
+                                       this::findSingletonChannelReaderActorRef
                                )
                        );
 
@@ -177,27 +173,21 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         return this;
     }
 
-    private ActorRef<ChatChannelReaderCommand> findSingletonChannelReaderActorRef(
-            Long channelId,
-            ActorRef<ClientSessionCommand> replyTo
-    ) {
+    private ActorRef<ChatChannelReaderCommand> findSingletonChannelReaderActorRef(Long channelId) {
         ChannelReaderNode channelReaderNode = readers.get(channelId);
 
         if (channelReaderNode != null) {
             return channelReaderNode.reader;
         }
 
-        return spawnChatChannelReaderActor(channelId, replyTo);
+        return spawnChatChannelReaderActor(channelId);
     }
 
-    private ActorRef<ChatChannelReaderCommand> spawnChatChannelReaderActor(
-            Long channelId,
-            ActorRef<ClientSessionCommand> replyTo
-    ) {
+    private ActorRef<ChatChannelReaderCommand> spawnChatChannelReaderActor(Long channelId) {
         EntityRef<ChatChannelEntityCommand> chatChannelEntityRef = findChatChannelEntityRef(channelId);
         ActorRef<ChatChannelReaderCommand> chatChannelReaderRef = getContext().spawn(
                 ChatChannelReaderActor.create(
-                        channelId, new ChatMessages(), chatChannelEntityRef, replyTo, getContext().getSelf()
+                        channelId, new ChatMessages(), chatChannelEntityRef, getContext().getSelf()
                 ),
                 "chat-channel-reader-" + System.nanoTime() + "-" + channelId
         );

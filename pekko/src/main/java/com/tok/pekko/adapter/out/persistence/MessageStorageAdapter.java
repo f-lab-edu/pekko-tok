@@ -2,12 +2,12 @@ package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.HistoryFound;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncUpdatedMessage;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -50,12 +50,11 @@ public class MessageStorageAdapter implements MessageStoragePort {
             Long channelId,
             long messageSequence,
             int size,
-            ActorRef<ChatChannelEntityCommand> replyTo,
-            ActorRef<ChatChannelReaderCommand> readerRef
+            ActorRef<ClientSessionCommand> replyTo
     ) {
         Mono.fromCallable(() -> messageRepository.findHistory(channelId, messageSequence, size))
             .subscribeOn(Schedulers.boundedElastic())
-            .doOnNext(history -> replyTo.tell(new HistoryFound(history, readerRef)))
+            .doOnNext(history -> replyTo.tell(new FoundHistory(history)))
             .subscribe();
     }
 

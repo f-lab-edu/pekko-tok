@@ -6,6 +6,7 @@ import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -43,8 +44,13 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
     private Behavior<GuardianCommand> onSpawnClientSession(SpawnClientSession command) {
         ActorRef<ClientSessionCommand> clientSession = getContext().spawn(
-                ClientSessionActor.create(command.userId(), command.clientMessageSender(),
-                        command.channelMembershipPort(), readerRegistry),
+                ClientSessionActor.create(
+                        command.userId(),
+                        command.clientMessageSender(),
+                        command.messageStoragePort(),
+                        command.channelMembershipPort(),
+                        readerRegistry
+                ),
                 "client-session-" + System.nanoTime() + "-" + command.userId()
         );
 
@@ -55,6 +61,6 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
     public interface GuardianCommand extends CborSerializable { }
 
-    public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, ChannelMembershipPort channelMembershipPort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
+    public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, MessageStoragePort messageStoragePort, ChannelMembershipPort channelMembershipPort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
     public record SpawnedClientSession(ActorRef<ClientSessionCommand> clientSession) implements GuardianCommand { }
 }

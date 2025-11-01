@@ -2,6 +2,7 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromClientSession;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.UnregisterClientSession;
@@ -12,13 +13,16 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessag
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.JoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.LeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PongHealthCheck;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
+import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +31,7 @@ import java.util.Map.Entry;
 import org.apache.pekko.actor.Cancellable;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.Terminated;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
@@ -37,6 +42,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     public static Behavior<ClientSessionCommand> create(
             Long userId,
             ClientMessageSender clientMessageSender,
+            MessageStoragePort messageStoragePort,
             ChannelMembershipPort channelMembershipPort,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
@@ -52,6 +58,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                         context,
                                         userId,
                                         clientMessageSender,
+                                        messageStoragePort,
                                         channelMembershipPort,
                                         readerRegistry
                                 );
@@ -63,6 +70,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private final Long userId;
     private final ClientMessageSender clientMessageSender;
+    private final MessageStoragePort messageStoragePort;
     private final ChannelMembershipPort channelMembershipPort;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ChatChannelReaderCommand>> readers;
@@ -72,12 +80,14 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             ActorContext<ClientSessionCommand> context,
             Long userId,
             ClientMessageSender clientMessageSender,
+            MessageStoragePort messageStoragePort,
             ChannelMembershipPort channelMembershipPort,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         super(context);
 
         this.userId = userId;
+        this.messageStoragePort = messageStoragePort;
         this.clientMessageSender = clientMessageSender;
         this.channelMembershipPort = channelMembershipPort;
         this.readerRegistry = readerRegistry;
@@ -90,7 +100,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return newReceiveBuilder().onMessage(DeliverNewMessage.class, this::onDeliverNewMessage)
                                   .onMessage(DeliverUpdatedMessage.class, this::onDeliverUpdatedMessage)
                                   .onMessage(DeliverDeletedMessage.class, this::onDeliverDeletedMessage)
+                                  .onMessage(RequestHistory.class, this::onRequestHistory)
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
+                                  .onMessage(FoundHistory.class, this::onFoundHistory)
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(JoinChannel.class, this::onJoinChannel)
@@ -101,6 +113,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
                                   .onMessage(PongHealthCheckTimeout.class, this::onPongHealthCheckTimeout)
                                   .onMessage(Shutdown.class, this::onShutdown)
+                                  .onSignal(Terminated.class, this::onTerminated)
                                   .build();
     }
 
@@ -122,8 +135,37 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
+    private Behavior<ClientSessionCommand> onRequestHistory(RequestHistory command) {
+        ActorRef<ChatChannelReaderCommand> reader = readers.get(command.channelId());
+
+        if (reader == null) {
+            return this;
+        }
+
+        reader.tell(new GetHistory(command.messageSequence(), command.size(), getContext().getSelf()));
+
+        return this;
+    }
+
     private Behavior<ClientSessionCommand> onDeliverHistory(DeliverHistory command) {
-        clientMessageSender.sendMessages(command.messages());
+        if (command.history().isEmpty()) {
+            messageStoragePort.findHistory(
+                    command.channelId(),
+                    command.messageSequence(),
+                    command.size(),
+                    getContext().getSelf()
+            );
+
+            return this;
+        }
+
+        clientMessageSender.sendMessages(command.history());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onFoundHistory(FoundHistory command) {
+        clientMessageSender.sendMessages(command.history());
 
         return this;
     }
@@ -221,6 +263,31 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         if (schedule != null) {
             schedule.cancel();
         }
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onTerminated(Terminated signal) {
+        readers.entrySet()
+               .stream()
+               .filter(entry -> entry.getValue().path().equals(signal.getRef().path()))
+               .map(Map.Entry::getKey)
+               .findFirst()
+               .ifPresent(
+                       channelId -> {
+                           readers.remove(channelId);
+
+                           Cancellable schedule = healthCheckTimeouts.remove(channelId);
+
+                           if (schedule != null) {
+                               schedule.cancel();
+                           }
+
+                           readerRegistry.tell(
+                                   new GetChannelReaderActorRef(List.of(channelId), getContext().getSelf())
+                           );
+                       }
+               );
 
         return this;
     }

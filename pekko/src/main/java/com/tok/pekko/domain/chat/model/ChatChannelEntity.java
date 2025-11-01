@@ -5,6 +5,7 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCo
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.DeleteMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SyncPersistedMessage;
@@ -15,10 +16,12 @@ import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelRe
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -49,9 +52,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                             clock,
                             channelId,
                             messages,
-                            messageStoragePort,
-                            new SnowflakeSequenceGenerator(channelId),
-                            new HashMap<>()
+                            messageStoragePort
                     );
                 }
         );
@@ -69,9 +70,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
             Clock clock,
             Long channelId,
             ChatMessages messages,
-            MessageStoragePort messageStoragePort,
-            SnowflakeSequenceGenerator sequenceGenerator,
-            Map<String, ActorRef<ChatChannelReaderCommand>> readers
+            MessageStoragePort messageStoragePort
     ) {
         super(context);
 
@@ -79,8 +78,8 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         this.channelId = channelId;
         this.messages = messages;
         this.messageStoragePort = messageStoragePort;
-        this.sequenceGenerator = sequenceGenerator;
-        this.readers = readers;
+        this.sequenceGenerator = new SnowflakeSequenceGenerator(channelId);
+        this.readers = new HashMap<>();
     }
 
     @Override
@@ -95,6 +94,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
                                   .onMessage(SyncDeletedMessage.class, this::onSyncDeletedMessage)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .onMessage(RequestSyncMessages.class, this::onRequestSyncMessages)
+                                  .onMessage(ResolveHistory.class, this::onResolveHistory)
                                   .build();
     }
 
@@ -146,7 +146,7 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
     private Behavior<ChatChannelEntityCommand> onSyncDeletedMessage(SyncDeletedMessage command) {
         messages.delete(command.messageId());
         readers.values()
-                .forEach(reader -> reader.tell(new SyncDeletion(command.messageId())));
+               .forEach(reader -> reader.tell(new SyncDeletion(command.messageId())));
 
         return this;
     }
@@ -169,6 +169,14 @@ public class ChatChannelEntity extends AbstractBehavior<ChatChannelEntityCommand
         command.secondary()
                .tell(new DeliverSyncMessages(messages.getMessages()));
 
+        return this;
+    }
+
+    private Behavior<ChatChannelEntityCommand> onResolveHistory(ResolveHistory command) {
+        List<ChatMessage> history = this.messages.getHistory(command.messageSequence(), command.size());
+
+        command.replyTo()
+               .tell(new DeliverHistory(channelId, command.messageSequence(), command.size(), history));
         return this;
     }
 

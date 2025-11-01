@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.port.in;
 
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.model.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
@@ -18,6 +19,6 @@ public interface ChatChannelProtocol {
     record SyncPersistedMessage(ChatMessage message) implements ChatChannelEntityCommand { }
     record SyncUpdatedMessage(Long messageId, String updatedMessage) implements ChatChannelEntityCommand { }
     record SyncDeletedMessage(Long messageId) implements ChatChannelEntityCommand { }
-    record HistoryFound(List<ChatMessage> history, ActorRef<ChatChannelReaderCommand> replyTo) implements ChatChannelEntityCommand { }
+    record ResolveHistory(long messageSequence, int size, ActorRef<ClientSessionCommand> replyTo) implements ChatChannelEntityCommand { }
     record RemoveShutdownReader(String readerName) implements ChatChannelEntityCommand { }
 }

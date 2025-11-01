@@ -1,12 +1,20 @@
 package com.tok.pekko.domain.chat.model;
 
+import com.tok.pekko.domain.chat.model.ChatChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RequestHistory;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.GetHistory;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromRegistry;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PingHealthCheckFromClientSession;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.PongHealthCheck;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.SyncUpdate;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.UnregisterClientSession;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -27,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -54,15 +63,17 @@ class ChatChannelReaderActorTest {
     }
 
     @Test
-    void SyncNewCommand_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_ClientSessionActor에_전달한다() {
+    void SyncNewMessage_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_모든_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.now();
@@ -75,29 +86,41 @@ class ChatChannelReaderActorTest {
                 timestamp
         );
 
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
         // when
         readerActor.tell(new SyncNewMessage(newMessage));
 
         // then
         verify(mockMessages, timeout(1000)).add(newMessage);
 
-        DeliverNewMessage deliveredCommand = clientSessionProbe.expectMessageClass(
+        DeliverNewMessage deliveredMessage1 = clientSessionProbe1.expectMessageClass(
                 DeliverNewMessage.class,
                 Duration.ofSeconds(3)
         );
-        assertThat(deliveredCommand.message()).isEqualTo(newMessage);
+        DeliverNewMessage deliveredMessage2 = clientSessionProbe2.expectMessageClass(
+                DeliverNewMessage.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(deliveredMessage1.message()).isEqualTo(newMessage),
+                () -> assertThat(deliveredMessage2.message()).isEqualTo(newMessage)
+        );
     }
 
     @Test
-    void RequestHistory_메시지를_받으면_관리하고_있는_채팅_메시지를_조회해_ClientSessionActor에_전달한다() {
+    void GetHistory_메시지를_받았을_때_히스토리가_존재하면_ClientSession에_DeliverHistory를_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -114,7 +137,7 @@ class ChatChannelReaderActorTest {
         given(mockMessages.getHistory(messageSequence, size)).willReturn(historyMessages);
 
         // when
-        readerActor.tell(new RequestHistory(messageSequence, size));
+        readerActor.tell(new GetHistory(messageSequence, size, clientSessionProbe.ref()));
 
         // then
         verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
@@ -124,21 +147,25 @@ class ChatChannelReaderActorTest {
                 Duration.ofSeconds(3)
         );
         assertAll(
-                () -> assertThat(deliveredHistory.messages()).hasSize(3),
-                () -> assertThat(deliveredHistory.messages()).isEqualTo(historyMessages)
+                () -> assertThat(deliveredHistory.history()).hasSize(3),
+                () -> assertThat(deliveredHistory.history()).isEqualTo(historyMessages),
+                () -> assertThat(deliveredHistory.channelId()).isEqualTo(1L),
+                () -> assertThat(deliveredHistory.messageSequence()).isEqualTo(messageSequence),
+                () -> assertThat(deliveredHistory.size()).isEqualTo(size)
         );
     }
 
     @Test
-    void RequestHistory_메시지를_받았을_때_관리하고_있는_채팅_메시지가_비어있으면_빈_리스트를_ClientSession에_전달한다() {
+    void GetHistory_메시지를_받았을_때_히스토리가_비어있으면_ChannelEntity에_ResolveHistory를_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -146,53 +173,59 @@ class ChatChannelReaderActorTest {
         given(mockMessages.getHistory(messageSequence, size)).willReturn(List.of());
 
         // when
-        readerActor.tell(new RequestHistory(messageSequence, size));
+        readerActor.tell(new GetHistory(messageSequence, size, clientSessionProbe.ref()));
 
         // then
         verify(mockMessages, timeout(1000)).getHistory(messageSequence, size);
 
-        DeliverHistory deliveredHistory = clientSessionProbe.expectMessageClass(
-                DeliverHistory.class,
-                Duration.ofSeconds(3)
+        ArgumentCaptor<ChatChannelEntityCommand> captor = ArgumentCaptor.forClass(ChatChannelEntityCommand.class);
+        verify(channelEntity, timeout(1000).times(2)).tell(captor.capture());
+
+        List<ChatChannelEntityCommand> allMessages = captor.getAllValues();
+
+        assertAll(
+                () -> assertThat(allMessages.get(0)).isInstanceOf(RequestSyncMessages.class),
+                () -> assertThat(allMessages.get(1)).isInstanceOf(ResolveHistory.class),
+                () -> {
+                    ResolveHistory resolveHistory = (ResolveHistory) allMessages.get(1);
+                    assertThat(resolveHistory.messageSequence()).isEqualTo(messageSequence);
+                    assertThat(resolveHistory.size()).isEqualTo(size);
+                }
         );
-        assertThat(deliveredHistory.messages()).isEmpty();
     }
 
     @Test
-    void Shutdown_메시지를_받으면_ClientSessionActor에_Shutdown_메시지를_전달하고_ChatChannelReaderActor가_종료된다() {
+    void Shutdown_메시지를_받으면_ChatChannelReaderActor가_종료된다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         // when
         readerActor.tell(new Shutdown());
 
         // then
-        clientSessionProbe.expectMessageClass(
-                ClientSessionProtocol.Shutdown.class,
-                Duration.ofSeconds(3)
-        );
-
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
         terminationProbe.expectTerminated(readerActor, Duration.ofSeconds(3));
     }
 
     @Test
-    void SyncDeletion_메시지를_받으면_ChatMessages에서_메시지를_삭제하고_ClientSessionActor에_전달한다() {
+    void SyncDeletion_메시지를_받으면_ChatMessages에서_메시지를_삭제하고_모든_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long messageId = 1L;
@@ -207,6 +240,9 @@ class ChatChannelReaderActorTest {
                 timestamp
         );
 
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
         given(mockMessages.delete(messageId)).willReturn(deletedMessage);
 
         // when
@@ -215,23 +251,33 @@ class ChatChannelReaderActorTest {
         // then
         verify(mockMessages, timeout(1000)).delete(messageId);
 
-        DeliverDeletedMessage deliveredDeletedMessage = clientSessionProbe.expectMessageClass(
+        DeliverDeletedMessage deliveredDeletedMessage1 = clientSessionProbe1.expectMessageClass(
                 DeliverDeletedMessage.class,
                 Duration.ofSeconds(3)
         );
-        assertThat(deliveredDeletedMessage.deletedMessage()).isEqualTo(deletedMessage);
+        DeliverDeletedMessage deliveredDeletedMessage2 = clientSessionProbe2.expectMessageClass(
+                DeliverDeletedMessage.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(deliveredDeletedMessage1.deletedMessage()).isEqualTo(deletedMessage),
+                () -> assertThat(deliveredDeletedMessage2.deletedMessage()).isEqualTo(deletedMessage)
+        );
     }
 
     @Test
-    void SyncUpdate_메시지를_받으면_ChatMessages에서_메시지를_수정하고_ClientSessionActor에_전달한다() {
+    void SyncUpdate_메시지를_받으면_ChatMessages에서_메시지를_수정하고_모든_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
         ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
-                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long messageId = 1L;
@@ -247,6 +293,9 @@ class ChatChannelReaderActorTest {
                 timestamp
         );
 
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
         given(mockMessages.update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class))).willReturn(updatedMessage);
 
         // when
@@ -255,10 +304,180 @@ class ChatChannelReaderActorTest {
         // then
         verify(mockMessages, timeout(1000)).update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class));
 
-        DeliverUpdatedMessage deliveredUpdatedMessage = clientSessionProbe.expectMessageClass(
+        DeliverUpdatedMessage deliveredUpdatedMessage1 = clientSessionProbe1.expectMessageClass(
                 DeliverUpdatedMessage.class,
                 Duration.ofSeconds(3)
         );
-        assertThat(deliveredUpdatedMessage.updatedMessage()).isEqualTo(updatedMessage);
+        DeliverUpdatedMessage deliveredUpdatedMessage2 = clientSessionProbe2.expectMessageClass(
+                DeliverUpdatedMessage.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(deliveredUpdatedMessage1.updatedMessage()).isEqualTo(updatedMessage),
+                () -> assertThat(deliveredUpdatedMessage2.updatedMessage()).isEqualTo(updatedMessage)
+        );
+    }
+
+    @Test
+    void RegisterClientSession_메시지를_받으면_clientSessions에_등록된다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+
+        // when
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        // then
+        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage newMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Test",
+                timestamp,
+                timestamp
+        );
+
+        readerActor.tell(new SyncNewMessage(newMessage));
+
+        DeliverNewMessage deliveredMessage = clientSessionProbe.expectMessageClass(
+                DeliverNewMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(deliveredMessage.message()).isEqualTo(newMessage);
+    }
+
+    @Test
+    void UnregisterClientSession_메시지를_받으면_clientSessions에서_제거된다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        // when
+        readerActor.tell(new UnregisterClientSession(userId));
+
+        // then
+        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage newMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Test",
+                timestamp,
+                timestamp
+        );
+
+        readerActor.tell(new SyncNewMessage(newMessage));
+
+        clientSessionProbe.expectNoMessage(Duration.ofSeconds(1));
+    }
+
+    @Test
+    void PingHealthCheckFromRegistry_메시지를_받으면_Registry에_PongHealthCheck을_반환한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        registryProbe.expectMessageClass(
+                ChannelReaderRegistryProtocol.SpawnedChannelReaderActor.class,
+                Duration.ofSeconds(3)
+        );
+
+        // when
+        readerActor.tell(new PingHealthCheckFromRegistry(registryProbe.ref()));
+
+        // then
+        registryProbe.expectMessageClass(
+                ChannelReaderRegistryProtocol.PongHealthCheck.class,
+                Duration.ofSeconds(3)
+        );
+    }
+
+    @Test
+    void PingHealthCheckFromClientSession_메시지를_받으면_ClientSession에_PongHealthCheck을_반환한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        // when
+        readerActor.tell(new PingHealthCheckFromClientSession(clientSessionProbe.ref()));
+
+        // then
+        clientSessionProbe.expectMessageClass(
+                ClientSessionProtocol.PongHealthCheck.class,
+                Duration.ofSeconds(3)
+        );
+    }
+
+    @Test
+    void PongHealthCheck_메시지를_받으면_헬스체크_타임아웃이_발생하지_않는다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChatChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChatChannelReaderCommand> readerActor = testKit.spawn(
+                ChatChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage newMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Test",
+                timestamp,
+                timestamp
+        );
+
+        // when
+        readerActor.tell(new PongHealthCheck(userId));
+
+        // then
+        readerActor.tell(new SyncNewMessage(newMessage));
+
+        DeliverNewMessage actual = clientSessionProbe.expectMessageClass(
+                DeliverNewMessage.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(actual.message()).isEqualTo(newMessage);
     }
 }

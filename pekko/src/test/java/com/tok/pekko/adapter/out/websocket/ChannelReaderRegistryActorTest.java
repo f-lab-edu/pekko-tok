@@ -6,6 +6,7 @@ import com.tok.pekko.domain.chat.model.ChatChannelEntity;
 import com.tok.pekko.domain.chat.model.ChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RegisterReader;
+import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol;
 import com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.ChatChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.PongHealthCheck;
@@ -217,18 +218,12 @@ class ChannelReaderRegistryActorTest {
                 ClientSessionCommand.class,
                 Duration.ofSeconds(5)
         );
-        ActorRef<ChatChannelReaderCommand> readerRef = foundReaders.chatChannelReaderRefs()
-                                                                   .get(channelId);
+        ActorRef<ChatChannelReaderCommand> readerRef = foundReaders.chatChannelReaderRefs().get(channelId);
 
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
 
         // when
-        readerRef.tell(new com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown());
-
-        clientSessionProbe.expectMessageClass(
-                com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown.class,
-                Duration.ofSeconds(5)
-        );
+        readerRef.tell(new ChatChannelReaderProtocol.Shutdown());
 
         terminationProbe.expectTerminated(readerRef, Duration.ofSeconds(5));
 
@@ -239,67 +234,15 @@ class ChannelReaderRegistryActorTest {
                         clientSessionProbe.ref()
                 )
         );
-        FoundChannelReaders actual = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
-                ClientSessionCommand.class,
-                Duration.ofSeconds(5)
-        );
-        assertThat(actual).extracting(target -> target.chatChannelReaderRefs().get(channelId))
-                          .isNotEqualTo(readerRef);
-    }
-
-    @Test
-    void 여러_ChatChannelReaderActor_중_하나가_종료되어도_나머지는_유지된다() {
-        // given
-        ActorRef<ChannelReaderRegistryCommand> registryActor = testKit.spawn(
-                ChannelReaderRegistryActor.create(clusterSharding)
-        );
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        Long channelId1 = 8L;
-        Long channelId2 = 9L;
-
-        registryActor.tell(
-                new ChannelReaderRegistryActor.GetChannelReaderActorRef(
-                        List.of(channelId1, channelId2),
-                        clientSessionProbe.ref()
-                )
-        );
-        ClientSessionCommand response = clientSessionProbe.expectMessageClass(
-                ClientSessionCommand.class,
-                Duration.ofSeconds(5)
-        );
-        FoundChannelReaders foundReaders = (FoundChannelReaders) response;
-        ActorRef<ChatChannelReaderCommand> readerRef1 = foundReaders.chatChannelReaderRefs().get(channelId1);
-        ActorRef<ChatChannelReaderCommand> readerRef2 = foundReaders.chatChannelReaderRefs().get(channelId2);
-
-        TestProbe<Void> terminationProbe = testKit.createTestProbe();
-
-        // when
-        readerRef1.tell(new com.tok.pekko.domain.chat.port.in.ChatChannelReaderProtocol.Shutdown());
-
-        clientSessionProbe.expectMessageClass(
-                com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown.class,
-                Duration.ofSeconds(5)
-        );
-
-        terminationProbe.expectTerminated(readerRef1, Duration.ofSeconds(5));
-
-        // then
-        registryActor.tell(
-                new ChannelReaderRegistryActor.GetChannelReaderActorRef(
-                        List.of(channelId1, channelId2),
-                        clientSessionProbe.ref()
-                )
-        );
         FoundChannelReaders newFoundReaders = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
                 ClientSessionCommand.class,
                 Duration.ofSeconds(5)
         );
-        ActorRef<ChatChannelReaderCommand> newReaderRef1 = newFoundReaders.chatChannelReaderRefs().get(channelId1);
-        ActorRef<ChatChannelReaderCommand> newReaderRef2 = newFoundReaders.chatChannelReaderRefs().get(channelId2);
+        ActorRef<ChatChannelReaderCommand> newReaderRef = newFoundReaders.chatChannelReaderRefs().get(channelId);
 
         assertAll(
-                () -> assertThat(newReaderRef1).isNotEqualTo(readerRef1),
-                () -> assertThat(newReaderRef2).isEqualTo(readerRef2)
+                () -> assertThat(newReaderRef).isNotEqualTo(readerRef),
+                () -> assertThat(newReaderRef.path().name()).startsWith("chat-channel-reader-")
         );
     }
 

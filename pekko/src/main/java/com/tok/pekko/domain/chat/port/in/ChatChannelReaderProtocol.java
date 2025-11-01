@@ -14,10 +14,11 @@ public interface ChatChannelReaderProtocol {
     record SyncNewMessage(ChatMessage message) implements ChatChannelReaderCommand { }
     record SyncDeletion(Long messageId) implements ChatChannelReaderCommand { }
     record SyncUpdate(Long messageId, String updatedMessage, LocalDateTime updatedAt) implements ChatChannelReaderCommand { }
-    record RequestHistory(long messageSequence, int size) implements ChatChannelReaderCommand { }
+    record GetHistory(long messageSequence, int size, ActorRef<ClientSessionCommand> replyTo) implements ChatChannelReaderCommand { }
     record PingHealthCheckFromRegistry(ActorRef<ChannelReaderRegistryCommand> replyTo) implements ChatChannelReaderCommand { }
     record RegisterClientSession(Long userId, ActorRef<ClientSessionCommand> clientSession) implements ChatChannelReaderCommand { }
     record UnregisterClientSession(Long userId) implements ChatChannelReaderCommand { }
     record PingHealthCheckFromClientSession(ActorRef<ClientSessionCommand> replyTo) implements ChatChannelReaderCommand { }
+    record PongHealthCheck(Long userId) implements ChatChannelReaderCommand { }
     record Shutdown() implements ChatChannelReaderCommand { }
 }
