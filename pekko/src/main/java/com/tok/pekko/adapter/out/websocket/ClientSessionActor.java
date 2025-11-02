@@ -22,6 +22,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Duration;
 import java.util.HashMap;
@@ -104,6 +105,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(FoundHistory.class, this::onFoundHistory)
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
+                                  .onMessage(UnregisterChannelReader.class, this::onUnregisterChannelReader)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(JoinChannel.class, this::onJoinChannel)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
@@ -172,6 +174,18 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private Behavior<ClientSessionCommand> onFoundRegisteredChannelIds(FoundRegisteredChannelIds command) {
         readerRegistry.tell(new GetChannelReaderActorRef(command.channelIds(), getContext().getSelf()));
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onUnregisterChannelReader(UnregisterChannelReader command) {
+        healthCheckTimeouts.remove(command.channelId());
+
+        ActorRef<ChannelReaderCommand> unregisterChannelReader = readers.remove(command.channelId());
+
+        if (unregisterChannelReader != null) {
+            getContext().unwatch(unregisterChannelReader);
+        }
 
         return this;
     }

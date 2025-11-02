@@ -24,6 +24,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessag
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.Map.Entry;
 import org.apache.pekko.actor.Cancellable;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.PostStop;
 import org.apache.pekko.actor.typed.Terminated;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
@@ -111,6 +113,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                   .onMessage(UnregisterClientSession.class, this::onUnregisterClientSession)
                                   .onMessage(Shutdown.class, this::onShutdown)
                                   .onSignal(Terminated.class, this::onTerminated)
+                                  .onSignal(PostStop.class, this::onPostStop)
                                   .build();
     }
 
@@ -263,6 +266,13 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     private Behavior<ChannelReaderCommand> onShutdown(Shutdown command) {
         return Behaviors.stopped();
+    }
+
+    private Behavior<ChannelReaderCommand> onPostStop(PostStop signal) {
+        clientSessions.values()
+                      .forEach(clientSession -> clientSession.tell(new UnregisterChannelReader(channelId)));
+
+        return this;
     }
 
     private record SyncMessageHeartBeat() implements ChannelReaderCommand { }
