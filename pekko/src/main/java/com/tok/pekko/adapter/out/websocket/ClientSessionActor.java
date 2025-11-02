@@ -293,6 +293,17 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
+        readers.values()
+               .forEach(
+                       reader -> {
+                           reader.tell(new UnregisterClientSession(userId));
+                           getContext().unwatch(reader);
+                       });
+        readers.clear();
+
+        healthCheckTimeouts.values().forEach(Cancellable::cancel);
+        healthCheckTimeouts.clear();
+
         return Behaviors.stopped();
     }
 
