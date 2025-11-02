@@ -1,6 +1,6 @@
 package com.tok.pekko.adapter.out.persistence;
 
-import com.tok.pekko.domain.chat.model.ChatMessage;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
 import java.util.List;
 
 public interface MessageRepository {

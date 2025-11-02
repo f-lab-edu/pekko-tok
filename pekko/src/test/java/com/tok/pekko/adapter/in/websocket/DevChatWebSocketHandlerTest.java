@@ -3,14 +3,15 @@ package com.tok.pekko.adapter.in.websocket;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.application.actor.SessionActorManagementService;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.ChatChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.RemoveShutdownReader;
-import com.tok.pekko.domain.chat.port.in.ChatChannelProtocol.SendMessage;
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import java.net.URI;
+import java.util.concurrent.CompletionStage;
+import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -39,12 +40,14 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -53,7 +56,9 @@ class DevChatWebSocketHandlerTest {
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.empty());
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
         Mono<Void> result = handler.handle(session);
@@ -62,10 +67,8 @@ class DevChatWebSocketHandlerTest {
         StepVerifier.create(result)
                     .verifyComplete();
 
-        verify(managementService).registerSession(any(ClientMessageSender.class), eq(100L), eq(1L));
-        verify(managementService).terminateSession(1L, 100L);
-        verify(entityRef).tell(any(RemoveShutdownReader.class));
-
+        verify(managementService).createClientSessionActor(any(ClientMessageSender.class), eq(100L));
+        verify(clientSession).thenAccept(any());
     }
 
     @Test
@@ -73,13 +76,15 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
         WebSocketMessage webSocketMessage = mock(WebSocketMessage.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -91,7 +96,9 @@ class DevChatWebSocketHandlerTest {
         given(session.receive()).willReturn(Flux.just(webSocketMessage));
         given(webSocketMessage.getPayloadAsText()).willReturn(messageContent);
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
         Mono<Void> result = handler.handle(session);
@@ -108,7 +115,7 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
@@ -129,7 +136,7 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
@@ -150,12 +157,14 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -165,7 +174,9 @@ class DevChatWebSocketHandlerTest {
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.empty());
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
         given(objectMapper.writeValueAsString(any())).willThrow(JsonProcessingException.class);
 
         // when
@@ -181,12 +192,14 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -196,7 +209,9 @@ class DevChatWebSocketHandlerTest {
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.empty());
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
         Mono<Void> result = handler.handle(session);
@@ -205,8 +220,7 @@ class DevChatWebSocketHandlerTest {
         StepVerifier.create(result)
                     .verifyComplete();
 
-        verify(managementService).terminateSession(1L, 100L);
-        verify(entityRef).tell(any(RemoveShutdownReader.class));
+        verify(clientSession).thenAccept(any());
     }
 
     @Test
@@ -214,14 +228,16 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
         WebSocketMessage message1 = mock(WebSocketMessage.class);
         WebSocketMessage message2 = mock(WebSocketMessage.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -233,7 +249,9 @@ class DevChatWebSocketHandlerTest {
         given(message1.getPayloadAsText()).willReturn("메시지1");
         given(message2.getPayloadAsText()).willReturn("메시지2");
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
         Mono<Void> result = handler.handle(session);
@@ -250,12 +268,14 @@ class DevChatWebSocketHandlerTest {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -265,27 +285,31 @@ class DevChatWebSocketHandlerTest {
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.empty());
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(456L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
         handler.handle(session).subscribe();
 
         // then
-        verify(managementService).registerSession(any(ClientMessageSender.class), eq(456L), eq(123L));
+        verify(managementService).createClientSessionActor(any(ClientMessageSender.class), eq(456L));
     }
 
     @Test
-    @DisplayName("EntityRef에 올바른 channelId로 접근")
     void 웹소켓_연결_시_유효한_파라미터가_전달되면_유효한_channelId로_ChatChannelEntity를_조회한다() throws Exception {
         // given
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        SessionActorManagementService managementService = mock(SessionActorManagementService.class);
+        ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
+        WebSocketMessage webSocketMessage = mock(WebSocketMessage.class);
 
         @SuppressWarnings("unchecked")
-        EntityRef<ChatChannelEntityCommand> entityRef = mock(EntityRef.class);
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        @SuppressWarnings("unchecked")
+        CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(objectMapper, clusterSharding, managementService);
 
@@ -293,14 +317,20 @@ class DevChatWebSocketHandlerTest {
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
-        given(session.receive()).willReturn(Flux.empty());
+        given(session.receive()).willReturn(Flux.just(webSocketMessage));
+        given(webSocketMessage.getPayloadAsText()).willReturn("테스트");
         given(session.send(any())).willReturn(Mono.empty());
-        given(clusterSharding.<ChatChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
+        given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
+        given(clientSession.thenAccept(any())).willReturn(null);
 
         // when
-        handler.handle(session).subscribe();
+        Mono<Void> result = handler.handle(session);
 
         // then
+        StepVerifier.create(result)
+                    .verifyComplete();
+
         verify(clusterSharding).entityRefFor(any(), eq("999"));
     }
 }

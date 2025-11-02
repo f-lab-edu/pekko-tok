@@ -1,9 +1,10 @@
 package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.domain.chat.model.ChatChannelEntity;
-import com.tok.pekko.domain.chat.model.ChatMessages;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChatMessages;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
+import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.time.Clock;
@@ -13,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.Address;
 import org.apache.pekko.actor.AddressFromURIString;
 import org.apache.pekko.actor.typed.ActorSystem;
-import org.apache.pekko.actor.typed.SpawnProtocol;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
 import org.apache.pekko.cluster.typed.Cluster;
@@ -37,8 +37,8 @@ public class ClusterConfig {
 
         clusterSharding.init(
                 Entity.of(
-                        ChatChannelEntity.ENTITY_TYPE_KEY,
-                        entityContext -> ChatChannelEntity.create(
+                        ChannelEntity.ENTITY_TYPE_KEY,
+                        entityContext -> ChannelEntity.create(
                                 clock,
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),
@@ -51,9 +51,9 @@ public class ClusterConfig {
     }
 
     @Bean(destroyMethod = "terminate")
-    public ActorSystem<SpawnProtocol.Command> actorSystem() {
+    public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
-        ActorSystem<SpawnProtocol.Command> system = ActorSystem.create(
+        ActorSystem<GuardianCommand> system = ActorSystem.create(
                 GuardianActor.create(),
                 "ChatCluster",
                 config
@@ -104,7 +104,7 @@ public class ClusterConfig {
         return systemProp != null ? systemProp : System.getenv(key);
     }
 
-    private void joinClusterSeeds(ActorSystem<SpawnProtocol.Command> system) {
+    private void joinClusterSeeds(ActorSystem<GuardianCommand> system) {
         String joinSeeds = getEnvironmentVariable("PEKKO_JOIN_SEEDS");
 
         if (joinSeeds == null || joinSeeds.isBlank()) {
@@ -142,7 +142,7 @@ public class ClusterConfig {
         return seedAddresses;
     }
 
-    private void logClusterInfo(ActorSystem<SpawnProtocol.Command> system) {
+    private void logClusterInfo(ActorSystem<GuardianCommand> system) {
         Cluster cluster = Cluster.get(system);
         Config config = system.settings()
                               .config();
