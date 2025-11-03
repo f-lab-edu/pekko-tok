@@ -9,6 +9,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCom
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.global.common.CborSerializable;
+import java.time.Duration;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
@@ -31,7 +32,7 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
         ClusterSharding clusterSharding = ClusterSharding.get(context.getSystem());
 
         this.readerRegistry = context.spawn(
-                ChannelReaderRegistryActor.create(clusterSharding),
+                ChannelReaderRegistryActor.create(clusterSharding, Duration.ofSeconds(240L)),
                 "channel-reader-registry-actor"
         );
     }

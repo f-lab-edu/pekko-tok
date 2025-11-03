@@ -4,7 +4,6 @@ import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromRegistry;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
@@ -14,7 +13,6 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
@@ -47,6 +45,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
             Long channelId,
             ChatMessages messages,
             EntityRef<ChannelEntityCommand> channelEntity,
+            ActorRef<ClientSessionCommand> clientSession,
             ActorRef<ChannelReaderRegistryCommand> replyTo
     ) {
         return Behaviors.setup(
@@ -56,7 +55,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                     String readerName = context.getSelf().path().address().toString() + "/"
                             + context.getSelf().path().name();
 
-                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName));
+                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName, clientSession));
 
                     return Behaviors.withTimers(
                             timers -> {
@@ -104,7 +103,6 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                   .onMessage(SyncMessageHeartBeat.class, this::onHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
                                   .onMessage(GetHistory.class, this::onGetHistory)
-                                  .onMessage(PingHealthCheckFromRegistry.class, this::onPingHealthCheckFromRegistry)
                                   .onMessage(PingHealthCheckFromClientSession.class, this::onPingHealthCheckFromClientSession)
                                   .onMessage(ClientSessionHealthCheckHeartBeat.class, this::onClientSessionHealthCheckHeartBeat)
                                   .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
@@ -168,13 +166,6 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     private Behavior<ChannelReaderCommand> onDeliverSyncMessages(DeliverSyncMessages command) {
         this.messages.syncMessages(command.messages());
-
-        return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onPingHealthCheckFromRegistry(PingHealthCheckFromRegistry command) {
-        command.replyTo()
-               .tell(new ChannelReaderRegistryProtocol.PongHealthCheck(channelId));
 
         return this;
     }

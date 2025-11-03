@@ -1,6 +1,6 @@
 package com.tok.pekko.adapter.out.websocket;
 
-import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
+import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromClientSession;
@@ -141,6 +141,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         ActorRef<ChannelReaderCommand> reader = readers.get(command.channelId());
 
         if (reader == null) {
+            readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
             return this;
         }
 
@@ -173,7 +174,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onFoundRegisteredChannelIds(FoundRegisteredChannelIds command) {
-        readerRegistry.tell(new GetChannelReaderActorRef(command.channelIds(), getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActor(command.channelIds(), getContext().getSelf()));
 
         return this;
     }
@@ -211,7 +212,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onSyncJoinChannel(SyncJoinChannel command) {
-        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
         return this;
     }
 
@@ -266,7 +267,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             getContext().unwatch(readerRef);
         }
 
-        readerRegistry.tell(new GetChannelReaderActorRef(List.of(command.channelId()), getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
 
         return this;
     }
@@ -298,7 +299,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                            }
 
                            readerRegistry.tell(
-                                   new GetChannelReaderActorRef(List.of(channelId), getContext().getSelf())
+                                   new GetChannelReaderActor(List.of(channelId), getContext().getSelf())
                            );
                        }
                );

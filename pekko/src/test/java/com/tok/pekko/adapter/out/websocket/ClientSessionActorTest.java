@@ -1,6 +1,6 @@
 package com.tok.pekko.adapter.out.websocket;
 
-import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
+import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
@@ -192,12 +192,12 @@ class ClientSessionActorTest {
     }
 
     @Test
-    void RequestHistory_메시지를_받을_때_해당_채널_reader가_없으면_아무것도_하지_않는다() {
+    void RequestHistory_메시지를_받을_때_해당_채널_reader가_없으면_readerRegistry에_요청한다() {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
-        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
                 ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
@@ -207,7 +207,11 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new RequestHistory(1L, 10L, 5));
 
         // then
-        readerRegistryProbe.expectNoMessage(Duration.ofSeconds(1));
+        GetChannelReaderActor message = readerRegistryProbe.expectMessageClass(
+                GetChannelReaderActor.class,
+                Duration.ofSeconds(1)
+        );
+        assertThat(message.channelIds()).containsExactly(1L);
     }
 
     @Test
@@ -324,7 +328,7 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new FoundRegisteredChannelIds(channelIds));
 
         // then
-        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+        GetChannelReaderActor actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActor.class);
 
         assertThat(actual.channelIds()).containsAll(channelIds);
     }
@@ -395,7 +399,7 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new SyncJoinChannel(7L));
 
         // then
-        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+        GetChannelReaderActor actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActor.class);
 
         assertThat(actual.channelIds()).contains(7L);
     }
