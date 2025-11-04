@@ -7,7 +7,6 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderComm
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
@@ -191,26 +190,6 @@ class ChannelReaderActorTest {
     }
 
     @Test
-    void Shutdown_메시지를_받으면_ChatChannelReaderActor가_종료된다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        @SuppressWarnings("unchecked")
-        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
-
-        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
-        );
-
-        // when
-        readerActor.tell(new Shutdown());
-
-        // then
-        TestProbe<Void> terminationProbe = testKit.createTestProbe();
-        terminationProbe.expectTerminated(readerActor, Duration.ofSeconds(3));
-    }
-
-    @Test
     void SyncDeletion_메시지를_받으면_ChatMessages에서_메시지를_삭제하고_모든_ClientSessionActor에_전달한다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
@@ -389,7 +368,7 @@ class ChannelReaderActorTest {
     }
 
     @Test
-    void PongHealthCheck_메시지를_받으면_헬스체크_타임아웃이_발생하지_않는다() {
+    void PongHealthCheck_메시지를_받으면_Health_Check_타임아웃이_발생하지_않는다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")

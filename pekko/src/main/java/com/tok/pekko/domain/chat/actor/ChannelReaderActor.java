@@ -7,12 +7,12 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderComm
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
@@ -41,7 +41,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
             Long channelId,
             ChatMessages messages,
             EntityRef<ChannelEntityCommand> channelEntity,
-            ActorRef<ChannelReaderRegistryCommand> replyTo
+            ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         return Behaviors.setup(
                 context -> {
@@ -50,7 +50,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                     String readerName = context.getSelf().path().address().toString() + "/"
                             + context.getSelf().path().name();
 
-                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName));
+                    readerRegistry.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName));
 
                     return Behaviors.withTimers(
                             timers -> {
@@ -61,7 +61,8 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                         context,
                                         channelId,
                                         messages,
-                                        channelEntity
+                                        channelEntity,
+                                        readerRegistry
                                 );
                             }
                     );
@@ -72,6 +73,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     private final Long channelId;
     private final ChatMessages messages;
     private final EntityRef<ChannelEntityCommand> channelEntity;
+    private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions;
     private final Map<Long, Cancellable> healthCheckTimeouts;
 
@@ -79,13 +81,15 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
             ActorContext<ChannelReaderCommand> context,
             Long channelId,
             ChatMessages messages,
-            EntityRef<ChannelEntityCommand> channelEntity
+            EntityRef<ChannelEntityCommand> channelEntity,
+            ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         super(context);
 
         this.channelId = channelId;
         this.messages = messages;
         this.channelEntity = channelEntity;
+        this.readerRegistry = readerRegistry;
         this.clientSessions = new HashMap<>();
         this.healthCheckTimeouts = new HashMap<>();
     }
@@ -95,14 +99,13 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         return newReceiveBuilder().onMessage(SyncNewMessage.class, this::onSyncNewMessage)
                                   .onMessage(SyncUpdate.class, this::onSyncUpdate)
                                   .onMessage(SyncDeletion.class, this::onSyncDeletion)
-                                  .onMessage(SyncMessageHeartBeat.class, this::onHeartBeat)
+                                  .onMessage(SyncMessageHeartBeat.class, this::onSyncMessageHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
                                   .onMessage(GetHistory.class, this::onGetHistory)
                                   .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
                                   .onMessage(PongHealthCheckTimeout.class, this::onPongHealthCheckTimeout)
                                   .onMessage(RegisterClientSession.class, this::onRegisterClientSession)
                                   .onMessage(UnregisterClientSession.class, this::onUnregisterClientSession)
-                                  .onMessage(Shutdown.class, this::onShutdown)
                                   .onSignal(Terminated.class, this::onTerminated)
                                   .onSignal(PostStop.class, this::onPostStop)
                                   .build();
@@ -151,7 +154,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         return this;
     }
 
-    private Behavior<ChannelReaderCommand> onHeartBeat(SyncMessageHeartBeat command) {
+    private Behavior<ChannelReaderCommand> onSyncMessageHeartBeat(SyncMessageHeartBeat command) {
         channelEntity.tell(new RequestSyncMessages(getContext().getSelf()));
 
         return this;
@@ -187,7 +190,14 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
         if (clientSession != null) {
             getContext().unwatch(clientSession);
+            readerRegistry.tell(new ReportUnhealthyClientSession(command.userId(), command.userId()));
         }
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onUnregisterClientSession(UnregisterClientSession command) {
+        clientSessions.remove(command.userId());
 
         return this;
     }
@@ -199,21 +209,11 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                       .map(Map.Entry::getKey)
                       .findFirst()
                       .ifPresent(userId -> {
-                                  healthCheckTimeouts.remove(userId);
-                                  clientSessions.remove(userId);
-                              });
+                          healthCheckTimeouts.remove(userId);
+                          clientSessions.remove(userId);
+                      });
 
         return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onUnregisterClientSession(UnregisterClientSession command) {
-        clientSessions.remove(command.userId());
-
-        return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onShutdown(Shutdown command) {
-        return Behaviors.stopped();
     }
 
     private Behavior<ChannelReaderCommand> onPostStop(PostStop signal) {
