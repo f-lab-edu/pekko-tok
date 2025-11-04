@@ -41,7 +41,6 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
             Long channelId,
             ChatMessages messages,
             EntityRef<ChannelEntityCommand> channelEntity,
-            ActorRef<ClientSessionCommand> clientSession,
             ActorRef<ChannelReaderRegistryCommand> replyTo
     ) {
         return Behaviors.setup(
@@ -51,7 +50,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                     String readerName = context.getSelf().path().address().toString() + "/"
                             + context.getSelf().path().name();
 
-                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName, clientSession));
+                    replyTo.tell(new SpawnedChannelReaderActor(channelId, context.getSelf(), readerName));
 
                     return Behaviors.withTimers(
                             timers -> {

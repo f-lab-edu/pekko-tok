@@ -10,7 +10,6 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderComm
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -32,12 +31,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
@@ -173,47 +174,38 @@ class ChannelReaderRegistryActorTest {
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> mockEntityRef = mock(EntityRef.class);
 
-        Mockito.doReturn(mockEntityRef)
-               .when(mockClusterSharding)
-               .entityRefFor(any(), anyString());
-        Mockito.doNothing().when(mockEntityRef).tell(any(ChannelEntityCommand.class));
+        doReturn(mockEntityRef).when(mockClusterSharding).entityRefFor(any(), anyString());
+        doNothing().when(mockEntityRef).tell(any(ChannelEntityCommand.class));
 
         ActorRef<ChannelReaderRegistryCommand> registryActor = testKit.spawn(
                 ChannelReaderRegistryActor.create(mockClusterSharding, Duration.ofSeconds(30L))
         );
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        TestProbe<ChannelReaderCommand> readerActorProbe = testKit.createTestProbe(ChannelReaderCommand.class);
+
         Long channelId = 100L;
-        String readerName = "test-reader-name";
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         // when
-        registryActor.tell(
-                new SpawnedChannelReaderActor(
-                        channelId,
-                        readerActorProbe.ref(),
-                        readerName,
-                        clientSessionProbe.ref()
-                )
-        );
-
-        // then
         registryActor.tell(new GetChannelReaderActor(List.of(channelId), clientSessionProbe.ref()));
 
-        FoundChannelReaders actual = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
+        FoundChannelReaders foundReaders = (FoundChannelReaders) clientSessionProbe.expectMessageClass(
                 ClientSessionCommand.class,
                 Duration.ofSeconds(5)
         );
-        assertThat(actual.chatChannelReaderRefs()).containsEntry(channelId, readerActorProbe.ref());
+
+        ActorRef<ChannelReaderCommand> actualReaderRef = foundReaders.chatChannelReaderRefs().get(channelId);
+
+        // then
+        assertThat(actualReaderRef).isNotNull();
 
         ArgumentCaptor<ChannelEntityCommand> captor = ArgumentCaptor.forClass(ChannelEntityCommand.class);
 
-        verify(mockEntityRef).tell(captor.capture());
+        verify(mockEntityRef, times(2)).tell(captor.capture());
 
         RegisterReader capturedCommand = (RegisterReader) captor.getValue();
 
         assertThat(capturedCommand)
-                .extracting(RegisterReader::readerName, RegisterReader::reader)
-                .containsExactly(readerName, readerActorProbe.ref());
+                .extracting(RegisterReader::reader)
+                .isEqualTo(actualReaderRef);
     }
 
     @Test

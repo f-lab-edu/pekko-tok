@@ -10,7 +10,7 @@ public interface ChannelReaderRegistryProtocol {
 
     interface ChannelReaderRegistryCommand extends CborSerializable { }
 
-    record SpawnedChannelReaderActor(Long channelId, ActorRef<ChannelReaderCommand> reader, String readerName, ActorRef<ClientSessionCommand> clientSession) implements ChannelReaderRegistryCommand { }
+    record SpawnedChannelReaderActor(Long channelId, ActorRef<ChannelReaderCommand> reader, String readerName) implements ChannelReaderRegistryCommand { }
     record ReleaseChannelReaderActor(List<Long> channelIds, ActorRef<ClientSessionCommand> clientSession) implements ChannelReaderRegistryCommand { }
     record ReportUnhealthyChannelReader(List<Long> channelIds) implements ChannelReaderRegistryCommand { }
 }

@@ -64,13 +64,12 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.now();
@@ -113,12 +112,11 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> replyToProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         long messageSequence = 100L;
@@ -159,12 +157,11 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> replyToProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         long messageSequence = 10L;
@@ -199,11 +196,10 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         // when
@@ -220,13 +216,12 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long messageId = 1L;
@@ -273,13 +268,12 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long messageId = 1L;
@@ -327,12 +321,11 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> registeredSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long userId = 100L;
@@ -366,12 +359,11 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> registeredSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long userId = 100L;
@@ -402,12 +394,11 @@ class ChannelReaderActorTest {
         ChatMessages mockMessages = mock(ChatMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
         TestProbe<ClientSessionCommand> registeredSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
 
         ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
         );
 
         Long userId = 100L;

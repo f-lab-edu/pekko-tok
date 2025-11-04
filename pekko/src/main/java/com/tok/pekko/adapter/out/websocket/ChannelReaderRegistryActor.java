@@ -92,14 +92,17 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     }
 
     private Behavior<ChannelReaderRegistryCommand> onSpawnedChannelReaderActor(SpawnedChannelReaderActor command) {
-        ChannelReaderNode channelReaderNode = new ChannelReaderNode(command.reader(), command.readerName());
+        ChannelReaderNode channelReaderNode = readers.get(command.channelId());
 
-        channelReaderNode.clientSessions.add(command.clientSession());
-        readers.put(command.channelId(), channelReaderNode);
+        if (channelReaderNode == null) {
+            return this;
+        }
 
-        EntityRef<ChannelEntityCommand> channelEntityRef = findChannelEntityRef(command.channelId());
+        channelReaderNode.readerName = command.readerName();
 
-        channelEntityRef.tell(new RegisterReader(command.readerName(), command.reader()));
+        EntityRef<ChannelEntityCommand> channelEntity = findChannelEntity(command.channelId());
+
+        channelEntity.tell(new RegisterReader(command.readerName(), command.reader()));
         return this;
     }
 
@@ -141,7 +144,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
             if (readerNode.clientSessions.isEmpty()) {
                 getContext().stop(readerNode.reader);
 
-                EntityRef<ChannelEntityCommand> channelEntity = findChannelEntityRef(channelId);
+                EntityRef<ChannelEntityCommand> channelEntity = findChannelEntity(channelId);
                 channelEntity.tell(new RemoveShutdownReader(readerNode.readerName));
             }
         }
@@ -167,25 +170,28 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
             Long channelId,
             ActorRef<ClientSessionCommand> clientSession
     ) {
-        EntityRef<ChannelEntityCommand> chatChannelEntityRef = findChannelEntityRef(channelId);
-        ActorRef<ChannelReaderCommand> chatChannelReaderRef = getContext().spawn(
+        EntityRef<ChannelEntityCommand> channelEntity = findChannelEntity(channelId);
+        ActorRef<ChannelReaderCommand> channelReader = getContext().spawn(
                 Behaviors.supervise(
                         ChannelReaderActor.create(
                                 channelId,
                                 new ChatMessages(),
-                                chatChannelEntityRef,
-                                clientSession,
+                                channelEntity,
                                 getContext().getSelf()
                         )
                 ).onFailure(SupervisorStrategy.restart()),
                 "chat-channel-reader-" + System.nanoTime() + "-" + channelId
         );
 
-        getContext().watch(chatChannelReaderRef);
-        return chatChannelReaderRef;
+        ChannelReaderNode channelReaderNode = new ChannelReaderNode(channelReader);
+
+        channelReaderNode.clientSessions.add(clientSession);
+        readers.put(channelId, channelReaderNode);
+
+        return channelReader;
     }
 
-    private EntityRef<ChannelEntityCommand> findChannelEntityRef(Long channelId) {
+    private EntityRef<ChannelEntityCommand> findChannelEntity(Long channelId) {
         return clusterSharding.entityRefFor(
                 ChannelEntity.ENTITY_TYPE_KEY, String.valueOf(channelId)
         );
@@ -194,12 +200,11 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     private static class ChannelReaderNode {
 
         private final ActorRef<ChannelReaderCommand> reader;
-        private final String readerName;
         private final List<ActorRef<ClientSessionCommand>> clientSessions = new ArrayList<>();
+        private String readerName;
 
-        private ChannelReaderNode(ActorRef<ChannelReaderCommand> reader, String readerName) {
+        private ChannelReaderNode(ActorRef<ChannelReaderCommand> reader) {
             this.reader = reader;
-            this.readerName = readerName;
         }
     }
 
