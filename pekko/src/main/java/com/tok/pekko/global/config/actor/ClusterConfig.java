@@ -28,8 +28,8 @@ import org.springframework.core.env.Environment;
 @RequiredArgsConstructor
 public class ClusterConfig {
 
-    private final Environment environment;
     private final Clock clock;
+    private final Environment environment;
 
     @Bean
     public ClusterSharding clusterSharding(MessageStoragePort messageStoragePort) {
@@ -54,7 +54,7 @@ public class ClusterConfig {
     public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(),
+                GuardianActor.create(clock),
                 "ChatCluster",
                 config
         );

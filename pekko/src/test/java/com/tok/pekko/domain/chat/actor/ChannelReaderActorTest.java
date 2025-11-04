@@ -5,7 +5,6 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.Shutdown;
@@ -14,7 +13,6 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
@@ -396,30 +394,6 @@ class ChannelReaderActorTest {
         readerActor.tell(new SyncNewMessage(newMessage));
 
         registeredSessionProbe.expectNoMessage(Duration.ofSeconds(1));
-    }
-
-    @Test
-    void PingHealthCheckFromClientSession_메시지를_받으면_ClientSession에_PongHealthCheck을_반환한다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        @SuppressWarnings("unchecked")
-        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
-        TestProbe<ClientSessionCommand> replyToProbe = testKit.createTestProbe(ClientSessionCommand.class);
-
-        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, clientSessionProbe.ref(), registryProbe.ref())
-        );
-
-        // when
-        readerActor.tell(new PingHealthCheckFromClientSession(replyToProbe.ref()));
-
-        // then
-        replyToProbe.expectMessageClass(
-                ClientSessionProtocol.PongHealthCheck.class,
-                Duration.ofSeconds(3)
-        );
     }
 
     @Test

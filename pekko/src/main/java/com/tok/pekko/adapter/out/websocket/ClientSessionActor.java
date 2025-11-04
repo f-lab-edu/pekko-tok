@@ -3,11 +3,13 @@ package com.tok.pekko.adapter.out.websocket;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PingHealthCheckFromClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
@@ -17,22 +19,24 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.JoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.LeaveChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PongHealthCheck;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.apache.pekko.actor.Cancellable;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
-import org.apache.pekko.actor.typed.Terminated;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
@@ -40,7 +44,11 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
+    private static final long TIMER_DURATION = 190L;
+    private static final int MINIMUM_PING_COUNT = 3;
+
     public static Behavior<ClientSessionCommand> create(
+            Clock clock,
             Long userId,
             ClientMessageSender clientMessageSender,
             MessageStoragePort messageStoragePort,
@@ -53,10 +61,11 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
                     return Behaviors.withTimers(
                             timers -> {
-                                timers.startTimerAtFixedRate(new HealthCheckHeartBeat(), Duration.ofSeconds(30));
+                                timers.startTimerAtFixedRate(new HeartBeat(), Duration.ofSeconds(TIMER_DURATION));
 
                                 return new ClientSessionActor(
                                         context,
+                                        clock,
                                         userId,
                                         clientMessageSender,
                                         messageStoragePort,
@@ -69,16 +78,19 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         );
     }
 
+    private final Clock clock;
     private final Long userId;
     private final ClientMessageSender clientMessageSender;
     private final MessageStoragePort messageStoragePort;
     private final ChannelMembershipPort channelMembershipPort;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ChannelReaderCommand>> readers;
-    private final Map<Long, Cancellable> healthCheckTimeouts;
+    private final Map<Long, CounterNode> pingCounter;
+    private final Map<Long, RequestHistory> pendingRequestHistory;
 
     private ClientSessionActor(
             ActorContext<ClientSessionCommand> context,
+            Clock clock,
             Long userId,
             ClientMessageSender clientMessageSender,
             MessageStoragePort messageStoragePort,
@@ -87,13 +99,15 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     ) {
         super(context);
 
+        this.clock = clock;
         this.userId = userId;
         this.messageStoragePort = messageStoragePort;
         this.clientMessageSender = clientMessageSender;
         this.channelMembershipPort = channelMembershipPort;
         this.readerRegistry = readerRegistry;
         this.readers = new HashMap<>();
-        this.healthCheckTimeouts = new HashMap<>();
+        this.pingCounter = new HashMap<>();
+        this.pendingRequestHistory = new HashMap<>();
     }
 
     @Override
@@ -111,11 +125,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
                                   .onMessage(LeaveChannel.class, this::onLeaveChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
-                                  .onMessage(HealthCheckHeartBeat.class, this::onHealthCheckHeartBeat)
-                                  .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
-                                  .onMessage(PongHealthCheckTimeout.class, this::onPongHealthCheckTimeout)
+                                  .onMessage(PingHealthCheck.class, this::onPingHealthCheck)
+                                  .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .onMessage(Shutdown.class, this::onShutdown)
-                                  .onSignal(Terminated.class, this::onTerminated)
                                   .build();
     }
 
@@ -142,6 +154,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
         if (reader == null) {
             readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
+            pendingRequestHistory.put(command.channelId(), command);
             return this;
         }
 
@@ -180,28 +193,46 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onUnregisterChannelReader(UnregisterChannelReader command) {
-        healthCheckTimeouts.remove(command.channelId());
+        readers.remove(command.channelId());
+        pingCounter.remove(command.channelId());
+        return this;
+    }
 
-        ActorRef<ChannelReaderCommand> unregisterChannelReader = readers.remove(command.channelId());
+    private Behavior<ClientSessionCommand> onPingHealthCheck(PingHealthCheck command) {
+        CounterNode counterNode = pingCounter.get(command.channelId());
 
-        if (unregisterChannelReader != null) {
-            getContext().unwatch(unregisterChannelReader);
+        if (counterNode != null) {
+            counterNode.pingCount++;
+
+            return this;
         }
 
+        pingCounter.put(command.channelId(), new CounterNode(clock));
+        command.replyTo()
+               .tell(new PongHealthCheck(userId));
         return this;
     }
 
     private Behavior<ClientSessionCommand> onFoundChannelReaders(FoundChannelReaders command) {
-        readers.putAll(command.chatChannelReaderRefs());
+        for (Entry<Long, ActorRef<ChannelReaderCommand>> readerEntry : command.chatChannelReaderRefs().entrySet()) {
+            Long channelId = readerEntry.getKey();
+            ActorRef<ChannelReaderCommand> reader = readerEntry.getValue();
 
-        command.chatChannelReaderRefs()
-               .values()
-               .forEach(
-                       reader -> {
-                           getContext().watch(reader);
-                           reader.tell(new RegisterClientSession(userId, getContext().getSelf()));
-                       }
-               );
+            readers.put(channelId, reader);
+            pingCounter.put(channelId, new CounterNode(clock));
+            reader.tell(new RegisterClientSession(userId, getContext().getSelf()));
+
+            RequestHistory requestHistoryCommand = this.pendingRequestHistory.remove(channelId);
+
+            if (requestHistoryCommand != null) {
+                reader.tell(
+                        new GetHistory(
+                                requestHistoryCommand.messageSequence(),
+                                requestHistoryCommand.size(), getContext().getSelf()
+                        )
+                );
+            }
+        }
 
         return this;
     }
@@ -231,98 +262,59 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
-    private Behavior<ClientSessionCommand> onHealthCheckHeartBeat(HealthCheckHeartBeat command) {
-        if (readers.isEmpty()) {
-            return this;
-        }
+    private Behavior<ClientSessionCommand> onHeartBeat(HeartBeat command) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Long> unHealthChannelIds = pingCounter.entrySet()
+                                                   .stream()
+                                                   .filter(entry -> entry.getValue().isUnHealthy(now))
+                                                   .map(Entry::getKey)
+                                                   .toList();
 
-        for (Entry<Long, ActorRef<ChannelReaderCommand>> readerEntry : readers.entrySet()) {
-            Long channelId = readerEntry.getKey();
-            ActorRef<ChannelReaderCommand> readerRef = readerEntry.getValue();
-
-            readerRef.tell(new PingHealthCheckFromClientSession(getContext().getSelf()));
-
-            Cancellable timeoutSchedule = getContext().scheduleOnce(
-                    Duration.ofSeconds(60L),
-                    getContext().getSelf(),
-                    new PongHealthCheckTimeout(channelId)
-            );
-
-            Cancellable oldSchedule = healthCheckTimeouts.put(channelId, timeoutSchedule);
-
-            if (oldSchedule != null) {
-                oldSchedule.cancel();
-            }
-        }
-
-        return this;
-    }
-
-    private Behavior<ClientSessionCommand> onPongHealthCheckTimeout(PongHealthCheckTimeout command) {
-        healthCheckTimeouts.remove(command.channelId());
-
-        ActorRef<ChannelReaderCommand> readerRef = readers.remove(command.channelId());
-
-        if (readerRef != null) {
-            getContext().unwatch(readerRef);
-        }
-
-        readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
-
-        return this;
-    }
-
-    private Behavior<ClientSessionCommand> onPongHealthCheck(PongHealthCheck command) {
-        Cancellable schedule = healthCheckTimeouts.remove(command.channelId());
-
-        if (schedule != null) {
-            schedule.cancel();
-        }
-
-        return this;
-    }
-
-    private Behavior<ClientSessionCommand> onTerminated(Terminated signal) {
-        readers.entrySet()
-               .stream()
-               .filter(entry -> entry.getValue().path().equals(signal.getRef().path()))
-               .map(Map.Entry::getKey)
-               .findFirst()
-               .ifPresent(
-                       channelId -> {
-                           readers.remove(channelId);
-
-                           Cancellable schedule = healthCheckTimeouts.remove(channelId);
-
-                           if (schedule != null) {
-                               schedule.cancel();
-                           }
-
-                           readerRegistry.tell(
-                                   new GetChannelReaderActor(List.of(channelId), getContext().getSelf())
-                           );
-                       }
-               );
+        readerRegistry.tell(new ReportUnhealthyChannelReader(unHealthChannelIds));
+        unHealthChannelIds.forEach(channelId -> {
+            readers.remove(channelId);
+            pingCounter.remove(channelId);
+        });
+        pingCounter.values().forEach(counterNode -> counterNode.reset(clock));
 
         return this;
     }
 
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
-        readers.values()
-               .forEach(
-                       reader -> {
-                           reader.tell(new UnregisterClientSession(userId));
-                           getContext().unwatch(reader);
-                       });
-        readers.clear();
+        ArrayList<Long> channelIds = new ArrayList<>(readers.keySet());
 
-        healthCheckTimeouts.values().forEach(Cancellable::cancel);
-        healthCheckTimeouts.clear();
+        readerRegistry.tell(new ReleaseChannelReaderActor(channelIds, getContext().getSelf()));
+        readers.values()
+               .forEach(reader -> reader.tell(new UnregisterClientSession(userId)));
+        readers.clear();
+        pingCounter.clear();
+        pendingRequestHistory.clear();
 
         return Behaviors.stopped();
     }
 
+    private static class CounterNode {
+
+        private LocalDateTime readerSpawnedAt;
+        private int pingCount;
+
+        private CounterNode(Clock clock) {
+            this.readerSpawnedAt = LocalDateTime.now(clock);
+            this.pingCount = 0;
+        }
+
+        private boolean isUnHealthy(LocalDateTime now) {
+            long elapsedSeconds = ChronoUnit.SECONDS.between(readerSpawnedAt, now);
+
+            return elapsedSeconds >= TIMER_DURATION && pingCount < MINIMUM_PING_COUNT;
+        }
+
+        private void reset(Clock clock) {
+            this.readerSpawnedAt = LocalDateTime.now(clock);
+            this.pingCount = 0;
+        }
+    }
+
     public record FoundChannelReaders(Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
-    private record HealthCheckHeartBeat() implements ClientSessionCommand { }
-    private record PongHealthCheckTimeout(Long channelId) implements ClientSessionCommand { }
+    private record HeartBeat() implements ClientSessionCommand { }
 }
