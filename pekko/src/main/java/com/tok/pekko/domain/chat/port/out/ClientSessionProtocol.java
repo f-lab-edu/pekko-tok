@@ -22,7 +22,6 @@ public interface ClientSessionProtocol {
     record SyncJoinChannel(Long channelId) implements ClientSessionCommand { }
     record LeaveChannel(Long channelId) implements ClientSessionCommand { }
     record SyncLeaveChannel(Long channelId) implements ClientSessionCommand { }
-    record PongHealthCheck(Long channelId) implements ClientSessionCommand { }
-    record PingHealthCheck(ActorRef<ChannelReaderCommand> replyTo) implements ClientSessionCommand { }
+    record PingHealthCheck(Long channelId, ActorRef<ChannelReaderCommand> replyTo) implements ClientSessionCommand { }
     record Shutdown() implements ClientSessionCommand { }
 }

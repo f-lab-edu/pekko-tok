@@ -8,6 +8,7 @@ import com.tok.pekko.global.actor.GuardianActor.SpawnClientSession;
 import com.tok.pekko.global.actor.GuardianActor.SpawnedClientSession;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -42,7 +43,7 @@ class GuardianActorTest {
     @BeforeEach
     void beforeEach() {
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(),
+                GuardianActor.create(Clock.systemDefaultZone()),
                 "test-system",
                 config
         );
@@ -50,7 +51,7 @@ class GuardianActorTest {
         Cluster cluster = Cluster.get(system);
         cluster.manager().tell(new Join(cluster.selfMember().address()));
 
-        guardianActor = testKit.spawn(GuardianActor.create());
+        guardianActor = testKit.spawn(GuardianActor.create(Clock.systemDefaultZone()));
         responseProbe = testKit.createTestProbe();
     }
 

@@ -1,10 +1,11 @@
 package com.tok.pekko.adapter.out.websocket;
 
-import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActorRef;
+import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
@@ -18,11 +19,18 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.JoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.LeaveChannel;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -31,11 +39,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -59,13 +62,14 @@ class ClientSessionActorTest {
     @Test
     void DeliverNewMessage_메시지를_받으면_ClientMessageSender로_채팅_메시지를_전송한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -88,13 +92,14 @@ class ClientSessionActorTest {
     @Test
     void DeliverHistory_메시지를_받으면_ClientMessageSender로_히스토리_메시지들을_전송한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -116,13 +121,14 @@ class ClientSessionActorTest {
     @Test
     void DeliverHistory_메시지로_빈_리스트를_받으면_MessageStoragePort로_히스토리를_조회한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         List<ChatMessage> emptyMessages = List.of();
@@ -139,13 +145,14 @@ class ClientSessionActorTest {
     @Test
     void FoundHistory_메시지를_받으면_ClientMessageSender로_조회된_히스토리를_전송한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -165,13 +172,14 @@ class ClientSessionActorTest {
     @Test
     void RequestHistory_메시지를_받으면_해당_채널의_reader에_GetHistory가_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -192,54 +200,61 @@ class ClientSessionActorTest {
     }
 
     @Test
-    void RequestHistory_메시지를_받을_때_해당_채널_reader가_없으면_아무것도_하지_않는다() {
+    void RequestHistory_메시지를_받을_때_해당_채널_reader가_없으면_readerRegistry에_요청한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
-        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         // when
         clientSessionActor.tell(new RequestHistory(1L, 10L, 5));
 
         // then
-        readerRegistryProbe.expectNoMessage(Duration.ofSeconds(1));
+        GetChannelReaderActor message = readerRegistryProbe.expectMessageClass(
+                GetChannelReaderActor.class
+        );
+        assertThat(message.channelIds()).containsExactly(1L);
     }
 
     @Test
     void Shutdown_메시지를_받으면_액터가_종료된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
+
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
 
         // when
         clientSessionActor.tell(new Shutdown());
 
         // then
-        terminationProbe.expectTerminated(clientSessionActor, Duration.ofSeconds(3));
+        terminationProbe.expectTerminated(clientSessionActor);
     }
 
     @Test
     void 여러_DeliverNewMessage_메시지를_연속으로_받으면_모두_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -265,13 +280,14 @@ class ClientSessionActorTest {
     @Test
     void DeliverDeletedMessage_메시지를_받으면_ClientMessageSender로_삭제된_메시지를_전송한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -287,13 +303,14 @@ class ClientSessionActorTest {
     @Test
     void DeliverUpdatedMessage_메시지를_받으면_ClientMessageSender로_수정된_메시지를_전송한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -309,13 +326,14 @@ class ClientSessionActorTest {
     @Test
     void FoundRegisteredChannelIds_메시지를_받으면_readerRegistry에_GetChannelReaderActorRef가_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         List<Long> channelIds = List.of(1L, 2L, 3L);
@@ -324,7 +342,7 @@ class ClientSessionActorTest {
         clientSessionActor.tell(new FoundRegisteredChannelIds(channelIds));
 
         // then
-        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+        GetChannelReaderActor actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActor.class);
 
         assertThat(actual.channelIds()).containsAll(channelIds);
     }
@@ -332,13 +350,14 @@ class ClientSessionActorTest {
     @Test
     void FoundChannelReaders_메시지를_받으면_readers에_등록되고_각_reader에_RegisterClientSession이_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -361,13 +380,14 @@ class ClientSessionActorTest {
     @Test
     void JoinChannel_메시지를_받으면_channelMembershipPort로_채널_가입을_전달한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         // when
@@ -382,20 +402,21 @@ class ClientSessionActorTest {
     @Test
     void SyncJoinChannel_메시지를_받으면_readerRegistry에_GetChannelReaderActorRef가_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         // when
         clientSessionActor.tell(new SyncJoinChannel(7L));
 
         // then
-        GetChannelReaderActorRef actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActorRef.class);
+        GetChannelReaderActor actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActor.class);
 
         assertThat(actual.channelIds()).contains(7L);
     }
@@ -403,13 +424,14 @@ class ClientSessionActorTest {
     @Test
     void LeaveChannel_메시지를_받으면_channelMembershipPort에_채널_탈퇴를_전달한다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         // when
@@ -424,13 +446,14 @@ class ClientSessionActorTest {
     @Test
     void SyncLeaveChannel_메시지를_받으면_reader에서_제거되고_ChatChannelReaderActor에_UnregisterClientSession이_전송된다() {
         // given
+        Clock clock = Clock.systemDefaultZone();
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -444,5 +467,56 @@ class ClientSessionActorTest {
 
         // then
         readerProbe.expectMessageClass(UnregisterClientSession.class);
+    }
+
+    @Test
+    void PingHealthCheck_메시지를_받으면_해당_채널의_pingCount가_증가한다() {
+        // given
+        Clock clock = Clock.fixed(Instant.parse("2025-11-04T10:00:00Z"), ZoneId.systemDefault());
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+        );
+
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        Map<Long, ActorRef<ChannelReaderCommand>> readers = Map.of(1L, readerProbe.ref());
+
+        clientSessionActor.tell(new FoundChannelReaders(readers));
+        readerProbe.expectMessageClass(RegisterClientSession.class);
+
+        // when
+        clientSessionActor.tell(new PingHealthCheck(1L, readerProbe.ref()));
+        clientSessionActor.tell(new PingHealthCheck(1L, readerProbe.ref()));
+
+        // then
+        readerRegistryProbe.expectNoMessage();
+    }
+
+    @Test
+    void PingHealthCheck_메시지를_받으면_replyTo에게_PongHealthCheck_메시지를_전달한다() {
+        // given
+        Clock clock = Clock.fixed(Instant.parse("2025-11-04T10:00:00Z"), ZoneId.systemDefault());
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+        );
+
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+
+        // when
+        clientSessionActor.tell(new PingHealthCheck(1L, readerProbe.ref()));
+
+        // then
+        PongHealthCheck pongMessage = readerProbe.expectMessageClass(PongHealthCheck.class);
+
+        assertThat(pongMessage.userId()).isEqualTo(100L);
     }
 }
