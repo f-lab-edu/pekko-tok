@@ -153,7 +153,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         ActorRef<ChannelReaderCommand> reader = readers.get(command.channelId());
 
         if (reader == null) {
-            readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
+            readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
             pendingRequestHistory.put(command.channelId(), command);
             return this;
         }
@@ -187,7 +187,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onFoundRegisteredChannelIds(FoundRegisteredChannelIds command) {
-        readerRegistry.tell(new GetChannelReaderActor(command.channelIds(), getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActor(userId, command.channelIds(), getContext().getSelf()));
 
         return this;
     }
@@ -243,7 +243,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onSyncJoinChannel(SyncJoinChannel command) {
-        readerRegistry.tell(new GetChannelReaderActor(List.of(command.channelId()), getContext().getSelf()));
+        readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
         return this;
     }
 
@@ -283,7 +283,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
         ArrayList<Long> channelIds = new ArrayList<>(readers.keySet());
 
-        readerRegistry.tell(new ReleaseChannelReaderActor(channelIds, getContext().getSelf()));
+        readerRegistry.tell(new ReleaseChannelReaderActor(userId, channelIds));
         readers.values()
                .forEach(reader -> reader.tell(new UnregisterClientSession(userId)));
         readers.clear();

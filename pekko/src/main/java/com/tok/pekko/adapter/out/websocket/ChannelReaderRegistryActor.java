@@ -11,11 +11,11 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderComm
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +70,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                                   .onMessage(SpawnedChannelReaderActor.class, this::onSpawnedChannelReaderActor)
                                   .onMessage(ReleaseChannelReaderActor.class, this::onReleaseChannelReaderActor)
                                   .onMessage(ReportUnhealthyChannelReader.class, this::onReportUnhealthyChannelReader)
+                                  .onMessage(ReportUnhealthyClientSession.class, this::onReportUnhealthyClientSession)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .build();
     }
@@ -81,7 +82,11 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                        .collect(
                                Collectors.toMap(
                                        Function.identity(),
-                                       channelId -> findSingletonChannelReaderActor(channelId, command.replyTo())
+                                       channelId -> findSingletonChannelReaderActor(
+                                               command.userId(),
+                                               channelId,
+                                               command.replyTo()
+                                       )
                                )
                        );
 
@@ -111,7 +116,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                .stream()
                .map(readers::get)
                .filter(Objects::nonNull)
-               .forEach(readerNode -> readerNode.clientSessions.remove(command.clientSession()));
+               .forEach(readerNode -> readerNode.clientSessions.remove(command.userId()));
 
         return this;
     }
@@ -125,8 +130,21 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
             if (unHealthyReaderNode != null) {
                 getContext().stop(unHealthyReaderNode.reader);
                 unHealthyReaderNode.clientSessions
+                        .values()
                         .forEach(clientSession -> clientSession.tell(new UnregisterChannelReader(channelId)));
             }
+        }
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderRegistryCommand> onReportUnhealthyClientSession(
+            ReportUnhealthyClientSession command
+    ) {
+        ChannelReaderNode channelReaderNode = readers.get(command.channelId());
+
+        if (channelReaderNode != null) {
+            channelReaderNode.clientSessions.remove(command.userId());
         }
 
         return this;
@@ -153,20 +171,22 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     }
 
     private ActorRef<ChannelReaderCommand> findSingletonChannelReaderActor(
+            Long userId,
             Long channelId,
             ActorRef<ClientSessionCommand> clientSession
     ) {
         ChannelReaderNode channelReaderNode = readers.get(channelId);
 
         if (channelReaderNode != null) {
-            channelReaderNode.clientSessions.add(clientSession);
+            channelReaderNode.clientSessions.put(userId, clientSession);
             return channelReaderNode.reader;
         }
 
-        return spawnChatChannelReaderActor(channelId, clientSession);
+        return spawnChatChannelReaderActor(userId, channelId, clientSession);
     }
 
     private ActorRef<ChannelReaderCommand> spawnChatChannelReaderActor(
+            Long userId,
             Long channelId,
             ActorRef<ClientSessionCommand> clientSession
     ) {
@@ -185,7 +205,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
 
         ChannelReaderNode channelReaderNode = new ChannelReaderNode(channelReader);
 
-        channelReaderNode.clientSessions.add(clientSession);
+        channelReaderNode.clientSessions.put(userId, clientSession);
         readers.put(channelId, channelReaderNode);
 
         return channelReader;
@@ -200,7 +220,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     private static class ChannelReaderNode {
 
         private final ActorRef<ChannelReaderCommand> reader;
-        private final List<ActorRef<ClientSessionCommand>> clientSessions = new ArrayList<>();
+        private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions = new HashMap<>();
         private String readerName;
 
         private ChannelReaderNode(ActorRef<ChannelReaderCommand> reader) {
@@ -208,6 +228,6 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         }
     }
 
-    public record GetChannelReaderActor(List<Long> channelIds, ActorRef<ClientSessionCommand> replyTo) implements ChannelReaderRegistryCommand { }
+    public record GetChannelReaderActor(Long userId, List<Long> channelIds, ActorRef<ClientSessionCommand> replyTo) implements ChannelReaderRegistryCommand { }
     private record HeartBeat() implements ChannelReaderRegistryCommand { }
 }
