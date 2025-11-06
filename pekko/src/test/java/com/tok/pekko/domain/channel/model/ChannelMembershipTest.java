@@ -356,7 +356,7 @@ class ChannelMembershipTest {
     @Test
     void 오너는_모든_권한을_가진다() {
         // given
-        ChannelPolicy channelPolicy = new ChannelPolicy(false, false);
+        ChannelPolicy channelPolicy = new ChannelPolicy(false, false, false);
 
         // when
         ChannelMembership membership = ChannelMembership.create(
@@ -408,7 +408,7 @@ class ChannelMembershipTest {
                 ChannelRole.MANAGER,
                 LocalDateTime.now()
         );
-        ChannelPolicy policy = new ChannelPolicy(true, true);
+        ChannelPolicy policy = new ChannelPolicy(true, true, true);
 
         // when & then
         assertThat(membership.canDeleteMessage(policy)).isFalse();
@@ -422,8 +422,8 @@ class ChannelMembershipTest {
                 ChannelRole.MEMBER,
                 LocalDateTime.now()
         );
-        ChannelPolicy allowPolicy = new ChannelPolicy(true, true);
-        ChannelPolicy denyPolicy = new ChannelPolicy(true, false);
+        ChannelPolicy allowPolicy = new ChannelPolicy(true, true, true);
+        ChannelPolicy denyPolicy = new ChannelPolicy(true, false, true);
 
         // when & then
         assertAll(
@@ -440,8 +440,8 @@ class ChannelMembershipTest {
                 ChannelRole.MEMBER,
                 LocalDateTime.now()
         );
-        ChannelPolicy allowPolicy = new ChannelPolicy(true, false);
-        ChannelPolicy denyPolicy = new ChannelPolicy(false, true);
+        ChannelPolicy allowPolicy = new ChannelPolicy(true, false, true);
+        ChannelPolicy denyPolicy = new ChannelPolicy(false, true, true);
 
         // when & then
         assertAll(

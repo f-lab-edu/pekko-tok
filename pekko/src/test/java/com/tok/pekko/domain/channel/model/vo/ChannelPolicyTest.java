@@ -14,13 +14,14 @@ class ChannelPolicyTest {
     @Test
     void 채널_정책을_초기화한다() {
         // when
-        ChannelPolicy policy = new ChannelPolicy(true, false);
+        ChannelPolicy policy = new ChannelPolicy(true, false, false);
 
         // then
         assertAll(
                 () -> assertThat(policy).isNotNull(),
                 () -> assertThat(policy.canEditOwnMessage()).isTrue(),
-                () -> assertThat(policy.canDeleteOwnMessage()).isFalse()
+                () -> assertThat(policy.canDeleteOwnMessage()).isFalse(),
+                () -> assertThat(policy.isPublic()).isFalse()
         );
     }
 
@@ -32,14 +33,15 @@ class ChannelPolicyTest {
         // then
         assertAll(
                 () -> assertThat(policy.canEditOwnMessage()).isTrue(),
-                () -> assertThat(policy.canDeleteOwnMessage()).isTrue()
+                () -> assertThat(policy.canDeleteOwnMessage()).isTrue(),
+                () -> assertThat(policy.isPublic()).isTrue()
         );
     }
 
     @Test
     void 자신이_작성한_메시지_수정_가능_여부를_변경한다() {
         // given
-        ChannelPolicy policy = new ChannelPolicy(false, true);
+        ChannelPolicy policy = new ChannelPolicy(false, true, true);
 
         // when
         ChannelPolicy updatedPolicy = policy.updateEditOwnMessage(true);
@@ -47,14 +49,15 @@ class ChannelPolicyTest {
         // then
         assertAll(
                 () -> assertThat(updatedPolicy.canEditOwnMessage()).isTrue(),
-                () -> assertThat(updatedPolicy.canDeleteOwnMessage()).isTrue()
+                () -> assertThat(updatedPolicy.canDeleteOwnMessage()).isTrue(),
+                () -> assertThat(updatedPolicy.isPublic()).isTrue()
         );
     }
 
     @Test
     void 자신이_작성한_메시지_삭제_가능_여부를_변경한다() {
         // given
-        ChannelPolicy policy = new ChannelPolicy(true, false);
+        ChannelPolicy policy = new ChannelPolicy(true, false, false);
 
         // when
         ChannelPolicy updatedPolicy = policy.updateDeleteOwnMessage(true);
@@ -62,15 +65,32 @@ class ChannelPolicyTest {
         // then
         assertAll(
                 () -> assertThat(updatedPolicy.canEditOwnMessage()).isTrue(),
-                () -> assertThat(updatedPolicy.canDeleteOwnMessage()).isTrue()
+                () -> assertThat(updatedPolicy.canDeleteOwnMessage()).isTrue(),
+                () -> assertThat(updatedPolicy.isPublic()).isFalse()
+        );
+    }
+
+    @Test
+    void 채널_공개_여부를_변경한다() {
+        // given
+        ChannelPolicy policy = new ChannelPolicy(true, true, false);
+
+        // when
+        ChannelPolicy updatedPolicy = policy.updatePublic(true);
+
+        // then
+        assertAll(
+                () -> assertThat(updatedPolicy.canEditOwnMessage()).isTrue(),
+                () -> assertThat(updatedPolicy.canDeleteOwnMessage()).isTrue(),
+                () -> assertThat(updatedPolicy.isPublic()).isTrue()
         );
     }
 
     @Test
     void 같은_값을_가진_채널_정책은_동등하다() {
         // given
-        ChannelPolicy policy1 = new ChannelPolicy(true, false);
-        ChannelPolicy policy2 = new ChannelPolicy(true, false);
+        ChannelPolicy policy1 = new ChannelPolicy(true, false, true);
+        ChannelPolicy policy2 = new ChannelPolicy(true, false, true);
 
         // when & then
         assertAll(
@@ -82,8 +102,8 @@ class ChannelPolicyTest {
     @Test
     void 값이_다른_채널_정책은_동등하지_않다() {
         // given
-        ChannelPolicy policy1 = new ChannelPolicy(true, true);
-        ChannelPolicy policy2 = new ChannelPolicy(false, false);
+        ChannelPolicy policy1 = new ChannelPolicy(true, true, true);
+        ChannelPolicy policy2 = new ChannelPolicy(false, false, false);
 
         // when & then
         assertAll(
