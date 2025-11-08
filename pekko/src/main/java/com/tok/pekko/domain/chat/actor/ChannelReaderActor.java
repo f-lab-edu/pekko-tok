@@ -19,6 +19,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
 import java.time.Duration;
 import java.util.HashMap;
@@ -36,6 +37,9 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 
 public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
+
+    private static final Duration HEALTH_CHECK_TIMEOUT =
+            Duration.ofSeconds(HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS * 2);
 
     public static Behavior<ChannelReaderCommand> create(
             Long channelId,
@@ -55,7 +59,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                     return Behaviors.withTimers(
                             timers -> {
                                 timers.startTimerAtFixedRate(new SyncMessageHeartBeat(), Duration.ofSeconds(30L));
-                                timers.startTimerAtFixedRate(new ClientSessionHealthCheckHeartBeat(), Duration.ofSeconds(60L));
+                                timers.startTimerAtFixedRate(new ClientSessionHealthCheckHeartBeat(), Duration.ofSeconds(HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS));
 
                                 return new ChannelReaderActor(
                                         context,
@@ -102,6 +106,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                   .onMessage(SyncMessageHeartBeat.class, this::onSyncMessageHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
                                   .onMessage(GetHistory.class, this::onGetHistory)
+                                  .onMessage(ClientSessionHealthCheckHeartBeat.class, this::onClientSessionHealthCheckHeartBeat)
                                   .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
                                   .onMessage(PongHealthCheckTimeout.class, this::onPongHealthCheckTimeout)
                                   .onMessage(RegisterClientSession.class, this::onRegisterClientSession)
@@ -169,6 +174,19 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     private Behavior<ChannelReaderCommand> onRegisterClientSession(RegisterClientSession command) {
         clientSessions.put(command.userId(), command.clientSession());
         getContext().watch(command.clientSession());
+        pingClientSession(command.userId());
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onClientSessionHealthCheckHeartBeat(
+            ClientSessionHealthCheckHeartBeat command
+    ) {
+        getContext().getLog()
+                    .debug("ChannelReaderActor.onClientSessionHealthCheckHeartBeat channelId={} sessionCount={}",
+                            channelId,
+                            clientSessions.size());
+        clientSessions.keySet().forEach(this::pingClientSession);
 
         return this;
     }
@@ -221,6 +239,28 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                       .forEach(clientSession -> clientSession.tell(new UnregisterChannelReader(channelId)));
 
         return this;
+    }
+
+    private void pingClientSession(Long userId) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(userId);
+
+        if (clientSession == null) {
+            return;
+        }
+
+        Cancellable existing = healthCheckTimeouts.remove(userId);
+        if (existing != null) {
+            existing.cancel();
+        }
+
+        Cancellable timeout = getContext().scheduleOnce(
+                HEALTH_CHECK_TIMEOUT,
+                getContext().getSelf(),
+                new PongHealthCheckTimeout(userId)
+        );
+        healthCheckTimeouts.put(userId, timeout);
+
+        clientSession.tell(new PingHealthCheck(channelId, getContext().getSelf()));
     }
 
     private record SyncMessageHeartBeat() implements ChannelReaderCommand { }

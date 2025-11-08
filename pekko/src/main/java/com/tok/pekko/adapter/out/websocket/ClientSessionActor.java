@@ -1,6 +1,7 @@
 package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
+import com.tok.pekko.domain.chat.actor.HealthCheckConst;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
@@ -44,8 +45,9 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
-    private static final long TIMER_DURATION = 190L;
     private static final int MINIMUM_PING_COUNT = 3;
+    private static final long CHANNEL_READER_PING_INTERVAL_SECONDS = HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS;
+    private static final long TIMER_DURATION = CHANNEL_READER_PING_INTERVAL_SECONDS * MINIMUM_PING_COUNT;
 
     public static Behavior<ClientSessionCommand> create(
             Clock clock,
@@ -199,15 +201,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onPingHealthCheck(PingHealthCheck command) {
-        CounterNode counterNode = pingCounter.get(command.channelId());
+        CounterNode counterNode = pingCounter.computeIfAbsent(command.channelId(), channelId -> new CounterNode(clock));
 
-        if (counterNode != null) {
-            counterNode.pingCount++;
-
-            return this;
-        }
-
-        pingCounter.put(command.channelId(), new CounterNode(clock));
+        counterNode.recordPing(clock);
         command.replyTo()
                .tell(new PongHealthCheck(userId));
         return this;
@@ -275,6 +271,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             readers.remove(channelId);
             pingCounter.remove(channelId);
         });
+        if (!unHealthChannelIds.isEmpty()) {
+            readerRegistry.tell(new GetChannelReaderActor(userId, unHealthChannelIds, getContext().getSelf()));
+        }
         pingCounter.values().forEach(counterNode -> counterNode.reset(clock));
 
         return this;
@@ -295,22 +294,58 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private static class CounterNode {
 
-        private LocalDateTime readerSpawnedAt;
+        private LocalDateTime lastResetAt;
+        private LocalDateTime lastPingAt;
         private int pingCount;
 
         private CounterNode(Clock clock) {
-            this.readerSpawnedAt = LocalDateTime.now(clock);
+            this.lastResetAt = LocalDateTime.now(clock);
+            this.lastPingAt = null;
             this.pingCount = 0;
         }
 
-        private boolean isUnHealthy(LocalDateTime now) {
-            long elapsedSeconds = ChronoUnit.SECONDS.between(readerSpawnedAt, now);
+        private void recordPing(Clock clock) {
+            this.pingCount++;
+            this.lastPingAt = LocalDateTime.now(clock);
+        }
 
-            return elapsedSeconds >= TIMER_DURATION && pingCount < MINIMUM_PING_COUNT;
+        private boolean isUnHealthy(LocalDateTime now) {
+            long elapsedSinceReset = ChronoUnit.SECONDS.between(lastResetAt, now);
+
+            if (hasNotReachedFirstPingInterval(elapsedSinceReset)) {
+                return false;
+            }
+
+            return hasPingCountDeficit(elapsedSinceReset) || isPingStalled(now, elapsedSinceReset);
+        }
+
+        private boolean hasNotReachedFirstPingInterval(long elapsedSeconds) {
+            return elapsedSeconds < CHANNEL_READER_PING_INTERVAL_SECONDS;
+        }
+
+        private boolean hasPingCountDeficit(long elapsedSinceReset) {
+            long expectedCount = calculateExpectedPingCount(elapsedSinceReset);
+
+            return pingCount < expectedCount;
+        }
+
+        private boolean isPingStalled(LocalDateTime now, long elapsedSinceReset) {
+            long elapsedSincePing = lastPingAt == null
+                    ? elapsedSinceReset
+                    : ChronoUnit.SECONDS.between(lastPingAt, now);
+
+            return elapsedSincePing >= CHANNEL_READER_PING_INTERVAL_SECONDS * MINIMUM_PING_COUNT;
+        }
+
+        private long calculateExpectedPingCount(long elapsedSeconds) {
+            long countBasedOnInterval = elapsedSeconds / CHANNEL_READER_PING_INTERVAL_SECONDS;
+
+            return Math.min(MINIMUM_PING_COUNT, Math.max(1, countBasedOnInterval));
         }
 
         private void reset(Clock clock) {
-            this.readerSpawnedAt = LocalDateTime.now(clock);
+            this.lastResetAt = LocalDateTime.now(clock);
+            this.lastPingAt = null;
             this.pingCount = 0;
         }
     }

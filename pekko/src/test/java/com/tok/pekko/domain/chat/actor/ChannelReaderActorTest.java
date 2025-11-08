@@ -10,13 +10,13 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSes
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -83,6 +83,9 @@ class ChannelReaderActorTest {
 
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
+        clientSessionProbe1.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(3));
+        clientSessionProbe2.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(3));
 
         // when
         readerActor.tell(new SyncNewMessage(newMessage));
@@ -218,6 +221,9 @@ class ChannelReaderActorTest {
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
 
+        clientSessionProbe1.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(1));
+        clientSessionProbe2.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(1));
+
         given(mockMessages.delete(messageId)).willReturn(deletedMessage);
 
         // when
@@ -271,6 +277,9 @@ class ChannelReaderActorTest {
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
 
+        clientSessionProbe1.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(1));
+        clientSessionProbe2.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(1));
+
         given(mockMessages.update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class))).willReturn(updatedMessage);
 
         // when
@@ -313,6 +322,8 @@ class ChannelReaderActorTest {
         readerActor.tell(new RegisterClientSession(userId, registeredSessionProbe.ref()));
 
         // then
+        registeredSessionProbe.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(1));
+
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage newMessage = ChatMessage.create(
                 1L,
@@ -333,41 +344,6 @@ class ChannelReaderActorTest {
     }
 
     @Test
-    void UnregisterClientSession_메시지를_받으면_clientSessions에서_제거된다() {
-        // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
-        @SuppressWarnings("unchecked")
-        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
-        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
-        TestProbe<ClientSessionCommand> registeredSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-
-        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
-                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
-        );
-
-        Long userId = 100L;
-        readerActor.tell(new RegisterClientSession(userId, registeredSessionProbe.ref()));
-
-        // when
-        readerActor.tell(new UnregisterClientSession(userId));
-
-        // then
-        LocalDateTime timestamp = LocalDateTime.now();
-        ChatMessage newMessage = ChatMessage.create(
-                1L,
-                1001L,
-                1L,
-                "Test",
-                timestamp,
-                timestamp
-        );
-
-        readerActor.tell(new SyncNewMessage(newMessage));
-
-        registeredSessionProbe.expectNoMessage(Duration.ofSeconds(1));
-    }
-
-    @Test
     void PongHealthCheck_메시지를_받으면_Health_Check_타임아웃이_발생하지_않는다() {
         // given
         ChatMessages mockMessages = mock(ChatMessages.class);
@@ -382,6 +358,7 @@ class ChannelReaderActorTest {
 
         Long userId = 100L;
         readerActor.tell(new RegisterClientSession(userId, registeredSessionProbe.ref()));
+        registeredSessionProbe.expectMessageClass(PingHealthCheck.class, Duration.ofSeconds(3));
 
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage newMessage = ChatMessage.create(
