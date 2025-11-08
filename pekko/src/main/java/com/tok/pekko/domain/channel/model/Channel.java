@@ -186,6 +186,16 @@ public class Channel {
         memberships.remove(userId);
     }
 
+    public boolean canUserChangeChannelPolicy(UserId userId) {
+        ChannelMembership channelMembership = memberships.get(userId);
+
+        if (channelMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+
+        return channelMembership.canChangeChannelPolicy();
+    }
+
     public boolean canMemberEditMessage(UserId userId) {
         ChannelMembership channelMembership = memberships.get(userId);
 

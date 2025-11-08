@@ -55,7 +55,7 @@ class ChannelTest {
     }
 
     @Test
-    void 명시적_값으로_채널을_초기화할_수_있다() {
+    void 채널을_초기화한다() {
         // given
         Long channelId = 1L;
         String name = "general";
@@ -558,7 +558,7 @@ class ChannelTest {
     }
 
     @Test
-    void 채널_이름을_변경할_수_있다() {
+    void 채널_이름을_변경한다() {
         // given
         Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
         String newName = "random";
@@ -575,7 +575,7 @@ class ChannelTest {
     }
 
     @Test
-    void 채널_정책을_변경할_수_있다() {
+    void 채널_정책을_변경한다() {
         // given
         Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
         ChannelPolicy newPolicy = new ChannelPolicy(false, false, false);
@@ -585,5 +585,56 @@ class ChannelTest {
 
         // then
         assertThat(actual.getChannelPolicy()).isEqualTo(newPolicy);
+    }
+
+    @Test
+    void 오너는_채널_정책을_변경할_수_있다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        UserId userId = UserId.create(2L);
+        ChannelRole role = ChannelRole.OWNER;
+        LocalDateTime joinedAt = LocalDateTime.now();
+        channel.joinMember(userId, role, joinedAt);
+
+        // when & then
+        assertThat(channel.canUserChangeChannelPolicy(userId)).isTrue();
+    }
+
+    @Test
+    void 매니저는_채널_정책을_변경할_수_없다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        UserId managerId = UserId.create(2L);
+        ChannelRole role = ChannelRole.MANAGER;
+        LocalDateTime joinedAt = LocalDateTime.now();
+        channel.joinMember(managerId, role, joinedAt);
+
+        // when & then
+        assertThat(channel.canUserChangeChannelPolicy(managerId)).isFalse();
+    }
+
+    @Test
+    void 멤버는_채널_정책을_변경할_수_없다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        UserId userId = UserId.create(2L);
+        ChannelRole role = ChannelRole.MEMBER;
+        LocalDateTime joinedAt = LocalDateTime.now();
+        channel.joinMember(userId, role, joinedAt);
+
+        // when & then
+        assertThat(channel.canUserChangeChannelPolicy(userId)).isFalse();
+    }
+
+    @Test
+    void 존재하지_않는_멤버는_채널_정책_변경_권한을_확인할_수_없다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        UserId userId = UserId.create(2L);
+
+        // when & then
+        assertThatThrownBy(() -> channel.canUserChangeChannelPolicy(userId))
+                .isInstanceOf(Channel.ChannelMembershipNotFoundException.class)
+                .hasMessage("채널 멤버를 찾을 수 없습니다.");
     }
 }
