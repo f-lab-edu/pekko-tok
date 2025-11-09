@@ -45,6 +45,7 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
+    private static final int INIT_HISTORY_SIZE = 50;
     private static final int MINIMUM_PING_COUNT = 3;
     private static final long CHANNEL_READER_PING_INTERVAL_SECONDS = HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS;
     private static final long TIMER_DURATION = CHANNEL_READER_PING_INTERVAL_SECONDS * MINIMUM_PING_COUNT;
@@ -217,6 +218,13 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             readers.put(channelId, reader);
             pingCounter.put(channelId, new CounterNode(clock));
             reader.tell(new RegisterClientSession(userId, getContext().getSelf()));
+
+            messageStoragePort.findHistory(
+                    channelId,
+                    Long.MAX_VALUE,
+                    INIT_HISTORY_SIZE,
+                    getContext().getSelf()
+            );
 
             RequestHistory requestHistoryCommand = this.pendingRequestHistory.remove(channelId);
 
