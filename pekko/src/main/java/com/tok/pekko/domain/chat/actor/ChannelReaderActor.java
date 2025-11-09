@@ -20,7 +20,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessag
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -235,8 +234,10 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     }
 
     private Behavior<ChannelReaderCommand> onPostStop(PostStop signal) {
-        clientSessions.values()
-                      .forEach(clientSession -> clientSession.tell(new RefreshChannelReader(channelId)));
+        healthCheckTimeouts.values()
+                           .forEach(Cancellable::cancel);
+        healthCheckTimeouts.clear();
+        clientSessions.clear();
 
         return this;
     }
