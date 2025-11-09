@@ -262,10 +262,8 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             readers.remove(channelId);
             pingCounter.remove(channelId);
         });
-        if (!unHealthChannelIds.isEmpty()) {
-            readerRegistry.tell(new GetChannelReaderActor(userId, unHealthChannelIds, getContext().getSelf()));
-        }
-        pingCounter.values().forEach(counterNode -> counterNode.reset(clock));
+        pingCounter.values()
+                   .forEach(counterNode -> counterNode.reset(clock));
 
         return this;
     }
