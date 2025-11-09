@@ -9,7 +9,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCom
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.global.common.CborSerializable;
-import java.time.Clock;
 import java.time.Duration;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -22,14 +21,13 @@ import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 
 public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
-    public static Behavior<GuardianCommand> create(Clock clock) {
-        return Behaviors.setup(context -> new GuardianActor(context, clock));
+    public static Behavior<GuardianCommand> create() {
+        return Behaviors.setup(GuardianActor::new);
     }
 
-    private final Clock clock;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
 
-    private GuardianActor(ActorContext<GuardianCommand> context, Clock clock) {
+    private GuardianActor(ActorContext<GuardianCommand> context) {
         super(context);
 
         ClusterSharding clusterSharding = ClusterSharding.get(context.getSystem());
@@ -38,7 +36,6 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                 ChannelReaderRegistryActor.create(clusterSharding, Duration.ofSeconds(240L)),
                 "channel-reader-registry-actor"
         );
-        this.clock = clock;
     }
 
     @Override
@@ -51,7 +48,6 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
         ActorRef<ClientSessionCommand> clientSession = getContext().spawn(
                 Behaviors.supervise(
                         ClientSessionActor.create(
-                                clock,
                                 command.userId(),
                                 command.clientMessageSender(),
                                 command.messageStoragePort(),

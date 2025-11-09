@@ -4,7 +4,6 @@ import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
-import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.PongHealthCheck;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
@@ -12,19 +11,16 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pekko.actor.Cancellable;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.PostStop;
@@ -36,9 +32,6 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 
 public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
-
-    private static final Duration HEALTH_CHECK_TIMEOUT =
-            Duration.ofSeconds(HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS * 2);
 
     public static Behavior<ChannelReaderCommand> create(
             Long channelId,
@@ -58,14 +51,12 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                     return Behaviors.withTimers(
                             timers -> {
                                 timers.startTimerAtFixedRate(new SyncMessageHeartBeat(), Duration.ofSeconds(30L));
-                                timers.startTimerAtFixedRate(new ClientSessionHealthCheckHeartBeat(), Duration.ofSeconds(HealthCheckConst.CLIENT_SESSION_HEALTH_PING_INTERVAL_SECONDS));
 
                                 return new ChannelReaderActor(
                                         context,
                                         channelId,
                                         messages,
-                                        channelEntity,
-                                        readerRegistry
+                                        channelEntity
                                 );
                             }
                     );
@@ -76,25 +67,20 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     private final Long channelId;
     private final ChatMessages messages;
     private final EntityRef<ChannelEntityCommand> channelEntity;
-    private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions;
-    private final Map<Long, Cancellable> healthCheckTimeouts;
 
     private ChannelReaderActor(
             ActorContext<ChannelReaderCommand> context,
             Long channelId,
             ChatMessages messages,
-            EntityRef<ChannelEntityCommand> channelEntity,
-            ActorRef<ChannelReaderRegistryCommand> readerRegistry
+            EntityRef<ChannelEntityCommand> channelEntity
     ) {
         super(context);
 
         this.channelId = channelId;
         this.messages = messages;
         this.channelEntity = channelEntity;
-        this.readerRegistry = readerRegistry;
         this.clientSessions = new HashMap<>();
-        this.healthCheckTimeouts = new HashMap<>();
     }
 
     @Override
@@ -105,9 +91,6 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                   .onMessage(SyncMessageHeartBeat.class, this::onSyncMessageHeartBeat)
                                   .onMessage(DeliverSyncMessages.class, this::onDeliverSyncMessages)
                                   .onMessage(GetHistory.class, this::onGetHistory)
-                                  .onMessage(ClientSessionHealthCheckHeartBeat.class, this::onClientSessionHealthCheckHeartBeat)
-                                  .onMessage(PongHealthCheck.class, this::onPongHealthCheck)
-                                  .onMessage(PongHealthCheckTimeout.class, this::onPongHealthCheckTimeout)
                                   .onMessage(RegisterClientSession.class, this::onRegisterClientSession)
                                   .onMessage(UnregisterClientSession.class, this::onUnregisterClientSession)
                                   .onSignal(Terminated.class, this::onTerminated)
@@ -173,42 +156,6 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     private Behavior<ChannelReaderCommand> onRegisterClientSession(RegisterClientSession command) {
         clientSessions.put(command.userId(), command.clientSession());
         getContext().watch(command.clientSession());
-        pingClientSession(command.userId());
-
-        return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onClientSessionHealthCheckHeartBeat(
-            ClientSessionHealthCheckHeartBeat command
-    ) {
-        getContext().getLog()
-                    .debug("ChannelReaderActor.onClientSessionHealthCheckHeartBeat channelId={} sessionCount={}",
-                            channelId,
-                            clientSessions.size());
-        clientSessions.keySet().forEach(this::pingClientSession);
-
-        return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onPongHealthCheck(PongHealthCheck command) {
-        Cancellable schedule = healthCheckTimeouts.remove(command.userId());
-
-        if (schedule != null) {
-            schedule.cancel();
-        }
-
-        return this;
-    }
-
-    private Behavior<ChannelReaderCommand> onPongHealthCheckTimeout(PongHealthCheckTimeout command) {
-        healthCheckTimeouts.remove(command.userId());
-
-        ActorRef<ClientSessionCommand> clientSession = clientSessions.remove(command.userId());
-
-        if (clientSession != null) {
-            getContext().unwatch(clientSession);
-            readerRegistry.tell(new ReportUnhealthyClientSession(command.userId(), command.userId()));
-        }
 
         return this;
     }
@@ -225,47 +172,17 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                       .filter(entry -> entry.getValue().path().equals(signal.getRef().path()))
                       .map(Map.Entry::getKey)
                       .findFirst()
-                      .ifPresent(userId -> {
-                          healthCheckTimeouts.remove(userId);
-                          clientSessions.remove(userId);
-                      });
+                      .ifPresent(clientSessions::remove);
 
         return this;
     }
 
     private Behavior<ChannelReaderCommand> onPostStop(PostStop signal) {
-        healthCheckTimeouts.values()
-                           .forEach(Cancellable::cancel);
-        healthCheckTimeouts.clear();
         clientSessions.clear();
 
         return this;
     }
 
-    private void pingClientSession(Long userId) {
-        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(userId);
-
-        if (clientSession == null) {
-            return;
-        }
-
-        Cancellable existing = healthCheckTimeouts.remove(userId);
-        if (existing != null) {
-            existing.cancel();
-        }
-
-        Cancellable timeout = getContext().scheduleOnce(
-                HEALTH_CHECK_TIMEOUT,
-                getContext().getSelf(),
-                new PongHealthCheckTimeout(userId)
-        );
-        healthCheckTimeouts.put(userId, timeout);
-
-        clientSession.tell(new PingHealthCheck(channelId, getContext().getSelf()));
-    }
-
     private record SyncMessageHeartBeat() implements ChannelReaderCommand { }
-    private record ClientSessionHealthCheckHeartBeat() implements ChannelReaderCommand { }
-    private record PongHealthCheckTimeout(Long userId) implements ChannelReaderCommand { }
     record DeliverSyncMessages(List<ChatMessage> messages) implements ChannelReaderCommand { }
 }

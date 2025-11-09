@@ -7,7 +7,6 @@ import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -38,7 +37,7 @@ class ClientSessionActorManagementServiceTest {
         config = ConfigFactory.load();
         testKit = ActorTestKit.create(config);
         actorSystem = ActorSystem.create(
-                GuardianActor.create(Clock.systemDefaultZone()),
+                GuardianActor.create(),
                 "test-system",
                 config
         );

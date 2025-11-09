@@ -16,5 +16,4 @@ public interface ChannelReaderProtocol {
     record GetHistory(long messageSequence, int size, ActorRef<ClientSessionCommand> replyTo) implements ChannelReaderCommand { }
     record RegisterClientSession(Long userId, ActorRef<ClientSessionCommand> clientSession) implements ChannelReaderCommand { }
     record UnregisterClientSession(Long userId) implements ChannelReaderCommand { }
-    record PongHealthCheck(Long userId) implements ChannelReaderCommand { }
 }
