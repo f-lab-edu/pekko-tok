@@ -23,7 +23,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import java.time.Duration;
@@ -116,7 +116,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(FoundHistory.class, this::onFoundHistory)
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
-                                  .onMessage(UnregisterChannelReader.class, this::onUnregisterChannelReader)
+                                  .onMessage(RefreshChannelReader.class, this::onRefreshChannelReader)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
@@ -187,9 +187,10 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
-    private Behavior<ClientSessionCommand> onUnregisterChannelReader(UnregisterChannelReader command) {
+    private Behavior<ClientSessionCommand> onRefreshChannelReader(RefreshChannelReader command) {
         readers.remove(command.channelId());
         pingCounter.remove(command.channelId());
+        readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
         return this;
     }
 

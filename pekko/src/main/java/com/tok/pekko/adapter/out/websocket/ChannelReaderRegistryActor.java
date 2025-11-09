@@ -14,7 +14,7 @@ import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUn
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -131,7 +131,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                 getContext().stop(unHealthyReaderNode.reader);
                 unHealthyReaderNode.clientSessions
                         .values()
-                        .forEach(clientSession -> clientSession.tell(new UnregisterChannelReader(channelId)));
+                        .forEach(clientSession -> clientSession.tell(new RefreshChannelReader(channelId)));
             }
         }
 

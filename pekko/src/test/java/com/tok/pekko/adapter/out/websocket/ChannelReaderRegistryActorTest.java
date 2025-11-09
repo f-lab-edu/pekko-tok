@@ -12,7 +12,7 @@ import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseC
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -309,7 +309,7 @@ class ChannelReaderRegistryActorTest {
 
                       // then
                       clientSessionProbe.expectMessageClass(
-                              UnregisterChannelReader.class,
+                              RefreshChannelReader.class,
                               Duration.ofSeconds(1)
                       );
                   });
