@@ -18,8 +18,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.JoinChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.LeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
@@ -72,7 +70,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                         userId,
                                         clientMessageSender,
                                         messageStoragePort,
-                                        channelMembershipPort,
                                         readerRegistry
                                 );
                             }
@@ -85,7 +82,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private final Long userId;
     private final ClientMessageSender clientMessageSender;
     private final MessageStoragePort messageStoragePort;
-    private final ChannelMembershipPort channelMembershipPort;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ChannelReaderCommand>> readers;
     private final Map<Long, CounterNode> pingCounter;
@@ -97,7 +93,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             Long userId,
             ClientMessageSender clientMessageSender,
             MessageStoragePort messageStoragePort,
-            ChannelMembershipPort channelMembershipPort,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         super(context);
@@ -106,7 +101,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         this.userId = userId;
         this.messageStoragePort = messageStoragePort;
         this.clientMessageSender = clientMessageSender;
-        this.channelMembershipPort = channelMembershipPort;
         this.readerRegistry = readerRegistry;
         this.readers = new HashMap<>();
         this.pingCounter = new HashMap<>();
@@ -124,9 +118,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
                                   .onMessage(UnregisterChannelReader.class, this::onUnregisterChannelReader)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
-                                  .onMessage(JoinChannel.class, this::onJoinChannel)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
-                                  .onMessage(LeaveChannel.class, this::onLeaveChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
                                   .onMessage(PingHealthCheck.class, this::onPingHealthCheck)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
@@ -241,18 +233,8 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
-    private Behavior<ClientSessionCommand> onJoinChannel(JoinChannel command) {
-        channelMembershipPort.joinChannel(userId, command.channelId(), getContext().getSelf());
-        return this;
-    }
-
     private Behavior<ClientSessionCommand> onSyncJoinChannel(SyncJoinChannel command) {
         readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
-        return this;
-    }
-
-    private Behavior<ClientSessionCommand> onLeaveChannel(LeaveChannel command) {
-        channelMembershipPort.leaveChannel(userId, command.channelId(), getContext().getSelf());
         return this;
     }
 

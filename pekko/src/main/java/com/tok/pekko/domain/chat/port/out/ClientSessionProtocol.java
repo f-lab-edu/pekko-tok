@@ -18,9 +18,7 @@ public interface ClientSessionProtocol {
     record DeliverHistory(Long channelId, long messageSequence, int size, List<ChatMessage> history) implements ClientSessionCommand { }
     record FoundRegisteredChannelIds(List<Long> channelIds) implements ClientSessionCommand { }
     record UnregisterChannelReader(Long channelId) implements ClientSessionCommand { }
-    record JoinChannel(Long channelId) implements ClientSessionCommand { }
     record SyncJoinChannel(Long channelId) implements ClientSessionCommand { }
-    record LeaveChannel(Long channelId) implements ClientSessionCommand { }
     record SyncLeaveChannel(Long channelId) implements ClientSessionCommand { }
     record PingHealthCheck(Long channelId, ActorRef<ChannelReaderCommand> replyTo) implements ClientSessionCommand { }
     record Shutdown() implements ClientSessionCommand { }

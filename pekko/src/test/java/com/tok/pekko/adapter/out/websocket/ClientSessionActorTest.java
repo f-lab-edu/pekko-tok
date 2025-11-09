@@ -17,8 +17,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.JoinChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.LeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PingHealthCheck;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
@@ -378,28 +376,6 @@ class ClientSessionActorTest {
     }
 
     @Test
-    void JoinChannel_메시지를_받으면_channelMembershipPort로_채널_가입을_전달한다() {
-        // given
-        Clock clock = Clock.systemDefaultZone();
-        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
-        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
-
-        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
-        );
-
-        // when
-        clientSessionActor.tell(new JoinChannel(5L));
-
-        // then
-        verify(mockChannelMembershipPort, timeout(1000)).joinChannel(
-                eq(100L), eq(5L), any(ActorRef.class)
-        );
-    }
-
-    @Test
     void SyncJoinChannel_메시지를_받으면_readerRegistry에_GetChannelReaderActorRef가_전송된다() {
         // given
         Clock clock = Clock.systemDefaultZone();
@@ -419,28 +395,6 @@ class ClientSessionActorTest {
         GetChannelReaderActor actual = readerRegistryProbe.expectMessageClass(GetChannelReaderActor.class);
 
         assertThat(actual.channelIds()).contains(7L);
-    }
-
-    @Test
-    void LeaveChannel_메시지를_받으면_channelMembershipPort에_채널_탈퇴를_전달한다() {
-        // given
-        Clock clock = Clock.systemDefaultZone();
-        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
-        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
-
-        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(clock, 100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
-        );
-
-        // when
-        clientSessionActor.tell(new LeaveChannel(3L));
-
-        // then
-        verify(mockChannelMembershipPort, timeout(1000)).leaveChannel(
-                eq(100L), eq(3L), any(ActorRef.class)
-        );
     }
 
     @Test
