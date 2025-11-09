@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Duration;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
+import org.apache.pekko.actor.typed.SupervisorStrategy;
 import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
@@ -48,14 +49,16 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
     private Behavior<GuardianCommand> onSpawnClientSession(SpawnClientSession command) {
         ActorRef<ClientSessionCommand> clientSession = getContext().spawn(
-                ClientSessionActor.create(
-                        clock,
-                        command.userId(),
-                        command.clientMessageSender(),
-                        command.messageStoragePort(),
-                        command.channelMembershipPort(),
-                        readerRegistry
-                ),
+                Behaviors.supervise(
+                        ClientSessionActor.create(
+                                clock,
+                                command.userId(),
+                                command.clientMessageSender(),
+                                command.messageStoragePort(),
+                                command.channelMembershipPort(),
+                                readerRegistry
+                        )
+                ).onFailure(SupervisorStrategy.restart()),
                 "client-session-" + System.nanoTime() + "-" + command.userId()
         );
 
