@@ -12,4 +12,8 @@ public interface ClientMessageSender {
     void sendUpdatedMessage(ChatMessage updatedMessage);
 
     void sendDeletedMessage(ChatMessage deletedMessage);
+
+    void sendWebSocketPing();
+
+    void requestSessionReconnect();
 }

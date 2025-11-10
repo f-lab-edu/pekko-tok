@@ -21,7 +21,9 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SessionPongReceived;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +38,9 @@ import org.apache.pekko.actor.typed.javadsl.Receive;
 
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
+    private static final long WEBSOCKET_HEALTHCHECK_INTERVAL_SECONDS = 30L;
+    private static final int MAX_MISSED_SESSION_PONGS = 2;
+
     public static Behavior<ClientSessionCommand> create(
             Long userId,
             ClientMessageSender clientMessageSender,
@@ -47,12 +52,21 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                 context -> {
                     channelMembershipPort.findParticipatingChannels(userId, context.getSelf());
 
-                    return new ClientSessionActor(
-                            context,
-                            userId,
-                            clientMessageSender,
-                            messageStoragePort,
-                            readerRegistry
+                    return Behaviors.withTimers(
+                            timers -> {
+                                timers.startTimerAtFixedRate(
+                                        new SessionHealthCheck(),
+                                        Duration.ofSeconds(WEBSOCKET_HEALTHCHECK_INTERVAL_SECONDS)
+                                );
+
+                                return new ClientSessionActor(
+                                        context,
+                                        userId,
+                                        clientMessageSender,
+                                        messageStoragePort,
+                                        readerRegistry
+                                );
+                            }
                     );
                 }
         );
@@ -64,6 +78,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ChannelReaderCommand>> readers;
     private final Map<Long, RequestHistory> pendingRequestHistory;
+    private int missedSessionPongs;
 
     private ClientSessionActor(
             ActorContext<ClientSessionCommand> context,
@@ -80,6 +95,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         this.readerRegistry = readerRegistry;
         this.readers = new HashMap<>();
         this.pendingRequestHistory = new HashMap<>();
+        this.missedSessionPongs = 0;
     }
 
     @Override
@@ -96,6 +112,8 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
                                   .onMessage(Shutdown.class, this::onShutdown)
+                                  .onMessage(SessionPongReceived.class, this::onSessionPongReceived)
+                                  .onMessage(SessionHealthCheck.class, this::onSessionHealthCheck)
                                   .build();
     }
 
@@ -218,5 +236,24 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return Behaviors.stopped();
     }
 
+    private Behavior<ClientSessionCommand> onSessionPongReceived(SessionPongReceived command) {
+        missedSessionPongs = 0;
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onSessionHealthCheck(SessionHealthCheck command) {
+        clientMessageSender.sendWebSocketPing();
+        missedSessionPongs++;
+
+        if (missedSessionPongs >= MAX_MISSED_SESSION_PONGS) {
+            clientMessageSender.requestSessionReconnect();
+            missedSessionPongs = 0;
+        }
+
+        return this;
+    }
+
     public record FoundChannelReaders(Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
+    private record SessionHealthCheck() implements ClientSessionCommand { }
 }

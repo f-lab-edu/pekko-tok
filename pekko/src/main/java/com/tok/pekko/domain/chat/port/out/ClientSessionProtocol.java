@@ -19,4 +19,5 @@ public interface ClientSessionProtocol {
     record SyncJoinChannel(Long channelId) implements ClientSessionCommand { }
     record SyncLeaveChannel(Long channelId) implements ClientSessionCommand { }
     record Shutdown() implements ClientSessionCommand { }
+    record SessionPongReceived() implements ClientSessionCommand { }
 }
