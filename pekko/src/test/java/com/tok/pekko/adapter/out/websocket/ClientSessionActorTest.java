@@ -6,6 +6,7 @@ import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
@@ -175,6 +176,7 @@ class ClientSessionActorTest {
 
         clientSessionActor.tell(new FoundChannelReaders(readers));
         readerProbe.expectMessageClass(RegisterClientSession.class);
+        readerProbe.expectMessageClass(RequestInitialHistory.class);
 
         // when
         clientSessionActor.tell(new RequestHistory(1L, 10L, 5));
@@ -396,6 +398,7 @@ class ClientSessionActorTest {
 
         clientSessionActor.tell(new FoundChannelReaders(readers));
         readerProbe.expectMessageClass(RegisterClientSession.class);
+        readerProbe.expectMessageClass(RequestInitialHistory.class);
 
         // when
         clientSessionActor.tell(new SyncLeaveChannel(3L));

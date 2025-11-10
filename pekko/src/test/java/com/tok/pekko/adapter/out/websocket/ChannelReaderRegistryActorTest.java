@@ -39,7 +39,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
@@ -208,7 +208,7 @@ class ChannelReaderRegistryActorTest {
 
         ArgumentCaptor<ChannelEntityCommand> captor = ArgumentCaptor.forClass(ChannelEntityCommand.class);
 
-        verify(mockEntityRef, times(2)).tell(captor.capture());
+        verify(mockEntityRef, timeout(1000).times(2)).tell(captor.capture());
 
         RegisterReader capturedCommand = (RegisterReader) captor.getValue();
 

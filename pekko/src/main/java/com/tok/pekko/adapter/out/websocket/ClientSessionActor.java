@@ -4,6 +4,7 @@ import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannel
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
@@ -34,8 +35,6 @@ import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
 
 public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
-
-    private static final int INIT_HISTORY_SIZE = 50;
 
     public static Behavior<ClientSessionCommand> create(
             Long userId,
@@ -174,13 +173,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
             readers.put(channelId, reader);
             reader.tell(new RegisterClientSession(userId, getContext().getSelf()));
-
-            messageStoragePort.findHistory(
-                    channelId,
-                    Long.MAX_VALUE,
-                    INIT_HISTORY_SIZE,
-                    getContext().getSelf()
-            );
+            reader.tell(new RequestInitialHistory(getContext().getSelf()));
 
             RequestHistory requestHistoryCommand = this.pendingRequestHistory.remove(channelId);
 
@@ -188,7 +181,8 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                 reader.tell(
                         new GetHistory(
                                 requestHistoryCommand.messageSequence(),
-                                requestHistoryCommand.size(), getContext().getSelf()
+                                requestHistoryCommand.size(),
+                                getContext().getSelf()
                         )
                 );
             }

@@ -6,6 +6,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
@@ -15,6 +16,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessag
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -81,6 +83,8 @@ class ChannelReaderActorTest {
 
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
+        completeInitialSync(readerActor);
 
         // when
         readerActor.tell(new SyncNewMessage(newMessage));
@@ -218,6 +222,8 @@ class ChannelReaderActorTest {
 
         given(mockMessages.delete(messageId)).willReturn(deletedMessage);
 
+        completeInitialSync(readerActor);
+
         // when
         readerActor.tell(new SyncDeletion(messageId));
 
@@ -271,6 +277,8 @@ class ChannelReaderActorTest {
 
         given(mockMessages.update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class))).willReturn(updatedMessage);
 
+        completeInitialSync(readerActor);
+
         // when
         readerActor.tell(new SyncUpdate(messageId, updatedMessageContent, timestamp));
 
@@ -310,6 +318,8 @@ class ChannelReaderActorTest {
         // when
         readerActor.tell(new RegisterClientSession(userId, registeredSessionProbe.ref()));
 
+        completeInitialSync(readerActor);
+
         // then
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage newMessage = ChatMessage.create(
@@ -328,5 +338,127 @@ class ChannelReaderActorTest {
                 Duration.ofSeconds(3)
         );
         assertThat(deliveredMessage.message()).isEqualTo(newMessage);
+    }
+
+    @Test
+    void RequestInitialHistory_메시지를_받으면_채팅_히스토리를_ClientSessionActor에게_전달한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, mockChannelEntity, registryProbe.ref())
+        );
+
+        TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe();
+
+        List<ChatMessage> historyMessages = List.of(
+                mock(ChatMessage.class),
+                mock(ChatMessage.class)
+        );
+
+        given(mockMessages.getMessages()).willReturn(historyMessages);
+
+        completeInitialSync(readerActor);
+
+        // when
+        readerActor.tell(new RequestInitialHistory(replyProbe.ref()));
+
+        // then
+        FoundHistory foundHistory = replyProbe.expectMessageClass(FoundHistory.class);
+        assertThat(foundHistory.history()).isEqualTo(historyMessages);
+    }
+
+    @Test
+    void RequestInitialHistory_메시지를_받았을_때_채팅_히스토리가_동기화되지_않았다면_별도로_관리된다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, mockChannelEntity, registryProbe.ref())
+        );
+
+        TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe();
+
+        given(mockMessages.getMessages()).willReturn(List.of());
+
+        // when
+        readerActor.tell(new RequestInitialHistory(replyProbe.ref()));
+
+        // then
+        replyProbe.expectNoMessage(Duration.ofMillis(100));
+    }
+
+    @Test
+    void DeliverSyncMessages_이전까지_대기중이던_RequestInitialHistory에게_히스토리를_전달한다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, chatMessages, mockChannelEntity, registryProbe.ref())
+        );
+
+        TestProbe<ClientSessionCommand> pendingReplyProbe = testKit.createTestProbe();
+        TestProbe<ClientSessionCommand> immediateReplyProbe = testKit.createTestProbe();
+
+        readerActor.tell(new RequestInitialHistory(pendingReplyProbe.ref()));
+
+        LocalDateTime timestamp = LocalDateTime.now();
+        List<ChatMessage> syncedMessages = List.of(
+                ChatMessage.create(1L, 1L, 10L, "hello", timestamp, timestamp)
+        );
+
+        // when
+        readerActor.tell(new ChannelReaderActor.DeliverSyncMessages(syncedMessages));
+
+        // then
+        FoundHistory foundHistoryFromPending = pendingReplyProbe.expectMessageClass(FoundHistory.class);
+        assertThat(foundHistoryFromPending.history()).isEqualTo(syncedMessages);
+
+        readerActor.tell(new RequestInitialHistory(immediateReplyProbe.ref()));
+        FoundHistory foundHistoryAfterSync = immediateReplyProbe.expectMessageClass(FoundHistory.class);
+        assertThat(foundHistoryAfterSync.history()).isEqualTo(syncedMessages);
+    }
+
+    @Test
+    void 초기_동기화_전_도착한_SyncNewMessage는_대기하다가_동기화_완료_후에_전파된다() {
+        // given
+        ChatMessages chatMessages = new ChatMessages();
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe();
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, chatMessages, mockChannelEntity, registryProbe.ref())
+        );
+
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe.ref()));
+
+        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage pendingMessage = ChatMessage.create(1L, 200L, 11L, "pending", timestamp, timestamp);
+
+        // when
+        readerActor.tell(new SyncNewMessage(pendingMessage));
+
+        // then
+        clientSessionProbe.expectNoMessage(Duration.ofMillis(100));
+
+        readerActor.tell(new ChannelReaderActor.DeliverSyncMessages(List.of()));
+
+        DeliverNewMessage delivered = clientSessionProbe.expectMessageClass(DeliverNewMessage.class);
+        assertThat(delivered.message()).isEqualTo(pendingMessage);
+    }
+
+    private void completeInitialSync(ActorRef<ChannelReaderCommand> readerActor) {
+        readerActor.tell(new ChannelReaderActor.DeliverSyncMessages(List.of()));
     }
 }
