@@ -12,7 +12,7 @@ import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseC
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.UnregisterChannelReader;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -39,7 +39,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
@@ -208,7 +208,7 @@ class ChannelReaderRegistryActorTest {
 
         ArgumentCaptor<ChannelEntityCommand> captor = ArgumentCaptor.forClass(ChannelEntityCommand.class);
 
-        verify(mockEntityRef, times(2)).tell(captor.capture());
+        verify(mockEntityRef, timeout(1000).times(2)).tell(captor.capture());
 
         RegisterReader capturedCommand = (RegisterReader) captor.getValue();
 
@@ -309,7 +309,7 @@ class ChannelReaderRegistryActorTest {
 
                       // then
                       clientSessionProbe.expectMessageClass(
-                              UnregisterChannelReader.class,
+                              RefreshChannelReader.class,
                               Duration.ofSeconds(1)
                       );
                   });

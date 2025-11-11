@@ -3,6 +3,8 @@ package com.tok.pekko.application.actor;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
@@ -58,6 +60,22 @@ public class ClientSessionActorManagementService {
         }
 
         return clientSession;
+    }
+
+    public void syncJoinChannel(Long channelId, Long userId) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(userId);
+
+        if (clientSession != null) {
+            clientSession.tell(new SyncJoinChannel(channelId));
+        }
+    }
+
+    public void syncLeaveChannel(Long channelId, Long userId) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(userId);
+
+        if (clientSession != null) {
+            clientSession.tell(new SyncLeaveChannel(channelId));
+        }
     }
 
     public static class ClientSessionNotFoundException extends IllegalStateException {

@@ -54,7 +54,7 @@ public class ClusterConfig {
     public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(clock),
+                GuardianActor.create(),
                 "ChatCluster",
                 config
         );

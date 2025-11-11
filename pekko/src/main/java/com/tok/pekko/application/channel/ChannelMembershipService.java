@@ -1,5 +1,6 @@
 package com.tok.pekko.application.channel;
 
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.ChannelRole;
@@ -19,11 +20,13 @@ public class ChannelMembershipService {
 
     private final Clock clock;
     private final ChannelStoragePort channelStoragePort;
+    private final ClientSessionActorManagementService clientSessionActorManagementService;
 
     public void joinChannel(Long channelId, Long userId) {
         Channel channel = channelStoragePort.findChannel(channelId);
 
         channel.joinMember(UserId.create(userId), ChannelRole.MEMBER, LocalDateTime.now(clock));
+        clientSessionActorManagementService.syncJoinChannel(channelId, userId);
     }
 
     public void inviteMember(Long channelId, Long inviterId, Long inviteeId) {
@@ -34,12 +37,14 @@ public class ChannelMembershipService {
         }
 
         channel.inviteMember(UserId.create(inviteeId), ChannelRole.MEMBER, LocalDateTime.now(clock));
+        clientSessionActorManagementService.syncJoinChannel(channelId, inviteeId);
     }
 
     public void leaveChannel(Long channelId, Long userId) {
         Channel channel = channelStoragePort.findChannel(channelId);
 
         channel.leaveMember(UserId.create(userId));
+        clientSessionActorManagementService.syncLeaveChannel(channelId, userId);
     }
 
     public void managedMemberRole(Long channelId, Long executorId, Long targetUserId, ChannelRole channelRole) {

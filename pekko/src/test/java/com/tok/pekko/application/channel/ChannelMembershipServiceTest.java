@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
@@ -34,7 +35,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.fixed(Instant.parse("2024-03-01T12:30:00Z"), ZoneOffset.UTC);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         Channel channel = Channel.create(
                 1L,
                 "general",
@@ -60,7 +62,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -90,7 +93,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -122,7 +126,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         ChannelMembership manager = ChannelMembership.create(
@@ -158,7 +163,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -187,7 +193,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -219,7 +226,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -257,7 +265,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -295,7 +304,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -327,7 +337,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -361,7 +372,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -402,7 +414,8 @@ class ChannelMembershipServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort);
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
