@@ -38,6 +38,11 @@ import reactor.core.publisher.Sinks;
 @RequiredArgsConstructor
 public class DevChatWebSocketHandler implements WebSocketHandler {
 
+    private static final String HEARTBEAT_PING_MESSAGE_TYPE = "PING";
+    private static final String HEARTBEAT_PONG_MESSAGE_TYPE = "PONG";
+    private static final String SESSION_HEALTH_PONG_MESSAGE_TYPE = "WS_PONG";
+    private static final String MESSAGE_SCHEMA_TYPE = "type";
+
     private final ObjectMapper objectMapper;
     private final ClusterSharding clusterSharding;
     private final ClientSessionActorManagementService managementService;
@@ -135,8 +140,8 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
             JsonNode node = objectMapper.readTree(payload);
             String type = node.path("type").asText();
 
-            if ("PING".equalsIgnoreCase(type)) {
-                sink.tryEmitNext(new WebSocketMessageSender.WebSocketPayload("PONG", null));
+            if (HEARTBEAT_PING_MESSAGE_TYPE.equalsIgnoreCase(type)) {
+                sink.tryEmitNext(new WebSocketMessageSender.WebSocketPayload(HEARTBEAT_PONG_MESSAGE_TYPE, null));
                 return true;
             }
         } catch (Exception ignored) {
@@ -151,9 +156,9 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
     ) {
         try {
             JsonNode node = objectMapper.readTree(payload);
-            String type = node.path("type").asText();
+            String type = node.path(MESSAGE_SCHEMA_TYPE).asText();
 
-            if ("WS_PONG".equalsIgnoreCase(type)) {
+            if (SESSION_HEALTH_PONG_MESSAGE_TYPE.equalsIgnoreCase(type)) {
                 clientSession.thenAccept(actorRef -> actorRef.tell(new SessionPongReceived()));
                 return true;
             }
