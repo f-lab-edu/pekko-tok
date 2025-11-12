@@ -228,6 +228,9 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         }
     }
 
+    // Primary-Secondary 중 Secondary인 ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
     public record GetChannelReaderActor(Long userId, List<Long> channelIds, ActorRef<ClientSessionCommand> replyTo) implements ChannelReaderRegistryCommand { }
+
+    // 내부 타이머를 활용해 240초 간격으로 전달되는 메시지
     private record HeartBeat() implements ChannelReaderRegistryCommand { }
 }
