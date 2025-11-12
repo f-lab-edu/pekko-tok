@@ -9,10 +9,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyChannelReader;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReportUnhealthyClientSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -275,100 +272,4 @@ class ChannelReaderRegistryActorTest {
                       assertThat(actual.chatChannelReaderRefs()).containsKey(channelId);
                   });
     }
-
-    @Test
-    void ReportUnhealthyChannelReader_메시지를_받으면_unhealthy_reader를_정지하고_모든_clientSession에_UnregisterChannelReader_메시지를_전송한다() {
-        // given
-        ActorRef<ChannelReaderRegistryCommand> registryActor = testKit.spawn(
-                ChannelReaderRegistryActor.create(clusterSharding, Duration.ofSeconds(30L))
-        );
-        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        Long userId = 106L;
-        Long channelId = 11L;
-
-        registryActor.tell(
-                new GetChannelReaderActor(
-                        userId,
-                        List.of(channelId),
-                        clientSessionProbe.ref()
-                )
-        );
-        clientSessionProbe.expectMessageClass(
-                ClientSessionCommand.class,
-                Duration.ofSeconds(5)
-        );
-
-        Awaitility.await()
-                  .atMost(Duration.ofSeconds(1))
-                  .pollInterval(Duration.ofMillis(100))
-                  .untilAsserted(() -> {
-                      // when
-                      registryActor.tell(
-                              new ReportUnhealthyChannelReader(List.of(channelId))
-                      );
-
-                      // then
-                      clientSessionProbe.expectMessageClass(
-                              RefreshChannelReader.class,
-                              Duration.ofSeconds(1)
-                      );
-                  });
-    }
-
-    @Test
-    void ReportUnhealthyClientSession_메시지를_받으면_해당_userId_clientSession을_reader의_clientSessions에서_제거한다() {
-        // given
-        ActorRef<ChannelReaderRegistryCommand> registryActor = testKit.spawn(
-                ChannelReaderRegistryActor.create(clusterSharding, Duration.ofSeconds(30L))
-        );
-        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
-        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
-        Long userId1 = 107L;
-        Long userId2 = 108L;
-        Long channelId = 12L;
-
-        registryActor.tell(
-                new GetChannelReaderActor(
-                        userId1,
-                        List.of(channelId),
-                        clientSessionProbe1.ref()
-                )
-        );
-        clientSessionProbe1.expectMessageClass(ClientSessionCommand.class, Duration.ofSeconds(5));
-
-        registryActor.tell(
-                new GetChannelReaderActor(
-                        userId2,
-                        List.of(channelId),
-                        clientSessionProbe2.ref()
-                )
-        );
-        clientSessionProbe2.expectMessageClass(ClientSessionCommand.class, Duration.ofSeconds(5));
-
-        // when
-        registryActor.tell(
-                new ReportUnhealthyClientSession(userId1, channelId)
-        );
-
-        // then
-        Awaitility.await()
-                  .atMost(Duration.ofSeconds(5))
-                  .pollInterval(Duration.ofMillis(100))
-                  .untilAsserted(() -> {
-                      TestProbe<ClientSessionCommand> newClientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
-                      registryActor.tell(
-                              new GetChannelReaderActor(
-                                      userId1,
-                                      List.of(channelId),
-                                      newClientSessionProbe.ref()
-                              )
-                      );
-                      FoundChannelReaders actual = (FoundChannelReaders) newClientSessionProbe.expectMessageClass(
-                              ClientSessionCommand.class,
-                              Duration.ofSeconds(1)
-                      );
-                      assertThat(actual.chatChannelReaderRefs()).containsKey(channelId);
-                  });
-    }
-
 }

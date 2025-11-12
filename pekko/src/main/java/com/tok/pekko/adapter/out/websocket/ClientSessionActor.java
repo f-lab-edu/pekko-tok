@@ -20,7 +20,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SessionPongReceived;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Duration;
@@ -107,7 +106,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(FoundHistory.class, this::onFoundHistory)
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
-                                  .onMessage(RefreshChannelReader.class, this::onRefreshChannelReader)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
@@ -175,12 +173,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onFoundRegisteredChannelIds(FoundRegisteredChannelIds command) {
         readerRegistry.tell(new GetChannelReaderActor(userId, command.channelIds(), getContext().getSelf()));
 
-        return this;
-    }
-
-    private Behavior<ClientSessionCommand> onRefreshChannelReader(RefreshChannelReader command) {
-        readers.remove(command.channelId());
-        readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
         return this;
     }
 

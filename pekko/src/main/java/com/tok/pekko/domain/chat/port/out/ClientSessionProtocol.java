@@ -28,7 +28,6 @@ public interface ClientSessionProtocol {
 
     // 사용자가 참여하고 있는 모든 채널의 ID 목록을 전달받기 위한 메시지
     record FoundRegisteredChannelIds(List<Long> channelIds) implements ClientSessionCommand { }
-    record RefreshChannelReader(Long channelId) implements ClientSessionCommand { }
 
     // 외부에서 클라이언트가 새로운 채널에 참여했음을 전파하는 메시지
     record SyncJoinChannel(Long channelId) implements ClientSessionCommand { }
