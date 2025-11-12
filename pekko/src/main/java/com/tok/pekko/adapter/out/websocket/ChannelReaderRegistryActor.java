@@ -63,15 +63,15 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
 
     @Override
     public Receive<ChannelReaderRegistryCommand> createReceive() {
-        return newReceiveBuilder().onMessage(GetChannelReaderActor.class, this::onGetChannelReaderRef)
+        return newReceiveBuilder().onMessage(GetChannelReaderActor.class, this::onGetChannelReader)
                                   .onMessage(SpawnedChannelReaderActor.class, this::onSpawnedChannelReaderActor)
                                   .onMessage(ReleaseChannelReaderActor.class, this::onReleaseChannelReaderActor)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .build();
     }
 
-    private Behavior<ChannelReaderRegistryCommand> onGetChannelReaderRef(GetChannelReaderActor command) {
-        Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs =
+    private Behavior<ChannelReaderRegistryCommand> onGetChannelReader(GetChannelReaderActor command) {
+        Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReader =
                 command.channelIds()
                        .stream()
                        .collect(
@@ -86,7 +86,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                        );
 
         command.replyTo()
-               .tell(new FoundChannelReaders(chatChannelReaderRefs));
+               .tell(new FoundChannelReaders(chatChannelReader));
 
         return this;
     }
