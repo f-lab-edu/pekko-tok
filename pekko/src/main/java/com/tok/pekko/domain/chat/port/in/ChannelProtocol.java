@@ -26,7 +26,7 @@ public interface ChannelProtocol {
     // 기존 채팅 메시지 삭제를 요청받는 메시지
     record DeleteMessage(Long messageId) implements ChannelEntityCommand { }
 
-    // 수정된 채팅 메시지를 ChannelEntity에게 전달하는 메시지
+    // 영속화된 채팅 메시지를 ChannelEntity에게 전달하는 메시지
     record SyncPersistedMessage(ChatMessage message) implements ChannelEntityCommand { }
 
     // 변경 사항이 영속화된 채팅 메시지를 ChannelEntity에게 전달하는 메시지
