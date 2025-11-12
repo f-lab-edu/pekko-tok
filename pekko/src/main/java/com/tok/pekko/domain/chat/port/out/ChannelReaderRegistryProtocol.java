@@ -13,5 +13,6 @@ public interface ChannelReaderRegistryProtocol {
     record SpawnedChannelReaderActor(Long channelId, ActorRef<ChannelReaderCommand> reader, String readerName) implements ChannelReaderRegistryCommand { }
 
     // ClientSessionActor가 종료되며 자신이 구독하던 channelId 목록을 Registry에 넘겨 ChannelReaderActor와의 매핑을 해제하도록 요청하는 메시지
-    record ReleaseChannelReaderActor(Long userId, List<Long> channelIds) implements ChannelReaderRegistryCommand { }
+    record ReleaseClientSessionActor(Long userId, List<Long> channelIds) implements ChannelReaderRegistryCommand { }
+
 }

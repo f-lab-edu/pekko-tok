@@ -8,7 +8,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.typesafe.config.ConfigFactory;
@@ -246,7 +246,7 @@ class ChannelReaderRegistryActorTest {
 
         // when
         registryActor.tell(
-                new ReleaseChannelReaderActor(
+                new ReleaseClientSessionActor(
                         userId1,
                         List.of(channelId)
                 )

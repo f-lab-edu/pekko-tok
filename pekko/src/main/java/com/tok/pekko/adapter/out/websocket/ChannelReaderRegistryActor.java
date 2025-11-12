@@ -9,7 +9,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemoveShutdownReader;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import java.time.Duration;
@@ -65,7 +65,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
     public Receive<ChannelReaderRegistryCommand> createReceive() {
         return newReceiveBuilder().onMessage(GetChannelReaderActor.class, this::onGetChannelReader)
                                   .onMessage(SpawnedChannelReaderActor.class, this::onSpawnedChannelReaderActor)
-                                  .onMessage(ReleaseChannelReaderActor.class, this::onReleaseChannelReaderActor)
+                                  .onMessage(ReleaseClientSessionActor.class, this::onReleaseChannelReaderActor)
                                   .onMessage(HeartBeat.class, this::onHeartBeat)
                                   .build();
     }
@@ -106,7 +106,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
         return this;
     }
 
-    private Behavior<ChannelReaderRegistryCommand> onReleaseChannelReaderActor(ReleaseChannelReaderActor command) {
+    private Behavior<ChannelReaderRegistryCommand> onReleaseChannelReaderActor(ReleaseClientSessionActor command) {
         command.channelIds()
                .stream()
                .map(readers::get)

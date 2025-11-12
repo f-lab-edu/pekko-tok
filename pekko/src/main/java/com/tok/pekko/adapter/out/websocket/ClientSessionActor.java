@@ -8,7 +8,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHis
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
@@ -219,7 +219,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
         ArrayList<Long> channelIds = new ArrayList<>(readers.keySet());
 
-        readerRegistry.tell(new ReleaseChannelReaderActor(userId, channelIds));
+        readerRegistry.tell(new ReleaseClientSessionActor(userId, channelIds));
         readers.values()
                .forEach(reader -> reader.tell(new UnregisterClientSession(userId)));
         readers.clear();
