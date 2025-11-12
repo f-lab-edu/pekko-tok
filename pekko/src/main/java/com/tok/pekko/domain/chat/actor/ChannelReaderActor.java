@@ -258,6 +258,9 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         pendingSyncEvents.clear();
     }
 
+    // 30초 간격으로 Primary인 ChannelEntity에 RequestSyncMessages를 보내도록 트리거하는 내부 타이머 메시지
     private record SyncMessageHeartBeat() implements ChannelReaderCommand { }
+
+    // Primary가 동기화한 채팅 히스토리를 전달받는 메시지
     record DeliverSyncMessages(List<ChatMessage> messages) implements ChannelReaderCommand { }
 }
