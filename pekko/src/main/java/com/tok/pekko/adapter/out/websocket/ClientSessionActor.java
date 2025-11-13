@@ -8,7 +8,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHis
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
-import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
@@ -20,7 +20,6 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RefreshChannelReader;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SessionPongReceived;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Duration;
@@ -107,7 +106,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(DeliverHistory.class, this::onDeliverHistory)
                                   .onMessage(FoundHistory.class, this::onFoundHistory)
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
-                                  .onMessage(RefreshChannelReader.class, this::onRefreshChannelReader)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
@@ -178,12 +176,6 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
-    private Behavior<ClientSessionCommand> onRefreshChannelReader(RefreshChannelReader command) {
-        readers.remove(command.channelId());
-        readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
-        return this;
-    }
-
     private Behavior<ClientSessionCommand> onFoundChannelReaders(FoundChannelReaders command) {
         for (Entry<Long, ActorRef<ChannelReaderCommand>> readerEntry : command.chatChannelReaderRefs().entrySet()) {
             Long channelId = readerEntry.getKey();
@@ -227,7 +219,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private Behavior<ClientSessionCommand> onShutdown(Shutdown command) {
         ArrayList<Long> channelIds = new ArrayList<>(readers.keySet());
 
-        readerRegistry.tell(new ReleaseChannelReaderActor(userId, channelIds));
+        readerRegistry.tell(new ReleaseClientSessionActor(userId, channelIds));
         readers.values()
                .forEach(reader -> reader.tell(new UnregisterClientSession(userId)));
         readers.clear();
@@ -254,6 +246,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
+    // 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지 : ChannelReaderRegistryActor -> ClientSessionActor
     public record FoundChannelReaders(Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
+
+    // 30초 간격으로 트리거되는 타이머로 인해 전달되는 메시지 : ClientSessionActor -> ClientSessionActor
     private record SessionHealthCheck() implements ClientSessionCommand { }
 }

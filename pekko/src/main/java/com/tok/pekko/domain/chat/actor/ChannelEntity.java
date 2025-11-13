@@ -193,5 +193,6 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         );
     }
 
+    // 채팅 히스토리 동기화를 요청하는 메시지 : ChannelReaderActor -> ChannelEntity
     record RequestSyncMessages(ActorRef<ChannelReaderCommand> secondary) implements ChannelEntityCommand { }
 }

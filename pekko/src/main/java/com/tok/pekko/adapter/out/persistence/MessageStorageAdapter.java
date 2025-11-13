@@ -1,9 +1,9 @@
 package com.tok.pekko.adapter.out.persistence;
 
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -62,7 +62,7 @@ public class MessageStorageAdapter implements MessageStoragePort {
     public void findRecentMessages(Long channelId, int size, ActorRef<ChannelEntityCommand> replyTo) {
         Mono.fromCallable(() -> messageRepository.findLatest(channelId, size))
             .subscribeOn(Schedulers.boundedElastic())
-            .doOnNext(messages -> replyTo.tell(new ChannelProtocol.SyncRecentMessages(messages)))
+            .doOnNext(messages -> replyTo.tell(new SyncRecentMessages(messages)))
             .subscribe();
     }
 }

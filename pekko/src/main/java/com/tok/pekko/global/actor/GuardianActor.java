@@ -65,6 +65,9 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
     public interface GuardianCommand extends CborSerializable { }
 
+    // Client WebSocket Session 연결 시 외부로부터 ClientSessionActor Spawn을 요청하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
     public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, MessageStoragePort messageStoragePort, ChannelMembershipPort channelMembershipPort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
+
+    // ClientSessionActor spawn 완료 후 ActorRef를 ClientSessionActorManagementService.AskPattern에 전달하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
     public record SpawnedClientSession(ActorRef<ClientSessionCommand> clientSession) implements GuardianCommand { }
 }
