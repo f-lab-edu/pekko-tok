@@ -33,7 +33,7 @@
 
 - ClientSessionActor -> ChannelReaderRegistryActor
   - ChannelReaderRegistryActor.GetChannelReaderActor 메시지 전달
-    - Primary-Secondary 중 Secondary인 ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
+    - ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
 - ChannelReaderRegistryActor -> ClientSessionActor
   - ClientSessionActor.FoundChannelReaders 메시지 전달
     - 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지
@@ -44,7 +44,7 @@
 
 - ClientSessionActor -> ChannelReaderActor
   - ChannelReaderProtocol.RegisterClientSession 메시지 전달
-    - ChannelReaderActor가 ClientSessionActor를 구독자로 등록해 채팅 이벤트를 팬아웃하고 종료 신호를 감시하기 위한 메시지
+    - ChannelReaderActor가 ClientSessionActor를 구독자로 등록해 채팅 이벤트를 fan-out하고 종료 신호를 감시하기 위한 메시지
 
 ### 5. 채팅 히스토리 동기화 과정
 
@@ -52,7 +52,7 @@
 
 - ClientSessionActor -> ChannelReaderActor
   - ChannelReaderProtocol.RequestInitialHistory 메시지 전달
-    - Secondary까지 동기화된 채팅 히스토리를 요청받는 메시지
+    - ChannelEntity-ChannelReaderActor까지 동기화된 채팅 히스토리를 요청받는 메시지
 - ChannelReaderActor -> ClientSessionActor
   - ClientSessionProtocol.FoundHistory 메시지 전달
     - 사용자가 채널에 최초 입장했을 때 동기화된 채팅 히스토리를 전달받는 메시지
@@ -63,7 +63,7 @@
 
 - ClientSessionActor -> ChannelReaderRegistryActor
   - ChannelReaderRegistryActor.GetChannelReaderActor 메시지 전달
-    - Primary-Secondary 중 Secondary인 ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
+    - ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
 - ChannelReaderRegistryActor -> ClientSessionActor
   - ClientSessionActor.FoundChannelReaders 메시지 전달
     - 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지
@@ -149,7 +149,7 @@
 
 - ChannelEntity -> ChannelReaderActor
   - ChannelReaderProtocol.SyncNewMessage 메시지 전달
-    - Primary에서 완전히 영속화된 메시지를 Secondary인 ChannelReaderActor가 동기화받는 메시지
+    - ChannelEntity에 동기화된 채팅 히스토리를 전달받는 메시지
 
 ### 4. 동기화한 새로운 채팅 메시지를 사용자 UI에 전달
 
@@ -157,7 +157,7 @@
 
 - ChannelReaderActor -> ClientSessionActor
   - ClientSessionProtocol.DeliverNewMessage 메시지 전달
-    - Primary-Secondary 구조에서 완전히 동기화된 새로운 채팅 메시지를 동기화받는 메시지
+    - ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 새로운 채팅 메시지를 동기화받는 메시지
 - ClientSessionActor -> ClientMessageSender
   - ClientMessageSender.sendMessage() 메서드를 호출해 WebSocketSession에게 채팅 메시지 전달
 
@@ -180,7 +180,7 @@
     - 메시지 전송 과정은 아니지만 수행 결과로 메시지를 전달하게 됨
 - MessageStoragePort -> ChannelEntity
   - ChannelProtocol.SyncUpdatedMessage 메시지 전달
-    - 변경 사항이 영속화된 채팅 메시지를 ChannelEntity에게 전달하는 메시지
+    - ChannelEntity에 동기화된 수정된 채팅 메시지를 ChannelReaderActor로 전달하는 메시지
 
 ### 3. 수정된 채팅 메시지를 ChannelReaderActor에게 동기화
 
@@ -188,7 +188,7 @@
 
 - ChannelEntity -> ChannelReaderActor
   - ChannelReaderProtocol.SyncUpdate 메시지 전달
-    - Primary에 동기화된 수정된 채팅 메시지를 Secondary로 전달하는 메시지
+    - ChannelEntity에 동기화된 수정된 채팅 메시지를 Secondary로 전달하는 메시지
 
 ### 4. 동기화한 수정된 채팅 메시지를 사용자 UI에 전달
 
@@ -196,7 +196,7 @@
 
 - ChannelReaderActor -> ClientSessionActor
   - ClientSessionProtocol.DeliverUpdatedMessage
-    - Primary-Secondary까지 완전히 동기화된 수정된 채팅 메시지를 전달받는 메시지
+    - ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 수정된 채팅 메시지를 전달받는 메시지
 - ClientSessionActor -> ClientMessageSender
   - ClientMessageSender.sendMessage() 메서드를 호출해 WebSocketSession에 수정된 메시지 전달
 
@@ -227,7 +227,7 @@
 
 - ChannelEntity -> ChannelReaderActor
   - ChannelReaderProtocol.SyncDeletion 메시지 전달
-    - Primary에 동기화된 삭제된 채팅 메시지를 Secondary로 전달하는 메시지
+    - ChannelEntity에 동기화된 삭제된 채팅 메시지를 ChannelReaderActor로 전달하는 메시지
 
 ### 4. 동기화한 삭제된 채팅 메시지를 사용자 UI에 전달
 
@@ -235,7 +235,7 @@
 
 - ChannelReaderActor -> ClientSessionActor
   - ClientSessionProtocol.DeliverDeletedMessage
-    - Primary-Secondary까지 완전히 동기화된 삭제된 채팅 메시지를 전달받는 메시지
+    - ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 삭제된 채팅 메시지를 전달받는 메시지
 - ClientSessionActor -> ClientMessageSender
   - ClientMessageSender.sendMessage() 메서드를 호출해 WebSocketSession에 삭제된 메시지 전달
 
@@ -262,7 +262,7 @@
 
 - ClientSessionActor -> ChannelReaderRegistryActor
   - ChannelReaderRegistryActor.GetChannelReaderActor 메시지 전달
-    - Primary-Secondary 중 Secondary인 ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
+    - ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
 
 ### 2. 요청한 채널 ID에 대한 ChannelReaderActor ActorRef가 있는 경우
 
@@ -280,13 +280,13 @@
 - ChannelReaderRegistryActor에서 ChannelReaderActor를 자식으로 spawned
 - ChannelReaderActor -> ChannelEntity
   - ChannelEntity.RequestSyncMessages 메시지 전달
-    - 생성 직후 Primary인 ChannelEntity에게 최신 히스토리 스냅샷을 요청하는 메시지
+    - ChannelReaderActor 생성 직후 ChannelEntity에게 최신 히스토리 스냅샷을 요청하는 메시지
 - ChannelReaderActor -> ChannelReaderRegistryActor
   - ChannelReaderRegistryProtocol.SpawnedChannelReaderActor 메시지 전달
     - 자신이 생성되었음을 알리고 ChannelEntity에 등록할 readerName과 ActorRef를 전달하는 메시지
 - ChannelReaderRegistryActor -> ChannelEntity
   - ChannelProtocol.RegisterReader 메시지 전달
-    - ChannelEntity Primary에 Secondary ChannelReaderActor의 ActorRef와 식별자를 등록하기 위한 메시지
+    - ChannelEntity로부터 메시지를 동기화받는 ChannelReaderActor의 ActorRef를 전달하기 위한 메시지
 - ChannelEntity -> ChannelReaderActor
   - ChannelReaderActor.DeliverSyncMessages 메시지 전달
     - Primary가 동기화한 채팅 히스토리를 Secondary가 전달받는 메시지
@@ -332,7 +332,7 @@
 
 - ChannelReaderActor -> ChannelReaderActor
   - ChannelReaderActor.SyncMessageHeartBeat 메시지 전달
-    - 30초 간격으로 동기화된 Primary에게 채팅 메시지를 요청하는 메시지
+    - 30초 간격으로 ChannelEntity에 RequestSyncMessages를 보내도록 트리거하는 내부 타이머 메시지
 
 ### 2. ChannelEntity에게 채팅 메시지 동기화 요청
 
@@ -340,7 +340,7 @@
 
 - ChannelReaderActor -> ChannelEntity
   - ChannelEntity.RequestSyncMessages 메시지 전달
-    - Primary인 ChannelEntity에게 Secondary인 ChannelReaderActor가 채팅 히스토리 동기화를 요청하는 메시지
+    - 채팅 히스토리 동기화를 요청하는 메시지
 
 ### 3. ChannelEntity가 ChannelReaderActor에게 동기화된 채팅 메시지 전달
 
@@ -391,7 +391,7 @@
 
 - ClientSessionActor -> ChannelReaderRegistryActor
   - ChannelReaderRegistryActor.GetChannelReaderActor 메시지 전달
-    - Primary-Secondary 중 Secondary인 ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
+    - ChannelReaderActor의 ActorRef 조회를 요청하는 메시지
 - ChannelReaderRegistryActor -> ClientSessionActor
   - ClientSessionActor.FoundChannelReaders 메시지 전달
     - 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지

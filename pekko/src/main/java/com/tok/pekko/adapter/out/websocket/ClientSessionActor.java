@@ -246,9 +246,9 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
         return this;
     }
 
-    // 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지
+    // 요청한 채널 ID에 대해 ChannelReaderRegistryActor가 Singleton 방식으로 관리하는 ChannelReaderActor ActorRef를 전달받는 메시지 : ChannelReaderRegistryActor -> ClientSessionActor
     public record FoundChannelReaders(Map<Long, ActorRef<ChannelReaderCommand>> chatChannelReaderRefs) implements ClientSessionCommand { }
 
-    // 30초 간격으로 트리거되는 타이머로 인해 전달되는 메시지
+    // 30초 간격으로 트리거되는 타이머로 인해 전달되는 메시지 : ClientSessionActor -> ClientSessionActor
     private record SessionHealthCheck() implements ClientSessionCommand { }
 }
