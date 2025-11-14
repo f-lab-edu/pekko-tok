@@ -76,6 +76,17 @@ public class Channel {
         this.createdAt = createdAt;
     }
 
+    public Channel withAssignedId(Long id) {
+        return new Channel(
+                ChannelId.create(id),
+                this.name,
+                this.creatorId,
+                this.channelPolicy,
+                this.memberships,
+                this.createdAt
+        );
+    }
+
     public void joinMember(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
         if (!channelPolicy.isPublic()) {
             throw new IllegalArgumentException("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");

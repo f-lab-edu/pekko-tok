@@ -77,6 +77,23 @@ class ChannelTest {
     }
 
     @Test
+    void 채널_ID를_할당할_수_있다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        Long assignedId = 10L;
+
+        // when
+        Channel assignedChannel = channel.withAssignedId(assignedId);
+
+        // then
+        assertAll(
+                () -> assertThat(assignedChannel.getChannelId()).isEqualTo(ChannelId.create(assignedId)),
+                () -> assertThat(assignedChannel.getName()).isEqualTo(channel.getName()),
+                () -> assertThat(assignedChannel.getCreatorId()).isEqualTo(channel.getCreatorId())
+        );
+    }
+
+    @Test
     void 채널의_공개_여부를_확인할_수_있다() {
         // given
         Channel publicChannel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
