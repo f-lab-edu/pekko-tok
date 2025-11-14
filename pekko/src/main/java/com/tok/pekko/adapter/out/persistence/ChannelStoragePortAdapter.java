@@ -3,6 +3,7 @@ package com.tok.pekko.adapter.out.persistence;
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,9 +16,9 @@ public class ChannelStoragePortAdapter implements ChannelStoragePort {
     }
 
     @Override
-    public Channel findChannel(Long channelId) {
+    public Optional<Channel> findChannel(Long channelId, Long userId) {
         // NO-OP
-        return null;
+        return Optional.empty();
     }
 
     @Override

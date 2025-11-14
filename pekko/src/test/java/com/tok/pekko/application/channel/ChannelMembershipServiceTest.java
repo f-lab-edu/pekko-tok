@@ -3,6 +3,7 @@ package com.tok.pekko.application.channel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -45,7 +47,7 @@ class ChannelMembershipServiceTest {
                 new HashMap<>(),
                 LocalDateTime.now(clock)
         );
-        when(channelStoragePort.findChannel(1L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.joinChannel(1L, 10L);
@@ -78,7 +80,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(2L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.inviteMember(2L, 30L, 40L))
@@ -109,7 +111,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(2L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.inviteMember(2L, 30L, 40L);
@@ -146,7 +148,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(2L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.inviteMember(2L, 30L, 40L);
@@ -179,7 +181,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(3L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.leaveChannel(3L, 50L);
@@ -213,7 +215,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(4L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 70L, ChannelRole.MEMBER))
@@ -246,7 +248,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(4L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 70L, ChannelRole.MEMBER))
@@ -285,7 +287,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(4L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 80L, ChannelRole.MANAGER))
@@ -324,7 +326,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(5L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.addPermissions(5L, 90L, 91L, ChannelPermissionType.MESSAGE_EDIT))
@@ -357,7 +359,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(5L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.addPermissions(5L, 90L, 91L, ChannelPermissionType.MESSAGE_DELETE);
@@ -398,7 +400,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(6L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.removePermissions(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK))
@@ -440,7 +442,7 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(6L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.removePermissions(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK);

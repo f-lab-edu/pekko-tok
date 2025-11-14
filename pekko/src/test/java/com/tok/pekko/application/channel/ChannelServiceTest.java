@@ -3,6 +3,7 @@ package com.tok.pekko.application.channel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -36,7 +38,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC);
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         Channel storedChannel = Channel.create(
                 99L,
                 "general",
@@ -69,7 +71,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -84,7 +86,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(10L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> channelService.deleteChannel(10L, 20L))
@@ -99,7 +101,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -114,7 +116,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(10L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         channelService.deleteChannel(10L, 20L);
@@ -128,7 +130,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -143,7 +145,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(10L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> channelService.changeChannelPolicy(10L, 30L, true, false, true))
@@ -158,7 +160,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -173,7 +175,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(10L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         channelService.changeChannelPolicy(10L, 30L, false, true, false);
@@ -196,7 +198,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -211,7 +213,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(11L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> channelService.changeChannelName(11L, 40L, "new-name"))
@@ -226,7 +228,7 @@ class ChannelServiceTest {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
         Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(clock, channelStoragePort);
+        ChannelService channelService = new ChannelService(channelStoragePort);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -241,7 +243,7 @@ class ChannelServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(11L)).thenReturn(channel);
+        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         channelService.changeChannelName(11L, 40L, "new-name");
