@@ -1,7 +1,7 @@
 package com.tok.pekko.global.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.global.actor.GuardianActor.SpawnClientSession;
@@ -64,14 +64,15 @@ class GuardianActorTest {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
 
         // when
         guardianActor.tell(new SpawnClientSession(
                 1L,
                 mockClientMessageSender,
                 mockMessageStoragePort,
-                mockChannelMembershipPort,
+                mockChannelMembershipActorMessagePort,
                 responseProbe.ref()
         ));
 

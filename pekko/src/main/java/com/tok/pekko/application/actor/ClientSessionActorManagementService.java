@@ -1,7 +1,7 @@
 package com.tok.pekko.application.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
@@ -26,7 +26,7 @@ public class ClientSessionActorManagementService {
 
     private final ActorSystem<GuardianCommand> actorSystem;
     private final MessageStoragePort messageStoragePort;
-    private final ChannelMembershipPort channelMembershipPort;
+    private final ChannelMembershipActorMessagePort channelMembershipActorMessagePort;
     private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions = new ConcurrentHashMap<>();
 
     public CompletionStage<ActorRef<ClientSessionCommand>> createClientSessionActor(
@@ -39,7 +39,7 @@ public class ClientSessionActorManagementService {
                         userId,
                         clientMessageSender,
                         messageStoragePort,
-                        channelMembershipPort,
+                        channelMembershipActorMessagePort,
                         replyTo
                 ),
                 Duration.ofSeconds(3),

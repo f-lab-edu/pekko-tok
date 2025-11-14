@@ -1,6 +1,6 @@
 package com.tok.pekko.adapter.out.persistence;
 
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
 import lombok.RequiredArgsConstructor;
@@ -11,13 +11,13 @@ import reactor.core.scheduler.Schedulers;
 
 @Component
 @RequiredArgsConstructor
-public class ChannelMembershipAdapter implements ChannelMembershipPort {
+public class ChannelMembershipActorMessageAdapter implements ChannelMembershipActorMessagePort {
 
-    private final ChannelMembershipRepository channelMembershipRepository;
+    private final ParticipatingChannelRepository participatingChannelRepository;
 
     @Override
-    public void findParticipatingChannels(Long userId, ActorRef<ClientSessionCommand> replyTo) {
-        Mono.fromCallable(() -> channelMembershipRepository.findAllIChannelIds(userId))
+    public void sendParticipatingChannels(Long userId, ActorRef<ClientSessionCommand> replyTo) {
+        Mono.fromCallable(() -> participatingChannelRepository.findAllChannelIds(userId))
             .subscribeOn(Schedulers.boundedElastic())
             .doOnNext(channelIds -> replyTo.tell(new FoundRegisteredChannelIds(channelIds)))
             .subscribe();

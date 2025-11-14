@@ -3,7 +3,7 @@ package com.tok.pekko.domain.chat.port.out;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import org.apache.pekko.actor.typed.ActorRef;
 
-public interface ChannelMembershipPort {
+public interface ChannelMembershipActorMessagePort {
 
-    void findParticipatingChannels(Long userId, ActorRef<ClientSessionCommand> replyTo);
+    void sendParticipatingChannels(Long userId, ActorRef<ClientSessionCommand> replyTo);
 }

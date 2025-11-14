@@ -8,7 +8,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
@@ -58,11 +58,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -87,11 +89,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -115,11 +119,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         List<ChatMessage> emptyMessages = List.of();
@@ -138,11 +144,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -164,11 +172,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -194,11 +204,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         // when
@@ -216,11 +228,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         TestProbe<Void> terminationProbe = testKit.createTestProbe();
@@ -237,11 +251,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -269,11 +285,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -291,11 +309,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
@@ -313,11 +333,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         List<Long> channelIds = List.of(1L, 2L, 3L);
@@ -336,11 +358,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -365,11 +389,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         // when
@@ -386,11 +412,13 @@ class ClientSessionActorTest {
         // given
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
 
         ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
-                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort, mockChannelMembershipPort, readerRegistryProbe.ref())
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();

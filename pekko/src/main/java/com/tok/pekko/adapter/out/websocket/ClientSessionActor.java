@@ -6,7 +6,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
@@ -44,12 +44,12 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             Long userId,
             ClientMessageSender clientMessageSender,
             MessageStoragePort messageStoragePort,
-            ChannelMembershipPort channelMembershipPort,
+            ChannelMembershipActorMessagePort channelMembershipActorMessagePort,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         return Behaviors.setup(
                 context -> {
-                    channelMembershipPort.findParticipatingChannels(userId, context.getSelf());
+                    channelMembershipActorMessagePort.sendParticipatingChannels(userId, context.getSelf());
 
                     return Behaviors.withTimers(
                             timers -> {
