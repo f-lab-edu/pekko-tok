@@ -1,11 +1,11 @@
 package com.tok.pekko.domain.channel.model;
 
+import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
 import com.tok.pekko.domain.channel.model.vo.ChannelMembershipId;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
-import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -14,16 +14,24 @@ import lombok.Getter;
 public class ChannelMembership {
 
     private final ChannelMembershipId id;
+    private final ChannelId channelId;
     private final UserId userId;
     private final ChannelRole role;
     private final ChannelManagePermissions permissions;
     private final LocalDateTime joinedAt;
 
-    public static ChannelMembership create(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
+    public static ChannelMembership create(
+            ChannelId channelId,
+            UserId userId,
+            ChannelRole role,
+            LocalDateTime joinedAt
+    ) {
+        validateChannelId(channelId);
         validateUserId(userId);
 
         return new ChannelMembership(
                 ChannelMembershipId.EMPTY_CHANNEL_MEMBERSHIP_ID,
+                channelId,
                 userId,
                 role,
                 createChannelManagePermissions(role),
@@ -31,14 +39,38 @@ public class ChannelMembership {
         );
     }
 
-    public static ChannelMembership createManager(UserId userId, ChannelManagePermissions permissions, LocalDateTime joinedAt) {
+    public static ChannelMembership createManager(
+            ChannelId channelId,
+            UserId userId,
+            ChannelManagePermissions permissions,
+            LocalDateTime joinedAt
+    ) {
         validateUserId(userId);
 
         return new ChannelMembership(
                 ChannelMembershipId.EMPTY_CHANNEL_MEMBERSHIP_ID,
+                channelId,
                 userId,
                 ChannelRole.MANAGER,
                 permissions,
+                joinedAt
+        );
+    }
+
+    public static ChannelMembership create(
+            Long id,
+            Long channelId,
+            Long userId,
+            ChannelRole role,
+            ChannelManagePermissions channelManagePermissions,
+            LocalDateTime joinedAt
+    ) {
+        return new ChannelMembership(
+                ChannelMembershipId.create(id),
+                ChannelId.create(channelId),
+                UserId.create(userId),
+                role,
+                channelManagePermissions,
                 joinedAt
         );
     }
@@ -54,20 +86,10 @@ public class ChannelMembership {
         return ChannelManagePermissions.ofManager();
     }
 
-    public static ChannelMembership create(
-            Long id,
-            Long userId,
-            ChannelRole role,
-            ChannelManagePermissions channelManagePermissions,
-            LocalDateTime joinedAt
-    ) {
-        return new ChannelMembership(
-                ChannelMembershipId.create(id),
-                UserId.create(userId),
-                role,
-                channelManagePermissions,
-                joinedAt
-        );
+    private static void validateChannelId(ChannelId channelId) {
+        if (channelId == null) {
+            throw new IllegalArgumentException("채널 ID는 필수입니다.");
+        }
     }
 
     private static void validateUserId(UserId userId) {
@@ -78,12 +100,14 @@ public class ChannelMembership {
 
     private ChannelMembership(
             ChannelMembershipId id,
+            ChannelId channelId,
             UserId userId,
             ChannelRole role,
             ChannelManagePermissions permissions,
             LocalDateTime joinedAt
     ) {
         this.id = id;
+        this.channelId = channelId;
         this.userId = userId;
         this.role = role;
         this.permissions = permissions;
@@ -93,6 +117,7 @@ public class ChannelMembership {
     public ChannelMembership withAssignedId(Long id) {
         return new ChannelMembership(
                 ChannelMembershipId.create(id),
+                this.channelId,
                 this.userId,
                 this.role,
                 this.permissions,
@@ -103,66 +128,24 @@ public class ChannelMembership {
     public ChannelMembership updatePermissions(ChannelManagePermissions newPermissions) {
         validateRole(this.role);
 
-        return new ChannelMembership(this.id, this.userId, this.role, newPermissions, this.joinedAt);
+        return new ChannelMembership(this.id, this.channelId, this.userId, this.role, newPermissions, this.joinedAt);
     }
 
     public ChannelMembership promoteToManager(ChannelManagePermissions permissions) {
-        return new ChannelMembership(this.id, this.userId, ChannelRole.MANAGER, permissions, this.joinedAt);
+        return new ChannelMembership(
+                this.id,
+                this.channelId, this.userId, ChannelRole.MANAGER, permissions, this.joinedAt);
     }
 
     public ChannelMembership demoteToMember() {
         return new ChannelMembership(
                 this.id,
+                this.channelId,
                 this.userId,
                 ChannelRole.MEMBER,
                 ChannelManagePermissions.ofMember(),
                 this.joinedAt
         );
-    }
-
-    public ChannelMembership addPermission(ChannelPermissionType permission) {
-        validateRole(this.role);
-
-        return new ChannelMembership(this.id, this.userId, this.role, this.permissions.add(permission), this.joinedAt);
-    }
-
-    public ChannelMembership removePermission(ChannelPermissionType permission) {
-        validateRole(this.role);
-
-        return new ChannelMembership(
-                this.id,
-                this.userId,
-                this.role,
-                this.permissions.remove(permission),
-                this.joinedAt
-        );
-    }
-
-    public ChannelMembership changeRole(ChannelRole newRole, Set<ChannelPermissionType> newPermissions) {
-        return new ChannelMembership(
-                this.id,
-                this.userId,
-                newRole,
-                createChannelManagePermissions(newRole, newPermissions),
-                this.joinedAt
-        );
-    }
-
-    private ChannelManagePermissions createChannelManagePermissions(
-            ChannelRole newRole,
-            Set<ChannelPermissionType> newPermissions
-    ) {
-        if (newRole.isMember()) {
-            return ChannelManagePermissions.ofMember();
-        }
-        if (newRole.isOwner()) {
-            return ChannelManagePermissions.ofOwner();
-        }
-        if (newPermissions.isEmpty()) {
-            return ChannelManagePermissions.ofManager();
-        }
-
-        return ChannelManagePermissions.ofManager(newPermissions);
     }
 
     public boolean hasPermission(ChannelPermissionType permission) {

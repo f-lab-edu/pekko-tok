@@ -15,7 +15,9 @@ public interface ChannelMembershipStoragePort {
 
     void demoteToMember(ChannelMembership channelMembership);
 
-    void addPermission(UserId userId, ChannelPermissionType permission);
+    void addPermission(ChannelMembership channelMembership, ChannelPermissionType permission);
 
-    void removePermission(UserId userId, ChannelPermissionType permission);
+    void removePermission(ChannelMembership channelMembership, ChannelPermissionType permission);
+
+    void kickMember(ChannelId channelId, UserId userId);
 }

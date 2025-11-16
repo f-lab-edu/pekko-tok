@@ -379,7 +379,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertDoesNotThrow(() -> channel.validateAddPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK));
+        assertDoesNotThrow(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK));
     }
 
     @Test
@@ -394,7 +394,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateAddPermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
@@ -411,7 +411,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateAddPermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("해당 멤버는 매니저가 아닙니다.");
     }
@@ -430,7 +430,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateAddPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK))
+        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 해당 권한을 가지고 있습니다.");
     }
@@ -449,7 +449,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertDoesNotThrow(() -> channel.validateRemovePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT));
+        assertDoesNotThrow(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT));
     }
 
     @Test
@@ -466,7 +466,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateRemovePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
@@ -486,7 +486,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateRemovePermission(grantorId, granteeId, ChannelPermissionType.MEMBER_INVITE))
+        assertThatThrownBy(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_INVITE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("해당 권한을 가지고 있지 않습니다.");
     }

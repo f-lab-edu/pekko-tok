@@ -33,6 +33,7 @@ public class ChannelMembershipService {
         channel.validateJoinMember(joiner);
 
         ChannelMembership joinerMembership = ChannelMembership.create(
+                channel.getChannelId(),
                 joiner,
                 ChannelRole.MEMBER,
                 LocalDateTime.now(clock)
@@ -52,6 +53,7 @@ public class ChannelMembershipService {
         channel.validateInviteMember(inviter, invitee);
 
         ChannelMembership inviteeMembership = ChannelMembership.create(
+                channel.getChannelId(),
                 invitee,
                 ChannelRole.MEMBER,
                 LocalDateTime.now(clock)
@@ -98,9 +100,9 @@ public class ChannelMembershipService {
         UserId grantor = UserId.create(grantorId);
         UserId grantee = UserId.create(granteeId);
 
-        channel.validateAddPermission(grantor, grantee, permission);
+        ChannelMembership granteeMembership = channel.getValidatedAddTarget(grantor, grantee, permission);
 
-        channelMembershipStoragePort.addPermission(grantee, permission);
+        channelMembershipStoragePort.addPermission(granteeMembership, permission);
     }
 
     public void removePermission(Long channelId, Long grantorId, Long granteeId, ChannelPermissionType permission) {
@@ -109,7 +111,17 @@ public class ChannelMembershipService {
         UserId grantor = UserId.create(grantorId);
         UserId grantee = UserId.create(granteeId);
 
-        channel.validateRemovePermission(grantor, grantee, permission);
-        channelMembershipStoragePort.removePermission(grantee, permission);
+        ChannelMembership granteeMembership = channel.getValidatedRemoveTarget(grantor, grantee, permission);
+        channelMembershipStoragePort.removePermission(granteeMembership, permission);
+    }
+
+    public void kickMember(Long channelId, Long executorId, Long targetUserId) {
+        Channel channel = channelStoragePort.findChannel(channelId, executorId, targetUserId)
+                                           .orElseThrow(ChannelNotFoundException::new);
+        UserId executor = UserId.create(executorId);
+        UserId targetUser = UserId.create(targetUserId);
+
+        channel.validateKickMember(executor, targetUser);
+        channelMembershipStoragePort.kickMember(channel.getChannelId(), targetUser);
     }
 }

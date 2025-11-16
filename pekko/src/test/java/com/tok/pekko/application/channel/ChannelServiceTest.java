@@ -77,7 +77,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(20L),
-                ChannelMembership.create(UserId.create(20L), ChannelRole.MEMBER, createdAt)
+                ChannelMembership.create(ChannelId.create(10L), UserId.create(20L), ChannelRole.MEMBER, createdAt)
         );
         Channel channel = Channel.create(
                 10L,
@@ -107,7 +107,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(20L),
-                ChannelMembership.create(UserId.create(20L), ChannelRole.OWNER, createdAt)
+                ChannelMembership.create(ChannelId.create(10L), UserId.create(20L), ChannelRole.OWNER, createdAt)
         );
         Channel channel = Channel.create(
                 10L,
@@ -136,7 +136,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(30L),
-                ChannelMembership.create(UserId.create(30L), ChannelRole.MEMBER, createdAt)
+                ChannelMembership.create(ChannelId.create(10L), UserId.create(30L), ChannelRole.MEMBER, createdAt)
         );
         Channel channel = Channel.create(
                 10L,
@@ -166,7 +166,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(30L),
-                ChannelMembership.create(UserId.create(30L), ChannelRole.OWNER, createdAt)
+                ChannelMembership.create(ChannelId.create(10L), UserId.create(30L), ChannelRole.OWNER, createdAt)
         );
         Channel channel = Channel.create(
                 10L,
@@ -204,7 +204,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(40L),
-                ChannelMembership.create(UserId.create(40L), ChannelRole.MEMBER, createdAt)
+                ChannelMembership.create(ChannelId.create(11L), UserId.create(40L), ChannelRole.MEMBER, createdAt)
         );
         Channel channel = Channel.create(
                 11L,
@@ -234,7 +234,7 @@ class ChannelServiceTest {
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
                 UserId.create(40L),
-                ChannelMembership.create(UserId.create(40L), ChannelRole.OWNER, createdAt)
+                ChannelMembership.create(ChannelId.create(11L), UserId.create(40L), ChannelRole.OWNER, createdAt)
         );
         Channel channel = Channel.create(
                 11L,
