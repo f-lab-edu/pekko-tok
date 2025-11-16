@@ -216,15 +216,17 @@ public class Channel {
         return granteeMembership;
     }
 
-    public void validateLeaveMember(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
+    public ChannelMembership getValidatedLeaveMember(UserId userId) {
+        ChannelMembership leaveMembership = memberships.get(userId);
 
-        if (channelMembership == null) {
+        if (leaveMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (channelMembership.isOwner()) {
+        if (leaveMembership.isOwner()) {
             throw new IllegalArgumentException("오너는 채널에서 나갈 수 없습니다.");
         }
+
+        return leaveMembership;
     }
 
     public void validateDeleteChannel(UserId deleterId) {
@@ -238,7 +240,7 @@ public class Channel {
         }
     }
 
-    public void validateKickMember(UserId executorId, UserId targetUserId) {
+    public ChannelMembership getValidatedKickedMember(UserId executorId, UserId targetUserId) {
         ChannelMembership executorMembership = memberships.get(executorId);
 
         if (executorMembership == null) {
@@ -261,6 +263,8 @@ public class Channel {
         if (targetUserMembership.isOwner()) {
             throw new IllegalArgumentException("오너를 강퇴할 수 없습니다.");
         }
+
+        return targetUserMembership;
     }
 
     public Channel changeName(UserId changerId, String newName) {

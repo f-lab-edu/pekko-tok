@@ -68,8 +68,9 @@ public class ChannelMembershipService {
                                             .orElseThrow(ChannelNotFoundException::new);
         UserId user = UserId.create(userId);
 
-        channel.validateLeaveMember(user);
-        channelMembershipStoragePort.leaveChannel(channel.getChannelId(), user);
+        ChannelMembership leaveMembership = channel.getValidatedLeaveMember(user);
+
+        channelMembershipStoragePort.leaveChannel(leaveMembership);
         clientSessionActorManagementService.syncLeaveChannel(channelId, userId);
     }
 
@@ -121,7 +122,8 @@ public class ChannelMembershipService {
         UserId executor = UserId.create(executorId);
         UserId targetUser = UserId.create(targetUserId);
 
-        channel.validateKickMember(executor, targetUser);
-        channelMembershipStoragePort.kickMember(channel.getChannelId(), targetUser);
+        ChannelMembership kickedMembership = channel.getValidatedKickedMember(executor, targetUser);
+
+        channelMembershipStoragePort.kickMember(kickedMembership);
     }
 }

@@ -500,8 +500,14 @@ class ChannelTest {
         memberships.put(userId, ChannelMembership.create(ChannelId.create(1L), userId, ChannelRole.MEMBER, createdAt));
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
-        // when & then
-        assertDoesNotThrow(() -> channel.validateLeaveMember(userId));
+        // when
+        ChannelMembership actual = channel.getValidatedLeaveMember(userId);
+
+        // then
+        assertAll(
+                () -> assertThat(actual.getUserId().getValue()).isEqualTo(2L),
+                () -> assertThat(actual.getChannelId().getValue()).isEqualTo(1L)
+        );
     }
 
     @Test
@@ -514,7 +520,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateLeaveMember(userId))
+        assertThatThrownBy(() -> channel.getValidatedLeaveMember(userId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("오너는 채널에서 나갈 수 없습니다.");
     }
@@ -646,7 +652,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateKickMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("멤버를 강퇴할 권한이 없습니다.");
     }
@@ -664,7 +670,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateKickMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("멤버를 강퇴할 권한이 없습니다.");
     }
@@ -679,7 +685,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateKickMember(executorId, executorId))
+        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, executorId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("자기 자신을 강퇴할 수 없습니다.");
     }
@@ -696,7 +702,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateKickMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("오너를 강퇴할 수 없습니다.");
     }
@@ -713,7 +719,13 @@ class ChannelTest {
         memberships.put(targetUserId, ChannelMembership.create(ChannelId.create(1L), targetUserId, ChannelRole.MEMBER, createdAt));
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
-        // when & then
-        assertDoesNotThrow(() -> channel.validateKickMember(executorId, targetUserId));
+        // when
+        ChannelMembership actual = channel.getValidatedKickedMember(executorId, targetUserId);
+
+        // then
+        assertAll(
+                () -> assertThat(actual.getChannelId().getValue()).isEqualTo(1L),
+                () -> assertThat(actual.getUserId()).isEqualTo(targetUserId)
+        );
     }
 }
