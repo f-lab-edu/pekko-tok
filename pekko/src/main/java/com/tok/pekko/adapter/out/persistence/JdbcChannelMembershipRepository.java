@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -15,6 +16,7 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
+    @Transactional
     public void joinChannel(ChannelMembership channelMembership) {
         String sql = """
                 INSERT INTO channel_memberships (channel_id, user_id, channel_role, joined_at)
@@ -31,6 +33,7 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
     }
 
     @Override
+    @Transactional
     public void leaveChannel(ChannelId channelId, UserId userId) {
         String sql = """
                 DELETE FROM channel_memberships
@@ -45,6 +48,7 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
     }
 
     @Override
+    @Transactional
     public void updateRole(ChannelMembership channelMembership) {
         String sql = """
                 UPDATE channel_memberships
@@ -59,6 +63,7 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
     }
 
     @Override
+    @Transactional
     public void delete(ChannelId channelId, UserId userId) {
         String sql = """
                 DELETE FROM channel_memberships

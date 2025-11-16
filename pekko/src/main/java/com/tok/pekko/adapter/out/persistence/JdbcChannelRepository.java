@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -54,6 +55,7 @@ public class JdbcChannelRepository implements ChannelRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
+    @Transactional
     public Channel save(Channel channel) {
         String sql = """
                 INSERT INTO channels (
@@ -139,6 +141,7 @@ public class JdbcChannelRepository implements ChannelRepository {
     }
 
     @Override
+    @Transactional
     public void update(Channel channel) {
         String sql = """
                 UPDATE channels
@@ -160,6 +163,7 @@ public class JdbcChannelRepository implements ChannelRepository {
     }
 
     @Override
+    @Transactional
     public void deleteById(ChannelId channelId) {
         String sql = """
                 UPDATE channels
@@ -172,6 +176,7 @@ public class JdbcChannelRepository implements ChannelRepository {
     }
 
     @Override
+    @Transactional
     public void incrementMemberCount(ChannelId channelId) {
         String sql = """
                 UPDATE channels
@@ -184,6 +189,7 @@ public class JdbcChannelRepository implements ChannelRepository {
     }
 
     @Override
+    @Transactional
     public void decrementMemberCount(ChannelId channelId) {
         String sql = """
                 UPDATE channels

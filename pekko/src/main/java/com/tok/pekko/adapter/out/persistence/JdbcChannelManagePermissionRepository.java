@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -16,6 +17,7 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Override
+    @Transactional
     public void save(ChannelMembership channelMembership, ChannelPermissionType permission) {
         String sql = """
                 INSERT INTO channel_manager_permissions (manager_membership_id, permission)
@@ -29,6 +31,7 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
     }
 
     @Override
+    @Transactional
     public void saveAll(ChannelMembership channelMembership) {
         String sql = """
                 INSERT INTO channel_manager_permissions (manager_membership_id, permission)
@@ -48,6 +51,7 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
     }
 
     @Override
+    @Transactional
     public void delete(ChannelMembership channelMembership, ChannelPermissionType permission) {
         String sql = """
                 DELETE FROM channel_manager_permissions
@@ -62,6 +66,7 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
     }
 
     @Override
+    @Transactional
     public void deleteAll(ChannelMembershipId channelMembershipId) {
         String sql = """
                 DELETE FROM channel_manager_permissions
