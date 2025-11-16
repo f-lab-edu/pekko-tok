@@ -4,30 +4,32 @@ import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ChannelStoragePortAdapter implements ChannelStoragePort {
+@RequiredArgsConstructor
+public class ChannelStorageAdapter implements ChannelStoragePort {
+
+    private final ChannelRepository channelRepository;
 
     @Override
     public Channel store(Channel channel) {
-        // NO-OP
-        return null;
+        return channelRepository.save(channel);
     }
 
     @Override
     public Optional<Channel> findChannel(Long channelId, Long... userIds) {
-        // NO-OP
-        return Optional.empty();
+        return channelRepository.findByIdWithMembership(channelId, userIds);
     }
 
     @Override
     public void update(Channel channel) {
-        // NO-OP
+        channelRepository.update(channel);
     }
 
     @Override
     public void delete(ChannelId channelId) {
-        // NO-OP
+        channelRepository.deleteById(channelId);
     }
 }
