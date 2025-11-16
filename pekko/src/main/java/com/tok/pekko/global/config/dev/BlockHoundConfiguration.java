@@ -46,6 +46,50 @@ public class BlockHoundConfiguration {
                           "java.util.concurrent.locks.ReentrantLock",
                           "unlock"
                   )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcChannelManagePermissionRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcChannelMembershipRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcChannelMemberViewRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcChannelRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcMessageRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "com.tok.pekko.adapter.out.persistence.JdbcParticipatingChannelRepository",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "io.netty.channel.nio.SelectedSelectionKeySet",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "io.netty.channel.nio.NioEventLoop",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "org.springframework.http.server.reactive.ReactorHttpHandlerAdapter",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "org.springframework.boot.web.embedded.netty.GracefulShutdown",
+                          ""
+                  )
+                  .allowBlockingCallsInside(
+                          "org.springframework.context.support.DefaultLifecycleProcessor",
+                          ""
+                  )
                   .install();
     }
 }
