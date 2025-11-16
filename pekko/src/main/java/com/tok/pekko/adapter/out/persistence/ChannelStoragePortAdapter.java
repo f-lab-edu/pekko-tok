@@ -16,7 +16,7 @@ public class ChannelStoragePortAdapter implements ChannelStoragePort {
     }
 
     @Override
-    public Optional<Channel> findChannel(Long channelId, Long userId) {
+    public Optional<Channel> findChannel(Long channelId, Long... userIds) {
         // NO-OP
         return Optional.empty();
     }

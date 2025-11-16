@@ -87,104 +87,136 @@ public class Channel {
         );
     }
 
-    public void joinMember(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
+    public void validateJoinMember(UserId userId) {
         if (!channelPolicy.isPublic()) {
             throw new IllegalArgumentException("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");
         }
         if (memberships.containsKey(userId)) {
             throw new IllegalArgumentException("이미 채널에 참여한 사용자입니다.");
         }
-
-        ChannelMembership membership = ChannelMembership.create(userId, role, joinedAt);
-
-        memberships.put(userId, membership);
     }
 
-    public void inviteMember(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
-        if (memberships.containsKey(userId)) {
+    public void validateInviteMember(UserId inviterId, UserId inviteeId) {
+        if (memberships.containsKey(inviteeId)) {
             throw new IllegalArgumentException("이미 채널에 참여한 사용자입니다.");
         }
 
-        ChannelMembership membership = ChannelMembership.create(userId, role, joinedAt);
-        memberships.put(userId, membership);
-    }
+        ChannelMembership inviterMembership = memberships.get(inviterId);
 
-    public void promoteToManager(UserId userId, ChannelManagePermissions permissions) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new IllegalArgumentException("채널 멤버를 찾을 수 없습니다.");
-        }
-
-        ChannelMembership managerChannelMembership = channelMembership.promoteToManager(permissions);
-
-        memberships.put(userId, managerChannelMembership);
-    }
-
-    public void demoteToMember(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
+        if (inviterMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (channelMembership.isMember()) {
+        if (!inviterMembership.canInviteMember()) {
+            throw new ChannelMembershipOperationForbiddenException("멤버를 초대할 권한이 없습니다.");
+        }
+    }
+
+    public ChannelMembership promoteToManager(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+
+        if (!executorMembership.canMemberRoleManagement()) {
+            throw new ChannelMembershipOperationForbiddenException("멤버의 역할을 변경할 권한이 없습니다.");
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+
+        if (targetUserMembership.isManager()) {
+            throw new IllegalArgumentException("이미 매니저입니다.");
+        }
+        if (targetUserMembership.isOwner()) {
+            throw new IllegalArgumentException("오너를 매니저로 강등시킬 수 없습니다.");
+        }
+
+        return targetUserMembership.promoteToManager(ChannelManagePermissions.ofManager());
+    }
+
+    public ChannelMembership demoteToMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+
+        if (!executorMembership.canMemberRoleManagement()) {
+            throw new ChannelMembershipOperationForbiddenException("멤버의 역할을 변경할 권한이 없습니다.");
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+        if (targetUserMembership.isMember()) {
             throw new IllegalArgumentException("이미 멤버입니다.");
         }
-        if (channelMembership.isOwner()) {
-            throw new IllegalArgumentException("오너는 강등할 수 없습니다.");
+        if (targetUserMembership.isOwner()) {
+            throw new IllegalArgumentException("오너를 멤버로 강등시킬 수 없습니다.");
         }
 
-        ChannelMembership memberChannelMembership = channelMembership.demoteToMember();
-
-        memberships.put(userId, memberChannelMembership);
+        return targetUserMembership.demoteToMember();
     }
 
-    public void updateManagerPermissions(UserId managerId, ChannelManagePermissions newPermissions) {
-        ChannelMembership channelMembership = memberships.get(managerId);
+    public ChannelMembership getValidatedAddTarget(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
 
-        if (channelMembership == null) {
+        if (grantorMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!channelMembership.isManager()) {
-            throw new IllegalArgumentException("해당 멤버는 매니저가 아닙니다.");
+
+        if (!grantorMembership.canPermissionManagement()) {
+            throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
 
-        ChannelMembership updatedChannelMembership = channelMembership.updatePermissions(newPermissions);
+        ChannelMembership granteeMembership = memberships.get(granteeId);
 
-        memberships.put(managerId, updatedChannelMembership);
-    }
-
-    public void addPermissionToManager(UserId managerId, ChannelPermissionType permission) {
-        ChannelMembership channelMembership = memberships.get(managerId);
-
-        if (channelMembership == null) {
+        if (granteeMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!channelMembership.isManager()) {
+        if (!granteeMembership.isManager()) {
             throw new IllegalArgumentException("해당 멤버는 매니저가 아닙니다.");
         }
+        if (granteeMembership.hasPermission(permission)) {
+            throw new IllegalArgumentException("이미 해당 권한을 가지고 있습니다.");
+        }
 
-        ChannelMembership updatedChannelMembership = channelMembership.addPermission(permission);
-
-        memberships.put(managerId, updatedChannelMembership);
+        return granteeMembership;
     }
 
-    public void removePermissionFromManager(UserId managerId, ChannelPermissionType permission) {
-        ChannelMembership channelMembership = memberships.get(managerId);
+    public ChannelMembership getValidatedRemoveTarget(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
 
-        if (channelMembership == null) {
+        if (grantorMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!channelMembership.isManager()) {
-            throw new IllegalArgumentException("해당 멤버는 매니저가 아닙니다.");
+
+        if (!grantorMembership.canPermissionManagement()) {
+            throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
 
-        ChannelMembership updatedChannelMembership = channelMembership.removePermission(permission);
+        ChannelMembership granteeMembership = memberships.get(granteeId);
 
-        memberships.put(managerId, updatedChannelMembership);
+        if (granteeMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+        if (!granteeMembership.isManager()) {
+            throw new IllegalArgumentException("해당 멤버는 매니저가 아닙니다.");
+        }
+        if (!granteeMembership.hasPermission(permission)) {
+            throw new IllegalArgumentException("해당 권한을 가지고 있지 않습니다.");
+        }
+
+        return granteeMembership;
     }
 
-    public void leaveMember(UserId userId) {
+    public void validateLeaveMember(UserId userId) {
         ChannelMembership channelMembership = memberships.get(userId);
 
         if (channelMembership == null) {
@@ -193,101 +225,54 @@ public class Channel {
         if (channelMembership.isOwner()) {
             throw new IllegalArgumentException("오너는 채널에서 나갈 수 없습니다.");
         }
-
-        memberships.remove(userId);
     }
 
-    public boolean canUserChangeChannelPolicy(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
+    public void validateDeleteChannel(UserId deleterId) {
+        ChannelMembership deleterMembership = memberships.get(deleterId);
 
-        if (channelMembership == null) {
+        if (deleterMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+        if (!deleterMembership.canDeleteChannel()) {
+            throw new ChannelOperationForbiddenException("채널을 삭제할 권한이 없습니다.");
+        }
+    }
+
+    public void validateKickMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+        if (!executorMembership.canKickMember()) {
+            throw new IllegalArgumentException("멤버를 강퇴할 권한이 없습니다.");
+        }
+
+        if (executorId.equals(targetUserId)) {
+            throw new IllegalArgumentException("자기 자신을 강퇴할 수 없습니다.");
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
 
-        return channelMembership.canChangeChannelPolicy();
+        if (targetUserMembership.isOwner()) {
+            throw new IllegalArgumentException("오너를 강퇴할 수 없습니다.");
+        }
     }
 
-    public boolean canMemberEditMessage(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
+    public Channel changeName(UserId changerId, String newName) {
+        ChannelMembership changerMembership = memberships.get(changerId);
 
-        if (channelMembership == null) {
+        if (changerMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-
-        return channelMembership.canEditMessage(channelPolicy);
-    }
-
-    public boolean canMemberDeleteMessage(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
+        if (!changerMembership.canEditChannelName()) {
+            throw new ChannelOperationForbiddenException("채널 이름을 변경할 권한이 없습니다.");
         }
 
-        return channelMembership.canDeleteMessage(channelPolicy);
-    }
-
-    public boolean canUserEditChannelName(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canEditChannelName();
-    }
-
-    public boolean canUserKickMember(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canKickMember();
-    }
-
-    public boolean canUserInviteMember(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canInviteMember();
-    }
-
-    public boolean canUserMemberRoleManagement(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canMemberRoleManagement();
-    }
-
-    public boolean canUserPermissionManagement(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canPermissionManagement();
-    }
-
-    public boolean canUserDeleteChannel(UserId userId) {
-        ChannelMembership channelMembership = memberships.get(userId);
-
-        if (channelMembership == null) {
-            throw new ChannelMembershipNotFoundException();
-        }
-
-        return channelMembership.canDeleteChannel();
-    }
-
-    public Channel changeName(String newName) {
         validateName(newName);
 
         return new Channel(
@@ -300,7 +285,16 @@ public class Channel {
         );
     }
 
-    public Channel changeChannelPolicy(ChannelPolicy channelPolicy) {
+    public Channel changeChannelPolicy(UserId userId, ChannelPolicy channelPolicy) {
+        ChannelMembership channelMembership = memberships.get(userId);
+
+        if (channelMembership == null) {
+            throw new ChannelMembershipNotFoundException();
+        }
+        if (!channelMembership.canChangeChannelPolicy()) {
+            throw new ChannelOperationForbiddenException("채널 정책을 변경할 권한이 없습니다.");
+        }
+
         return new Channel(
                 this.channelId,
                 this.name,
@@ -315,10 +309,28 @@ public class Channel {
         return channelPolicy.isPublic();
     }
 
+    public boolean isPrivate() {
+        return !isPublic();
+    }
+
     public static class ChannelMembershipNotFoundException extends IllegalArgumentException {
 
         public ChannelMembershipNotFoundException() {
             super("채널 멤버를 찾을 수 없습니다.");
+        }
+    }
+
+    public static class ChannelOperationForbiddenException extends IllegalArgumentException {
+
+        public ChannelOperationForbiddenException(String s) {
+            super(s);
+        }
+    }
+
+    public static class ChannelMembershipOperationForbiddenException extends IllegalArgumentException {
+
+        public ChannelMembershipOperationForbiddenException(String s) {
+            super(s);
         }
     }
 }

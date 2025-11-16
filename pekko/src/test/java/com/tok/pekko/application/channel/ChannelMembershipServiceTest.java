@@ -1,19 +1,23 @@
 package com.tok.pekko.application.channel;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.channel.model.Channel.ChannelMembershipOperationForbiddenException;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.ChannelRole;
 import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
+import com.tok.pekko.domain.channel.port.out.ChannelMembershipStoragePort;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.Clock;
@@ -36,9 +40,15 @@ class ChannelMembershipServiceTest {
     void 멤버가_채널에_참여한다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.fixed(Instant.parse("2024-03-01T12:30:00Z"), ZoneOffset.UTC);
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         Channel channel = Channel.create(
                 1L,
                 "general",
@@ -53,19 +63,23 @@ class ChannelMembershipServiceTest {
         service.joinChannel(1L, 10L);
 
         // then
-        assertAll(
-                () -> assertThat(channel.getMemberships()).hasSize(1),
-                () -> assertThat(channel.getMemberships()).containsKey(UserId.create(10L))
-        );
+        verify(channelMembershipStoragePort, times(1)).joinChannel(eq(channel.getChannelId()), any(ChannelMembership.class));
+        verify(clientSessionService, times(1)).syncJoinChannel(1L, 10L);
     }
 
     @Test
     void 초대_권한이_없는_사용자는_멤버를_초대할_수_없다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -80,23 +94,27 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
         assertThatThrownBy(() -> service.inviteMember(2L, 30L, 40L))
-                .isInstanceOf(ChannelMembershipService.ChannelMembershipOperationForbiddenException.class)
+                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("멤버를 초대할 권한이 없습니다.");
-
-        assertThat(channel.getMemberships()).hasSize(1);
     }
 
     @Test
     void 오너는_멤버를_초대할_수_있다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -111,25 +129,29 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.inviteMember(2L, 30L, 40L);
 
         // then
-        assertAll(
-                () -> assertThat(channel.getMemberships()).hasSize(2),
-                () -> assertThat(channel.getMemberships()).containsKey(UserId.create(40L))
-        );
+        verify(channelMembershipStoragePort, times(1)).joinChannel(eq(channel.getChannelId()), any(ChannelMembership.class));
+        verify(clientSessionService, times(1)).syncJoinChannel(2L, 40L);
     }
 
     @Test
     void 초대_권한이_있는_매니저는_멤버를_초대할_수_있다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         ChannelMembership manager = ChannelMembership.create(
@@ -148,25 +170,29 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
         service.inviteMember(2L, 30L, 40L);
 
         // then
-        assertAll(
-                () -> assertThat(channel.getMemberships()).hasSize(2),
-                () -> assertThat(channel.getMemberships()).containsKey(UserId.create(40L))
-        );
+        verify(channelMembershipStoragePort, times(1)).joinChannel(eq(channel.getChannelId()), any(ChannelMembership.class));
+        verify(clientSessionService, times(1)).syncJoinChannel(2L, 40L);
     }
 
     @Test
     void 멤버가_채널을_탈퇴한다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -187,16 +213,23 @@ class ChannelMembershipServiceTest {
         service.leaveChannel(3L, 50L);
 
         // then
-        assertThat(channel.getMemberships()).isEmpty();
+        verify(channelMembershipStoragePort, times(1)).leaveChannel(eq(channel.getChannelId()), eq(UserId.create(50L)));
+        verify(clientSessionService, times(1)).syncLeaveChannel(3L, 50L);
     }
 
     @Test
-    void 권한이_없으면_멤버_역할을_관리할_수_없다() {
+    void 권한이_없으면_멤버를_승격할_수_없다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -204,8 +237,8 @@ class ChannelMembershipServiceTest {
                 ChannelMembership.create(UserId.create(60L), ChannelRole.MANAGER, createdAt)
         );
         memberships.put(
-                UserId.create(70L),
-                ChannelMembership.create(UserId.create(70L), ChannelRole.MANAGER, createdAt)
+                UserId.create(80L),
+                ChannelMembership.create(UserId.create(80L), ChannelRole.MEMBER, createdAt)
         );
         Channel channel = Channel.create(
                 4L,
@@ -215,60 +248,27 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
-        assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 70L, ChannelRole.MEMBER))
-                .isInstanceOf(ChannelMembershipService.ChannelMembershipOperationForbiddenException.class)
+        assertThatThrownBy(() -> service.promoteToManager(4L, 60L, 80L))
+                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("멤버의 역할을 변경할 권한이 없습니다.");
     }
 
     @Test
-    void 오너가_멤버를_강등한다() {
+    void 오너는_멤버를_승격한다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(60L),
-                ChannelMembership.create(UserId.create(60L), ChannelRole.OWNER, createdAt)
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
         );
-        memberships.put(
-                UserId.create(70L),
-                ChannelMembership.create(UserId.create(70L), ChannelRole.MANAGER, createdAt)
-        );
-        Channel channel = Channel.create(
-                4L,
-                "channel-4",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
-
-        // when & then
-        assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 70L, ChannelRole.MEMBER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너 역할은 부여할 수 없습니다.");
-
-        ChannelMembership updated = channel.getMemberships().get(UserId.create(70L));
-        assertAll(
-                () -> assertThat(updated.isMember()).isTrue(),
-                () -> assertThat(updated.isManager()).isFalse()
-        );
-    }
-
-    @Test
-    void 오너가_멤버를_승격한다() {
-        // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -287,27 +287,107 @@ class ChannelMembershipServiceTest {
                 memberships,
                 createdAt
         );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
+
+        // when
+        service.promoteToManager(4L, 60L, 80L);
+
+        // then
+        verify(channelMembershipStoragePort, times(1)).promoteToManager(any(ChannelMembership.class));
+    }
+
+    @Test
+    void 권한이_없으면_멤버를_강등할_수_없다() {
+        // given
+        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
+        Clock clock = Clock.systemUTC();
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
+        LocalDateTime createdAt = LocalDateTime.now(clock);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(
+                UserId.create(60L),
+                ChannelMembership.create(UserId.create(60L), ChannelRole.MANAGER, createdAt)
+        );
+        memberships.put(
+                UserId.create(70L),
+                ChannelMembership.create(UserId.create(70L), ChannelRole.MANAGER, createdAt)
+        );
+        Channel channel = Channel.create(
+                4L,
+                "channel-4",
+                1L,
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                createdAt
+        );
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
-        assertThatThrownBy(() -> service.managedMemberRole(4L, 60L, 80L, ChannelRole.MANAGER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너 역할은 부여할 수 없습니다.");
+        assertThatThrownBy(() -> service.demoteToMember(4L, 60L, 70L))
+                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
+                .hasMessage("멤버의 역할을 변경할 권한이 없습니다.");
+    }
 
-        ChannelMembership updated = channel.getMemberships().get(UserId.create(80L));
-        assertAll(
-                () -> assertThat(updated.isManager()).isTrue(),
-                () -> assertThat(updated.isMember()).isFalse()
+    @Test
+    void 오너가_매니저를_강등한다() {
+        // given
+        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
+        Clock clock = Clock.systemUTC();
+        ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
         );
+        LocalDateTime createdAt = LocalDateTime.now(clock);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(
+                UserId.create(60L),
+                ChannelMembership.create(UserId.create(60L), ChannelRole.OWNER, createdAt)
+        );
+        memberships.put(
+                UserId.create(70L),
+                ChannelMembership.create(UserId.create(70L), ChannelRole.MANAGER, createdAt)
+        );
+        Channel channel = Channel.create(
+                4L,
+                "channel-4",
+                1L,
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                createdAt
+        );
+        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
+
+        // when
+        service.demoteToMember(4L, 60L, 70L);
+
+        // then
+        verify(channelMembershipStoragePort, times(1)).demoteToMember(any(ChannelMembership.class));
     }
 
     @Test
     void 권한이_없으면_멤버_권한을_추가할_수_없다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -329,18 +409,24 @@ class ChannelMembershipServiceTest {
         when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
-        assertThatThrownBy(() -> service.addPermissions(5L, 90L, 91L, ChannelPermissionType.MESSAGE_EDIT))
-                .isInstanceOf(ChannelMembershipService.ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("채널 권한을 추가할 권한이 없습니다.");
+        assertThatThrownBy(() -> service.addPermission(5L, 90L, 91L, ChannelPermissionType.MESSAGE_EDIT))
+                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
+                .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
 
     @Test
     void 오너는_멤버_권한을_추가할_수_있다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -362,20 +448,28 @@ class ChannelMembershipServiceTest {
         when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
-        service.addPermissions(5L, 90L, 91L, ChannelPermissionType.MESSAGE_DELETE);
+        service.addPermission(5L, 90L, 91L, ChannelPermissionType.MESSAGE_DELETE);
 
         // then
-        ChannelMembership grantee = channel.getMemberships().get(UserId.create(91L));
-        assertThat(grantee.getPermissions().has(ChannelPermissionType.MESSAGE_DELETE)).isTrue();
+        verify(channelMembershipStoragePort, times(1)).addPermission(
+                eq(UserId.create(91L)),
+                eq(ChannelPermissionType.MESSAGE_DELETE)
+        );
     }
 
     @Test
     void 권한이_없으면_멤버_권한을_삭제할_수_없다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -403,21 +497,24 @@ class ChannelMembershipServiceTest {
         when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when & then
-        assertThatThrownBy(() -> service.removePermissions(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK))
-                .isInstanceOf(ChannelMembershipService.ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("채널 권한을 삭제할 권한이 없습니다.");
-
-        ChannelMembership grantee = channel.getMemberships().get(UserId.create(93L));
-        assertThat(grantee.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isTrue();
+        assertThatThrownBy(() -> service.removePermission(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK))
+                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
+                .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
 
     @Test
     void 오너는_멤버_권한을_삭제할_수_있다() {
         // given
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
+        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
         Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(clock, channelStoragePort, clientSessionService);
+        ChannelMembershipService service = new ChannelMembershipService(
+                clock,
+                channelStoragePort,
+                channelMembershipStoragePort,
+                clientSessionService
+        );
         LocalDateTime createdAt = LocalDateTime.now(clock);
         Map<UserId, ChannelMembership> memberships = new HashMap<>();
         memberships.put(
@@ -445,10 +542,12 @@ class ChannelMembershipServiceTest {
         when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
         // when
-        service.removePermissions(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK);
+        service.removePermission(6L, 92L, 93L, ChannelPermissionType.MEMBER_KICK);
 
         // then
-        ChannelMembership grantee = channel.getMemberships().get(UserId.create(93L));
-        assertThat(grantee.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isFalse();
+        verify(channelMembershipStoragePort, times(1)).removePermission(
+                eq(UserId.create(93L)),
+                eq(ChannelPermissionType.MEMBER_KICK)
+        );
     }
 }

@@ -8,7 +8,7 @@ public interface ChannelStoragePort {
 
     Channel store(Channel channel);
 
-    Optional<Channel> findChannel(Long channelId, Long userId);
+    Optional<Channel> findChannel(Long channelId, Long... userIds);
 
     void update(Channel channel);
 

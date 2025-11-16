@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.channel.model.Channel.ChannelOperationForbiddenException;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelRole;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
@@ -90,8 +91,8 @@ class ChannelServiceTest {
 
         // when & then
         assertThatThrownBy(() -> channelService.deleteChannel(10L, 20L))
-                .isInstanceOf(ChannelService.ChannelOperationForbiddenException.class)
-                .hasMessage("채널 삭제 권한이 없습니다.");
+                .isInstanceOf(ChannelOperationForbiddenException.class)
+                .hasMessage("채널을 삭제할 권한이 없습니다.");
 
         verify(channelStoragePort, never()).delete(any(ChannelId.class));
     }
@@ -149,8 +150,8 @@ class ChannelServiceTest {
 
         // when & then
         assertThatThrownBy(() -> channelService.changeChannelPolicy(10L, 30L, true, false, true))
-                .isInstanceOf(ChannelService.ChannelOperationForbiddenException.class)
-                .hasMessage("채널 정책 변경 권한이 없습니다.");
+                .isInstanceOf(ChannelOperationForbiddenException.class)
+                .hasMessage("채널 정책을 변경할 권한이 없습니다.");
 
         verify(channelStoragePort, never()).update(any(Channel.class));
     }
@@ -217,8 +218,8 @@ class ChannelServiceTest {
 
         // when & then
         assertThatThrownBy(() -> channelService.changeChannelName(11L, 40L, "new-name"))
-                .isInstanceOf(ChannelService.ChannelOperationForbiddenException.class)
-                .hasMessage("채널명 변경 권한이 없습니다.");
+                .isInstanceOf(ChannelOperationForbiddenException.class)
+                .hasMessage("채널 이름을 변경할 권한이 없습니다.");
 
         verify(channelStoragePort, never()).update(any(Channel.class));
     }

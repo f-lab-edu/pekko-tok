@@ -28,11 +28,9 @@ public class ChannelService {
     public void deleteChannel(Long channelId, Long deleterId) {
         Channel channel = channelStoragePort.findChannel(channelId, deleterId)
                                             .orElseThrow(ChannelNotFoundException::new);
+        UserId deleter = UserId.create(deleterId);
 
-        if (!channel.canUserDeleteChannel(UserId.create(deleterId))) {
-            throw new ChannelOperationForbiddenException("채널 삭제 권한이 없습니다.");
-        }
-
+        channel.validateDeleteChannel(deleter);
         channelStoragePort.delete(channel.getChannelId());
     }
 
@@ -44,35 +42,20 @@ public class ChannelService {
             boolean isPublic
     ) {
         Channel channel = channelStoragePort.findChannel(channelId, changerId)
-                .orElseThrow();
-
-        if (!channel.canUserChangeChannelPolicy(UserId.create(changerId))) {
-            throw new ChannelOperationForbiddenException("채널 정책 변경 권한이 없습니다.");
-        }
-
+                                            .orElseThrow();
+        UserId changer = UserId.create(changerId);
         ChannelPolicy updatedChannelPolicy = new ChannelPolicy(canEditOwnMessage, canDeleteOwnMessage, isPublic);
-        Channel updatedChannel = channel.changeChannelPolicy(updatedChannelPolicy);
+        Channel updatedPolicyChannel = channel.changeChannelPolicy(changer, updatedChannelPolicy);
 
-        channelStoragePort.update(updatedChannel);
+        channelStoragePort.update(updatedPolicyChannel);
     }
 
     public void changeChannelName(Long channelId, Long changerId, String changedName) {
         Channel channel = channelStoragePort.findChannel(channelId, changerId)
                                             .orElseThrow(ChannelNotFoundException::new);
-
-        if (!channel.canUserEditChannelName(UserId.create(changerId))) {
-            throw new ChannelOperationForbiddenException("채널명 변경 권한이 없습니다.");
-        }
-
-        Channel updatedChannel = channel.changeName(changedName);
+        UserId changer = UserId.create(changerId);
+        Channel updatedChannel = channel.changeName(changer, changedName);
 
         channelStoragePort.update(updatedChannel);
-    }
-
-    public static class ChannelOperationForbiddenException extends IllegalArgumentException {
-
-        public ChannelOperationForbiddenException(String s) {
-            super(s);
-        }
     }
 }
