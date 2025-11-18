@@ -3,7 +3,7 @@ package com.tok.pekko.global.actor;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -51,7 +51,7 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                                 command.userId(),
                                 command.clientMessageSender(),
                                 command.messageStoragePort(),
-                                command.channelMembershipPort(),
+                                command.channelMembershipActorMessagePort(),
                                 readerRegistry
                         )
                 ).onFailure(SupervisorStrategy.restart()),
@@ -66,7 +66,7 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
     public interface GuardianCommand extends CborSerializable { }
 
     // Client WebSocket Session 연결 시 외부로부터 ClientSessionActor Spawn을 요청하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
-    public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, MessageStoragePort messageStoragePort, ChannelMembershipPort channelMembershipPort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
+    public record SpawnClientSession(Long userId, ClientMessageSender clientMessageSender, MessageStoragePort messageStoragePort, ChannelMembershipActorMessagePort channelMembershipActorMessagePort, ActorRef<GuardianCommand> replyTo) implements GuardianCommand { }
 
     // ClientSessionActor spawn 완료 후 ActorRef를 ClientSessionActorManagementService.AskPattern에 전달하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
     public record SpawnedClientSession(ActorRef<ClientSessionCommand> clientSession) implements GuardianCommand { }

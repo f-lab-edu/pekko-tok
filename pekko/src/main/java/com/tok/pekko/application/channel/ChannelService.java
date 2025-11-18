@@ -1,11 +1,11 @@
 package com.tok.pekko.application.channel;
 
+import com.tok.pekko.application.channel.exception.ChannelNotFoundException;
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
 import com.tok.pekko.domain.user.model.vo.UserId;
-import java.time.Clock;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChannelService {
 
-    private final Clock clock;
     private final ChannelStoragePort channelStoragePort;
 
     public ChannelId createChannel(String name, Long creatorId) {
@@ -27,12 +26,11 @@ public class ChannelService {
     }
 
     public void deleteChannel(Long channelId, Long deleterId) {
-        Channel channel = channelStoragePort.findChannel(channelId);
+        Channel channel = channelStoragePort.findChannel(channelId, deleterId)
+                                            .orElseThrow(ChannelNotFoundException::new);
+        UserId deleter = UserId.create(deleterId);
 
-        if (!channel.canUserDeleteChannel(UserId.create(deleterId))) {
-            throw new ChannelOperationForbiddenException("채널 삭제 권한이 없습니다.");
-        }
-
+        channel.validateDeleteChannel(deleter);
         channelStoragePort.delete(channel.getChannelId());
     }
 
@@ -43,34 +41,21 @@ public class ChannelService {
             boolean canDeleteOwnMessage,
             boolean isPublic
     ) {
-        Channel channel = channelStoragePort.findChannel(channelId);
-
-        if (!channel.canUserChangeChannelPolicy(UserId.create(changerId))) {
-            throw new ChannelOperationForbiddenException("채널 정책 변경 권한이 없습니다.");
-        }
-
+        Channel channel = channelStoragePort.findChannel(channelId, changerId)
+                                            .orElseThrow();
+        UserId changer = UserId.create(changerId);
         ChannelPolicy updatedChannelPolicy = new ChannelPolicy(canEditOwnMessage, canDeleteOwnMessage, isPublic);
-        Channel updatedChannel = channel.changeChannelPolicy(updatedChannelPolicy);
+        Channel updatedPolicyChannel = channel.changeChannelPolicy(changer, updatedChannelPolicy);
 
-        channelStoragePort.update(updatedChannel);
+        channelStoragePort.update(updatedPolicyChannel);
     }
 
     public void changeChannelName(Long channelId, Long changerId, String changedName) {
-        Channel channel = channelStoragePort.findChannel(channelId);
-
-        if (!channel.canUserEditChannelName(UserId.create(changerId))) {
-            throw new ChannelOperationForbiddenException("채널명 변경 권한이 없습니다.");
-        }
-
-        Channel updatedChannel = channel.changeName(changedName);
+        Channel channel = channelStoragePort.findChannel(channelId, changerId)
+                                            .orElseThrow(ChannelNotFoundException::new);
+        UserId changer = UserId.create(changerId);
+        Channel updatedChannel = channel.changeName(changer, changedName);
 
         channelStoragePort.update(updatedChannel);
-    }
-
-    public static class ChannelOperationForbiddenException extends IllegalArgumentException {
-
-        public ChannelOperationForbiddenException(String s) {
-            super(s);
-        }
     }
 }

@@ -44,15 +44,15 @@ class ChannelMembershipAdapterTest {
     void 사용자가_참여한_채널_ID를_조회해_FoundRegisterChannelIds_메시지로_전달한다() {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ChannelMembershipRepository repository = Mockito.mock(ChannelMembershipRepository.class);
-        ChannelMembershipAdapter adapter = new ChannelMembershipAdapter(repository);
+        ParticipatingChannelRepository repository = Mockito.mock(ParticipatingChannelRepository.class);
+        ChannelMembershipActorMessageAdapter adapter = new ChannelMembershipActorMessageAdapter(repository);
         Long userId = 1L;
         List<Long> channelIds = List.of(10L, 20L, 30L);
 
-        given(repository.findAllIChannelIds(userId)).willReturn(channelIds);
+        given(repository.findAllChannelIds(userId)).willReturn(channelIds);
 
         // when
-        adapter.findParticipatingChannels(userId, replyProbe.ref());
+        adapter.sendParticipatingChannels(userId, replyProbe.ref());
 
         // then
         FoundRegisteredChannelIds actual = replyProbe.expectMessageClass(
@@ -69,14 +69,14 @@ class ChannelMembershipAdapterTest {
     void 사용자가_참여한_채널_ID를_조회하지_못했다면_아무_메시지도_전달하지_않는다() {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ChannelMembershipRepository repository = Mockito.mock(ChannelMembershipRepository.class);
-        ChannelMembershipAdapter adapter = new ChannelMembershipAdapter(repository);
+        ParticipatingChannelRepository repository = Mockito.mock(ParticipatingChannelRepository.class);
+        ChannelMembershipActorMessageAdapter adapter = new ChannelMembershipActorMessageAdapter(repository);
         Long userId = 1L;
 
-        given(repository.findAllIChannelIds(anyLong())).willThrow(new RuntimeException("Database error"));
+        given(repository.findAllChannelIds(anyLong())).willThrow(new RuntimeException("Database error"));
 
         // when
-        adapter.findParticipatingChannels(userId, replyProbe.ref());
+        adapter.sendParticipatingChannels(userId, replyProbe.ref());
 
         // then
         replyProbe.expectNoMessage(Duration.ofSeconds(1));
@@ -86,14 +86,14 @@ class ChannelMembershipAdapterTest {
     void 사용자가_참여한_채널이_없다면_아무_메시지도_전달하지_않는다() {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ChannelMembershipRepository repository = Mockito.mock(ChannelMembershipRepository.class);
-        ChannelMembershipAdapter adapter = new ChannelMembershipAdapter(repository);
+        ParticipatingChannelRepository repository = Mockito.mock(ParticipatingChannelRepository.class);
+        ChannelMembershipActorMessageAdapter adapter = new ChannelMembershipActorMessageAdapter(repository);
         Long userId = 1L;
 
-        given(repository.findAllIChannelIds(anyLong())).willReturn(null);
+        given(repository.findAllChannelIds(anyLong())).willReturn(null);
 
         // when
-        adapter.findParticipatingChannels(userId, replyProbe.ref());
+        adapter.sendParticipatingChannels(userId, replyProbe.ref());
 
         // then
         replyProbe.expectNoMessage(Duration.ofSeconds(1));
@@ -103,18 +103,18 @@ class ChannelMembershipAdapterTest {
     void 사용자가_참여한_채널_ID_조회_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
-        ChannelMembershipRepository repository = Mockito.mock(ChannelMembershipRepository.class);
-        ChannelMembershipAdapter adapter = new ChannelMembershipAdapter(repository);
+        ParticipatingChannelRepository repository = Mockito.mock(ParticipatingChannelRepository.class);
+        ChannelMembershipActorMessageAdapter adapter = new ChannelMembershipActorMessageAdapter(repository);
         Long userId = 1L;
         List<Long> channelIds = List.of(10L, 20L);
 
-        given(repository.findAllIChannelIds(anyLong())).willReturn(channelIds);
+        given(repository.findAllChannelIds(anyLong())).willReturn(channelIds);
 
         // when
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> errorHolder = new AtomicReference<>();
 
-        Mono.fromRunnable(() -> adapter.findParticipatingChannels(userId, replyProbe.ref()))
+        Mono.fromRunnable(() -> adapter.sendParticipatingChannels(userId, replyProbe.ref()))
             .subscribeOn(Schedulers.parallel())
             .doFinally(ignored -> latch.countDown())
             .subscribe(null, errorHolder::set);

@@ -1,7 +1,7 @@
 package com.tok.pekko.application.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.domain.chat.port.out.ChannelMembershipPort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
@@ -56,12 +56,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_호출시_ClientSessionActor를_생성하고_ActorRef를_반환한다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 100L;
 
@@ -78,12 +79,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_호출시_AskPattern으로_Guardian에_메시지를_전송한다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 200L;
 
@@ -99,12 +101,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_반환_ActorRef가_ClientSessionCommand를_처리_가능하다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 300L;
 
@@ -123,12 +126,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_서로_다른_userId로_호출하면_다른_ActorRef를_반환한다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId1 = 400L;
         Long userId2 = 500L;
@@ -150,12 +154,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_타임아웃_설정이_적용된다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 600L;
 
@@ -171,12 +176,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_호출_후_생성된_ActorRef가_clientSessions에_캐시된다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 700L;
 
@@ -195,12 +201,13 @@ class ClientSessionActorManagementServiceTest {
     void findClientSession_호출시_캐시된_ActorRef를_반환한다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId = 800L;
 
@@ -219,11 +226,12 @@ class ClientSessionActorManagementServiceTest {
     void findClientSession_존재하지_않는_userId로_호출하면_ClientSessionNotFoundException을_발생시킨다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long nonExistentUserId = 999L;
 
@@ -237,12 +245,13 @@ class ClientSessionActorManagementServiceTest {
     void createClientSessionActor_여러_userId로_호출하면_각각_캐시된다() {
         // given
         MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
-        ChannelMembershipPort mockChannelMembershipPort = mock(ChannelMembershipPort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
         ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
         ClientSessionActorManagementService service = new ClientSessionActorManagementService(
                 actorSystem,
                 mockMessageStoragePort,
-                mockChannelMembershipPort
+                mockChannelMembershipActorMessagePort
         );
         Long userId1 = 1000L;
         Long userId2 = 1001L;

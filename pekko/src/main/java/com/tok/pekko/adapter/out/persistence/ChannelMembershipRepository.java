@@ -1,12 +1,16 @@
 package com.tok.pekko.adapter.out.persistence;
 
-import java.util.List;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelId;
+import com.tok.pekko.domain.user.model.vo.UserId;
 
 public interface ChannelMembershipRepository {
 
-    List<Long> findAllIChannelIds(Long userId);
+    void joinChannel(ChannelMembership channelMembership);
 
-    void save(Long userId, Long channelId);
+    void leaveChannel(ChannelId channelId, UserId userId);
 
-    void delete(Long userId, Long channelId);
+    void updateRole(ChannelMembership channelMembership);
+
+    void delete(ChannelId channelId, UserId userId);
 }
