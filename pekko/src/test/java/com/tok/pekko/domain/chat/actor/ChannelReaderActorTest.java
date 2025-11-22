@@ -78,7 +78,7 @@ class ChannelReaderActorTest {
     @Test
     void SyncNewMessage_메시지를_받으면_채팅_메시지를_ChatMessages에_추가하고_모든_ClientSessionActor에_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -128,7 +128,7 @@ class ChannelReaderActorTest {
     @Test
     void GetHistory_메시지를_받았을_때_히스토리가_존재하면_ClientSession에_DeliverHistory를_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -173,7 +173,7 @@ class ChannelReaderActorTest {
     @Test
     void GetHistory_메시지를_받았을_때_히스토리가_비어있으면_ChannelEntity에_ResolveHistory를_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -212,7 +212,7 @@ class ChannelReaderActorTest {
     @Test
     void SyncDeletion_메시지를_받으면_ChatMessages에서_메시지를_삭제하고_모든_ClientSessionActor에_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -266,7 +266,7 @@ class ChannelReaderActorTest {
     @Test
     void SyncUpdate_메시지를_받으면_ChatMessages에서_메시지를_수정하고_모든_ClientSessionActor에_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -321,7 +321,7 @@ class ChannelReaderActorTest {
     @Test
     void RegisterClientSession_메시지를_받으면_clientSessions에_등록된다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -361,7 +361,7 @@ class ChannelReaderActorTest {
     @Test
     void RequestInitialHistory_메시지를_받으면_채팅_히스토리를_ClientSessionActor에게_전달한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
@@ -392,7 +392,7 @@ class ChannelReaderActorTest {
     @Test
     void RequestInitialHistory_메시지를_받았을_때_채팅_히스토리가_동기화되지_않았다면_별도로_관리된다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
@@ -415,7 +415,7 @@ class ChannelReaderActorTest {
     @Test
     void DeliverSyncMessages_이전까지_대기중이던_RequestInitialHistory에게_히스토리를_전달한다() {
         // given
-        ChatMessages chatMessages = new ChatMessages();
+        ChannelReaderMessages chatMessages = new ChannelReaderMessages();
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
@@ -449,7 +449,7 @@ class ChannelReaderActorTest {
     @Test
     void 초기_동기화_전_도착한_SyncNewMessage는_대기하다가_동기화_완료_후에_전파된다() {
         // given
-        ChatMessages chatMessages = new ChatMessages();
+        ChannelReaderMessages chatMessages = new ChannelReaderMessages();
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> mockChannelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe();
@@ -479,7 +479,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyChangeChannelPolicy_메시지를_받으면_모든_ClientSessionActor에게_채널_정책_변경을_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -522,7 +522,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyMemberLeft_메시지를_받으면_해당_ClientSessionActor에게_채널_탈퇴를_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -549,7 +549,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyKickedMember_메시지를_받으면_해당_ClientSessionActor에게_강퇴_알림을_전송하고_clientSessions에서_제거한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -584,7 +584,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyFailure_메시지를_받으면_해당_ClientSessionActor에게_에러를_전송한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -616,7 +616,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyEditChannelName_메시지를_받으면_모든_ClientSessionActor에게_채널_이름_변경을_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -656,7 +656,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyChangeChannelMembership_메시지를_받으면_해당_ClientSessionActor에게_멤버십_변경을_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -690,7 +690,7 @@ class ChannelReaderActorTest {
     @Test
     void NotifyMembershipCountChanged_메시지를_받으면_모든_ClientSessionActor에게_멤버십_카운트_변경을_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -730,7 +730,7 @@ class ChannelReaderActorTest {
     @Test
     void SyncMembership_메시지를_받으면_해당_ClientSessionActor에게_멤버십_정보를_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
@@ -764,7 +764,7 @@ class ChannelReaderActorTest {
     @Test
     void SyncChannelMetadata_메시지를_받으면_모든_ClientSessionActor에게_채널_메타데이터를_전파한다() {
         // given
-        ChatMessages mockMessages = mock(ChatMessages.class);
+        ChannelReaderMessages mockMessages = mock(ChannelReaderMessages.class);
         @SuppressWarnings("unchecked")
         EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
         TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
