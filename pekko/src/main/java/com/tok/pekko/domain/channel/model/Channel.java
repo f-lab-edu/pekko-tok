@@ -88,7 +88,7 @@ public class Channel {
     }
 
     public void validateJoinMember(UserId userId) {
-        if (!channelPolicy.isPublic()) {
+        if (channelPolicy.isPrivate()) {
             throw new IllegalArgumentException("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");
         }
         if (memberships.containsKey(userId)) {
@@ -106,7 +106,7 @@ public class Channel {
         if (inviterMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!inviterMembership.canInviteMember()) {
+        if (inviterMembership.cannotInviteMember()) {
             throw new ChannelMembershipOperationForbiddenException("멤버를 초대할 권한이 없습니다.");
         }
     }
@@ -118,7 +118,7 @@ public class Channel {
             throw new ChannelMembershipNotFoundException();
         }
 
-        if (!executorMembership.canMemberRoleManagement()) {
+        if (executorMembership.cannotManageRole()) {
             throw new ChannelMembershipOperationForbiddenException("멤버의 역할을 변경할 권한이 없습니다.");
         }
 
@@ -127,7 +127,6 @@ public class Channel {
         if (targetUserMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-
         if (targetUserMembership.isManager()) {
             throw new IllegalArgumentException("이미 매니저입니다.");
         }
@@ -145,7 +144,7 @@ public class Channel {
             throw new ChannelMembershipNotFoundException();
         }
 
-        if (!executorMembership.canMemberRoleManagement()) {
+        if (executorMembership.cannotManageRole()) {
             throw new ChannelMembershipOperationForbiddenException("멤버의 역할을 변경할 권한이 없습니다.");
         }
 
@@ -171,7 +170,7 @@ public class Channel {
             throw new ChannelMembershipNotFoundException();
         }
 
-        if (!grantorMembership.canPermissionManagement()) {
+        if (grantorMembership.cannotManagePermission()) {
             throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
 
@@ -197,7 +196,7 @@ public class Channel {
             throw new ChannelMembershipNotFoundException();
         }
 
-        if (!grantorMembership.canPermissionManagement()) {
+        if (grantorMembership.cannotManagePermission()) {
             throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
 
@@ -209,7 +208,7 @@ public class Channel {
         if (!granteeMembership.isManager()) {
             throw new IllegalArgumentException("해당 멤버는 매니저가 아닙니다.");
         }
-        if (!granteeMembership.hasPermission(permission)) {
+        if (granteeMembership.lacksPermission(permission)) {
             throw new IllegalArgumentException("해당 권한을 가지고 있지 않습니다.");
         }
 
@@ -235,7 +234,7 @@ public class Channel {
         if (deleterMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!deleterMembership.canDeleteChannel()) {
+        if (deleterMembership.cannotDeleteChannel()) {
             throw new ChannelOperationForbiddenException("채널을 삭제할 권한이 없습니다.");
         }
     }
@@ -246,10 +245,9 @@ public class Channel {
         if (executorMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!executorMembership.canKickMember()) {
+        if (executorMembership.cannotKickMember()) {
             throw new IllegalArgumentException("멤버를 강퇴할 권한이 없습니다.");
         }
-
         if (executorId.equals(targetUserId)) {
             throw new IllegalArgumentException("자기 자신을 강퇴할 수 없습니다.");
         }
@@ -259,7 +257,6 @@ public class Channel {
         if (targetUserMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-
         if (targetUserMembership.isOwner()) {
             throw new IllegalArgumentException("오너를 강퇴할 수 없습니다.");
         }
@@ -273,7 +270,7 @@ public class Channel {
         if (changerMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!changerMembership.canEditChannelName()) {
+        if (changerMembership.cannotEditChannelName()) {
             throw new ChannelOperationForbiddenException("채널 이름을 변경할 권한이 없습니다.");
         }
 
@@ -295,7 +292,7 @@ public class Channel {
         if (channelMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
-        if (!channelMembership.canChangeChannelPolicy()) {
+        if (channelMembership.cannotChangeChannelPolicy()) {
             throw new ChannelOperationForbiddenException("채널 정책을 변경할 권한이 없습니다.");
         }
 

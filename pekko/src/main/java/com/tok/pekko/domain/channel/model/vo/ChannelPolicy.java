@@ -17,4 +17,8 @@ public record ChannelPolicy(boolean canEditOwnMessage, boolean canDeleteOwnMessa
     public ChannelPolicy updatePublic(boolean isPublic) {
         return new ChannelPolicy(this.canEditOwnMessage, this.canDeleteOwnMessage, isPublic);
     }
+
+    public boolean isPrivate() {
+        return !this.isPublic();
+    }
 }

@@ -159,6 +159,10 @@ public class ChannelMembership {
         return false;
     }
 
+    public boolean lacksPermission(ChannelPermissionType permission) {
+        return !this.hasPermission(permission);
+    }
+
     public boolean canEditChannelName() {
         if (this.role.isOwner()) {
             return true;
@@ -167,12 +171,20 @@ public class ChannelMembership {
         return this.role.isManager() && permissions.has(ChannelPermissionType.EDIT_CHANNEL_NAME);
     }
 
+    public boolean cannotEditChannelName() {
+        return !this.canEditChannelName();
+    }
+
     public boolean canKickMember() {
         if (this.role.isOwner()) {
             return true;
         }
 
         return this.role.isManager() && permissions.has(ChannelPermissionType.MEMBER_KICK);
+    }
+
+    public boolean cannotKickMember() {
+        return !this.canKickMember();
     }
 
     public boolean canDeleteMessage(ChannelPolicy policy) {
@@ -211,20 +223,40 @@ public class ChannelMembership {
         return this.role.isManager() && permissions.has(ChannelPermissionType.MEMBER_INVITE);
     }
 
-    public boolean canMemberRoleManagement() {
+    public boolean cannotInviteMember() {
+        return !this.canInviteMember();
+    }
+
+    public boolean canManageRole() {
         return this.role.isOwner();
     }
 
-    public boolean canPermissionManagement() {
+    public boolean cannotManageRole() {
+        return !this.canManageRole();
+    }
+
+    public boolean canManagePermission() {
         return this.role.isOwner();
+    }
+
+    public boolean cannotManagePermission() {
+        return !this.canManagePermission();
     }
 
     public boolean canDeleteChannel() {
         return this.role.isOwner();
     }
 
+    public boolean cannotDeleteChannel() {
+        return !this.canDeleteChannel();
+    }
+
     public boolean canChangeChannelPolicy() {
         return this.role.isOwner();
+    }
+
+    public boolean cannotChangeChannelPolicy() {
+        return !this.canChangeChannelPolicy();
     }
 
     public boolean isManager() {
