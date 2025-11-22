@@ -16,6 +16,13 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelMembership;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditChannelName;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ReSyncSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
@@ -63,6 +70,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                         userId,
                                         clientMessageSender,
                                         messageStoragePort,
+                                        channelMembershipActorMessagePort,
                                         readerRegistry
                                 );
                             }
@@ -74,6 +82,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     private final Long userId;
     private final ClientMessageSender clientMessageSender;
     private final MessageStoragePort messageStoragePort;
+    private final ChannelMembershipActorMessagePort channelMembershipActorMessagePort;
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
     private final Map<Long, ActorRef<ChannelReaderCommand>> readers;
     private final Map<Long, RequestHistory> pendingRequestHistory;
@@ -84,12 +93,14 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             Long userId,
             ClientMessageSender clientMessageSender,
             MessageStoragePort messageStoragePort,
+            ChannelMembershipActorMessagePort channelMembershipActorMessagePort,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
         super(context);
 
         this.userId = userId;
         this.messageStoragePort = messageStoragePort;
+        this.channelMembershipActorMessagePort = channelMembershipActorMessagePort;
         this.clientMessageSender = clientMessageSender;
         this.readerRegistry = readerRegistry;
         this.readers = new HashMap<>();
@@ -112,6 +123,13 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(Shutdown.class, this::onShutdown)
                                   .onMessage(SessionPongReceived.class, this::onSessionPongReceived)
                                   .onMessage(SessionHealthCheck.class, this::onSessionHealthCheck)
+                                  .onMessage(PropagateChangeChannelMembership.class, this::onPropagateChangeChannelMembership)
+                                  .onMessage(PropagateMembershipCount.class, this::onPropagateMembershipCount)
+                                  .onMessage(PropagateChangeChannelPolicy.class, this::onPropagateChangeChannelPolicy)
+                                  .onMessage(PropagateEditChannelName.class, this::onPropagateEditChannelName)
+                                  .onMessage(PropagateKickedMember.class, this::onPropagateKickedMember)
+                                  .onMessage(ReSyncSession.class, this::onReSyncSession)
+                                  .onMessage(PropagateFailure.class, this::onPropagateFailure)
                                   .build();
     }
 
@@ -242,6 +260,49 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
             clientMessageSender.requestSessionReconnect();
             missedSessionPongs = 0;
         }
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateChangeChannelMembership(PropagateChangeChannelMembership command) {
+        clientMessageSender.sendChangedChannelMembership(command.channelId(), command.channelMembership(), command.membershipCount());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateMembershipCount(PropagateMembershipCount command) {
+        clientMessageSender.sendChangedMembershipCount(command.channelId(), command.membershipCount());
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateChangeChannelPolicy(PropagateChangeChannelPolicy command) {
+        clientMessageSender.sendChangedChannelPolicy(command.channelId(), command.channelPolicy());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateEditChannelName(PropagateEditChannelName command) {
+        clientMessageSender.sendEditedChannelName(command.channelId(), command.editedName());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateKickedMember(PropagateKickedMember command) {
+        clientMessageSender.sendKickedFromChannel(command.channelId());
+        readers.remove(command.channelId());
+        readerRegistry.tell(new ReleaseClientSessionActor(userId, List.of(command.channelId())));
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onReSyncSession(ReSyncSession command) {
+        channelMembershipActorMessagePort.sendParticipatingChannels(userId, getContext().getSelf());
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateFailure(PropagateFailure command) {
+        clientMessageSender.sendError(command.channelId(), command.reason());
 
         return this;
     }
