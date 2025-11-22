@@ -1,5 +1,7 @@
 package com.tok.pekko.adapter.out.websocket;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import java.util.List;
 
@@ -16,4 +18,18 @@ public interface ClientMessageSender {
     void sendWebSocketPing();
 
     void requestSessionReconnect();
+
+    void sendChangedChannelMembership(Long channelId, ChannelMembership channelMembership, int membershipCount);
+
+    void sendChangedMembershipCount(Long channelId, int membershipCount);
+
+    void sendInvitedChannel(Long channelId);
+
+    void sendEditedChannelName(Long channelId, String editedName);
+
+    void sendKickedFromChannel(Long channelId);
+
+    void sendChangedChannelPolicy(Long channelId, ChannelPolicy channelPolicy);
+
+    void sendError(Long channelId, String reason);
 }
