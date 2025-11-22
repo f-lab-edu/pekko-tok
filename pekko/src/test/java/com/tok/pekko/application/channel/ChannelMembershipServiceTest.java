@@ -94,7 +94,7 @@ class ChannelMembershipServiceTest {
         // when & then
         assertThatThrownBy(() -> service.inviteMember(2L, 30L, 40L))
                 .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("멤버를 초대할 권한이 없습니다.");
+                .hasMessage("멤버 초대 권한이 없습니다.");
     }
 
     @Test

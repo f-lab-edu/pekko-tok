@@ -54,7 +54,7 @@ public class ChannelService {
         Channel channel = channelStoragePort.findChannel(channelId, changerId)
                                             .orElseThrow(ChannelNotFoundException::new);
         UserId changer = UserId.create(changerId);
-        Channel updatedChannel = channel.changeName(changer, changedName);
+        Channel updatedChannel = channel.editName(changer, changedName);
 
         channelStoragePort.update(updatedChannel);
     }

@@ -148,6 +148,32 @@ public class ChannelMembership {
         );
     }
 
+    public ChannelMembership addPermission(ChannelPermissionType permission) {
+        validateRole(this.role);
+
+        return new ChannelMembership(
+                this.id,
+                this.channelId,
+                this.userId,
+                this.role,
+                this.permissions.add(permission),
+                this.joinedAt
+        );
+    }
+
+    public ChannelMembership removePermission(ChannelPermissionType permission) {
+        validateRole(this.role);
+
+        return new ChannelMembership(
+                this.id,
+                this.channelId,
+                this.userId,
+                this.role,
+                this.permissions.remove(permission),
+                this.joinedAt
+        );
+    }
+
     public boolean hasPermission(ChannelPermissionType permission) {
         if (this.role.isOwner()) {
             return true;
@@ -201,6 +227,18 @@ public class ChannelMembership {
         return false;
     }
 
+    public boolean canDeleteMessage() {
+        if (this.role.isOwner()) {
+            return true;
+        }
+
+        return this.role.isManager() && permissions.has(ChannelPermissionType.MESSAGE_DELETE);
+    }
+
+    public boolean cannotDeleteMessage() {
+        return !this.canDeleteMessage();
+    }
+
     public boolean canEditMessage(ChannelPolicy policy) {
         if (this.role.isOwner()) {
             return true;
@@ -213,6 +251,18 @@ public class ChannelMembership {
         }
 
         return false;
+    }
+
+    public boolean canEditMessage() {
+        if (this.role.isOwner()) {
+            return true;
+        }
+
+        return this.role.isManager() && permissions.has(ChannelPermissionType.MESSAGE_EDIT);
+    }
+
+    public boolean cannotEditMessage() {
+        return !canEditMessage();
     }
 
     public boolean canInviteMember() {
@@ -263,8 +313,16 @@ public class ChannelMembership {
         return this.role.isManager();
     }
 
+    public boolean isNotManager() {
+        return !this.isManager();
+    }
+
     public boolean isMember() {
         return this.role.isMember();
+    }
+
+    public boolean isNotMember() {
+        return !this.isMember();
     }
 
     public boolean isOwner() {
