@@ -1,13 +1,22 @@
 package com.tok.pekko.domain.chat.actor;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.channel.model.ChannelRole;
+import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyFailure;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
@@ -17,6 +26,15 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMe
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelMembership;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditChannelName;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
+import java.util.EnumSet;
+import java.util.Set;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -456,6 +474,354 @@ class ChannelReaderActorTest {
 
         DeliverNewMessage delivered = clientSessionProbe.expectMessageClass(DeliverNewMessage.class);
         assertThat(delivered.message()).isEqualTo(pendingMessage);
+    }
+
+    @Test
+    void NotifyChangeChannelPolicy_메시지를_받으면_모든_ClientSessionActor에게_채널_정책_변경을_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
+        ChannelPolicy channelPolicy = ChannelPolicy.defaultPolicy()
+                                                   .updatePublic(false)
+                                                   .updateEditOwnMessage(true)
+                                                   .updateDeleteOwnMessage(false);
+
+        // when
+        readerActor.tell(new ChannelReaderActor.NotifyChangeChannelPolicy(channelPolicy));
+
+        // then
+        PropagateChangeChannelPolicy propagatedMessage1 = clientSessionProbe1.expectMessageClass(
+                PropagateChangeChannelPolicy.class,
+                Duration.ofSeconds(3)
+        );
+        PropagateChangeChannelPolicy propagatedMessage2 = clientSessionProbe2.expectMessageClass(
+                PropagateChangeChannelPolicy.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(propagatedMessage1.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage1.channelPolicy()).isEqualTo(channelPolicy),
+                () -> assertThat(propagatedMessage2.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage2.channelPolicy()).isEqualTo(channelPolicy)
+        );
+    }
+
+    @Test
+    void NotifyMemberLeft_메시지를_받으면_해당_ClientSessionActor에게_채널_탈퇴를_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        // when
+        readerActor.tell(new ChannelReaderActor.NotifyMemberLeft(userId));
+
+        // then
+        SyncLeaveChannel syncLeaveChannel = clientSessionProbe.expectMessageClass(
+                SyncLeaveChannel.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(syncLeaveChannel.channelId()).isEqualTo(1L);
+    }
+
+    @Test
+    void NotifyKickedMember_메시지를_받으면_해당_ClientSessionActor에게_강퇴_알림을_전송하고_clientSessions에서_제거한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        completeInitialSync(readerActor);
+
+        // when
+        readerActor.tell(new ChannelReaderActor.NotifyKickedMember(userId));
+
+        // then
+        PropagateKickedMember propagateKickedMember = clientSessionProbe.expectMessageClass(
+                PropagateKickedMember.class,
+                Duration.ofSeconds(3)
+        );
+        assertThat(propagateKickedMember.channelId()).isEqualTo(1L);
+
+        LocalDateTime timestamp = LocalDateTime.now();
+        ChatMessage newMessage = ChatMessage.create(1L, 1001L, 1L, "Test", timestamp, timestamp);
+        readerActor.tell(new SyncNewMessage(newMessage));
+
+        clientSessionProbe.expectNoMessage(Duration.ofMillis(100));
+    }
+
+    @Test
+    void NotifyFailure_메시지를_받으면_해당_ClientSessionActor에게_에러를_전송한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        String errorReason = "권한이 없습니다";
+
+        // when
+        readerActor.tell(new NotifyFailure(userId, errorReason));
+
+        // then
+        PropagateFailure propagateFailure = clientSessionProbe.expectMessageClass(
+                PropagateFailure.class,
+                Duration.ofSeconds(3)
+        );
+        assertAll(
+                () -> assertThat(propagateFailure.channelId()).isEqualTo(1L),
+                () -> assertThat(propagateFailure.reason()).isEqualTo(errorReason)
+        );
+    }
+
+    @Test
+    void NotifyEditChannelName_메시지를_받으면_모든_ClientSessionActor에게_채널_이름_변경을_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
+        String editedName = "새로운 채널명";
+
+        // when
+        readerActor.tell(new ChannelReaderActor.NotifyEditChannelName(editedName));
+
+        // then
+        PropagateEditChannelName propagatedMessage1 = clientSessionProbe1.expectMessageClass(
+                PropagateEditChannelName.class,
+                Duration.ofSeconds(3)
+        );
+        PropagateEditChannelName propagatedMessage2 = clientSessionProbe2.expectMessageClass(
+                PropagateEditChannelName.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(propagatedMessage1.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage1.editedName()).isEqualTo(editedName),
+                () -> assertThat(propagatedMessage2.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage2.editedName()).isEqualTo(editedName)
+        );
+    }
+
+    @Test
+    void NotifyChangeChannelMembership_메시지를_받으면_해당_ClientSessionActor에게_멤버십_변경을_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        ChannelMembership membership = createManagerMembership(1L, 1L, userId);
+        int membershipCount = 5;
+
+        // when
+        readerActor.tell(new ChannelReaderActor.NotifyChangeChannelMembership(userId, membership, membershipCount));
+
+        // then
+        PropagateChangeChannelMembership propagatedMessage = clientSessionProbe.expectMessageClass(
+                PropagateChangeChannelMembership.class,
+                Duration.ofSeconds(3)
+        );
+        assertAll(
+                () -> assertThat(propagatedMessage.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage.channelMembership()).isEqualTo(membership),
+                () -> assertThat(propagatedMessage.membershipCount()).isEqualTo(membershipCount)
+        );
+    }
+
+    @Test
+    void NotifyMembershipCountChanged_메시지를_받으면_모든_ClientSessionActor에게_멤버십_카운트_변경을_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe1 = testKit.createTestProbe(ClientSessionCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe2 = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
+        readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
+
+        int membershipCount = 10;
+
+        // when
+        readerActor.tell(new NotifyMembershipCountChanged(membershipCount));
+
+        // then
+        PropagateMembershipCount propagatedMessage1 = clientSessionProbe1.expectMessageClass(
+                PropagateMembershipCount.class,
+                Duration.ofSeconds(3)
+        );
+        PropagateMembershipCount propagatedMessage2 = clientSessionProbe2.expectMessageClass(
+                PropagateMembershipCount.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(propagatedMessage1.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage1.membershipCount()).isEqualTo(membershipCount),
+                () -> assertThat(propagatedMessage2.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage2.membershipCount()).isEqualTo(membershipCount)
+        );
+    }
+
+    @Test
+    void SyncMembership_메시지를_받으면_해당_ClientSessionActor에게_멤버십_정보를_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        Long userId = 100L;
+        readerActor.tell(new RegisterClientSession(userId, clientSessionProbe.ref()));
+
+        ChannelMembership membership = createManagerMembership(1L, 1L, userId);
+        int membershipCount = 7;
+
+        // when
+        readerActor.tell(new SyncMembership(userId, membership, membershipCount));
+
+        // then
+        PropagateChangeChannelMembership propagatedMessage = clientSessionProbe.expectMessageClass(
+                PropagateChangeChannelMembership.class,
+                Duration.ofSeconds(3)
+        );
+        assertAll(
+                () -> assertThat(propagatedMessage.channelId()).isEqualTo(1L),
+                () -> assertThat(propagatedMessage.channelMembership()).isEqualTo(membership),
+                () -> assertThat(propagatedMessage.membershipCount()).isEqualTo(membershipCount)
+        );
+    }
+
+    @Test
+    void SyncChannelMetadata_메시지를_받으면_모든_ClientSessionActor에게_채널_메타데이터를_전파한다() {
+        // given
+        ChatMessages mockMessages = mock(ChatMessages.class);
+        @SuppressWarnings("unchecked")
+        EntityRef<ChannelEntityCommand> channelEntity = mock(EntityRef.class);
+        TestProbe<ChannelReaderRegistryCommand> registryProbe = testKit.createTestProbe(ChannelReaderRegistryCommand.class);
+        TestProbe<ClientSessionCommand> clientSessionProbe = testKit.createTestProbe(ClientSessionCommand.class);
+
+        ActorRef<ChannelReaderCommand> readerActor = testKit.spawn(
+                ChannelReaderActor.create(1L, mockMessages, channelEntity, registryProbe.ref())
+        );
+
+        readerActor.tell(new RegisterClientSession(100L, clientSessionProbe.ref()));
+
+        String channelName = "테스트 채널";
+        ChannelPolicy channelPolicy = ChannelPolicy.defaultPolicy();
+        int membershipCount = 15;
+
+        // when
+        readerActor.tell(new SyncChannelMetadata(1L, channelName, channelPolicy, membershipCount));
+
+        // then
+        PropagateEditChannelName propagateEditChannelName = clientSessionProbe.expectMessageClass(
+                PropagateEditChannelName.class,
+                Duration.ofSeconds(3)
+        );
+        PropagateChangeChannelPolicy propagateChangeChannelPolicy = clientSessionProbe.expectMessageClass(
+                PropagateChangeChannelPolicy.class,
+                Duration.ofSeconds(3)
+        );
+        PropagateMembershipCount propagateMembershipCount = clientSessionProbe.expectMessageClass(
+                PropagateMembershipCount.class,
+                Duration.ofSeconds(3)
+        );
+
+        assertAll(
+                () -> assertThat(propagateEditChannelName.channelId()).isEqualTo(1L),
+                () -> assertThat(propagateEditChannelName.editedName()).isEqualTo(channelName),
+                () -> assertThat(propagateChangeChannelPolicy.channelId()).isEqualTo(1L),
+                () -> assertThat(propagateChangeChannelPolicy.channelPolicy()).isEqualTo(channelPolicy),
+                () -> assertThat(propagateMembershipCount.channelId()).isEqualTo(1L),
+                () -> assertThat(propagateMembershipCount.membershipCount()).isEqualTo(membershipCount)
+        );
+    }
+
+    private ChannelMembership createManagerMembership(Long membershipId, Long channelId, Long userId) {
+        Set<ChannelPermissionType> permissions = EnumSet.of(
+                ChannelPermissionType.MESSAGE_EDIT,
+                ChannelPermissionType.MEMBER_KICK
+        );
+        ChannelManagePermissions managePermissions = ChannelManagePermissions.ofManager(permissions);
+
+        return ChannelMembership.create(
+                membershipId,
+                channelId,
+                userId,
+                ChannelRole.MANAGER,
+                managePermissions,
+                LocalDateTime.now()
+        );
     }
 
     private void completeInitialSync(ActorRef<ChannelReaderCommand> readerActor) {

@@ -1,24 +1,37 @@
 package com.tok.pekko.domain.chat.actor;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyFailure;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RegisterClientSession;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.SpawnedChannelReaderActor;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelMembership;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditChannelName;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -103,6 +116,15 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
                                   .onMessage(RegisterClientSession.class, this::onRegisterClientSession)
                                   .onMessage(UnregisterClientSession.class, this::onUnregisterClientSession)
                                   .onMessage(RequestInitialHistory.class, this::onRequestInitialHistory)
+                                  .onMessage(NotifyChangeChannelPolicy.class, this::onNotifyChangeChannelPolicy)
+                                  .onMessage(NotifyMemberLeft.class, this::onNotifyMemberLeft)
+                                  .onMessage(NotifyKickedMember.class, this::onNotifyKickedMember)
+                                  .onMessage(NotifyFailure.class, this::onNotifyFailure)
+                                  .onMessage(NotifyEditChannelName.class, this::onNotifyEditChannelName)
+                                  .onMessage(NotifyChangeChannelMembership.class, this::onNotifyChangeChannelMembership)
+                                  .onMessage(NotifyMembershipCountChanged.class, this::onNotifyMembershipCountChanged)
+                                  .onMessage(SyncMembership.class, this::onSyncMembership)
+                                  .onMessage(SyncChannelMetadata.class, this::onSyncChannelMetadata)
                                   .onSignal(Terminated.class, this::onTerminated)
                                   .onSignal(PostStop.class, this::onPostStop)
                                   .build();
@@ -212,6 +234,88 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         return this;
     }
 
+    private Behavior<ChannelReaderCommand> onNotifyChangeChannelPolicy(NotifyChangeChannelPolicy command) {
+        clientSessions.values()
+                      .forEach(
+                              clientSession ->
+                                      clientSession.tell(
+                                              new PropagateChangeChannelPolicy(channelId, command.channelPolicy())
+                                      )
+                      );
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyMemberLeft(NotifyMemberLeft command) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.memberId());
+
+        if (clientSession != null) {
+            clientSession.tell(new ClientSessionProtocol.SyncLeaveChannel(channelId));
+        }
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyKickedMember(NotifyKickedMember command) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.remove(command.memberId());
+
+        if (clientSession != null) {
+            clientSession.tell(new PropagateKickedMember(channelId));
+        }
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyFailure(NotifyFailure command) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.userId());
+        if (clientSession != null) {
+            clientSession.tell(new PropagateFailure(channelId, command.reason()));
+        }
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyEditChannelName(NotifyEditChannelName command) {
+        clientSessions.values()
+                      .forEach(clientSession -> clientSession.tell(new PropagateEditChannelName(channelId, command.editedName())));
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyChangeChannelMembership(NotifyChangeChannelMembership command) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.memberId());
+
+        if (clientSession != null) {
+            clientSession.tell(new PropagateChangeChannelMembership(channelId, command.channelMembership(), command.membershipCount()));
+        }
+
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onNotifyMembershipCountChanged(NotifyMembershipCountChanged command) {
+        clientSessions.values()
+                      .forEach(session -> session.tell(new PropagateMembershipCount(channelId, command.membershipCount())));
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onSyncMembership(SyncMembership command) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.userId());
+        if (clientSession != null) {
+            clientSession.tell(new PropagateChangeChannelMembership(channelId, command.membership(), command.membershipCount()));
+        }
+        return this;
+    }
+
+    private Behavior<ChannelReaderCommand> onSyncChannelMetadata(SyncChannelMetadata command) {
+        clientSessions.values()
+                      .forEach(session -> {
+                          session.tell(new PropagateEditChannelName(command.channelId(), command.name()));
+                          session.tell(new PropagateChangeChannelPolicy(command.channelId(), command.channelPolicy()));
+                          session.tell(new PropagateMembershipCount(command.channelId(), command.membershipCount()));
+                      });
+        return this;
+    }
+
+
     private void applySyncNewMessage(SyncNewMessage command) {
         messages.add(command.message());
         clientSessions.values()
@@ -263,4 +367,19 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     // ChannelEntity가 동기화한 채팅 히스토리를 전달받는 메시지 : ChannelEntity -> ChannelReaderActor
     record DeliverSyncMessages(List<ChatMessage> messages) implements ChannelReaderCommand { }
+
+    // ClientSessonActor에게 채널 정책 변경을 알리기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyChangeChannelPolicy(ChannelPolicy channelPolicy) implements ChannelReaderCommand { }
+
+    // ClientSessionActor에게 채널 이름 변경을 알리기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyEditChannelName(String editedName) implements ChannelReaderCommand { }
+
+    // ClientSessionActor에게 채널에서 강퇴되었음을 알리기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyKickedMember(Long memberId) implements ChannelReaderCommand { }
+
+    // ClientSessionActor에게 채널 참여자의 정보가 변경되었음을 전파받기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyChangeChannelMembership(Long memberId, ChannelMembership channelMembership, int membershipCount) implements ChannelReaderCommand { }
+
+    // ClientSessionActor에게 채널 탈퇴를 알리기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyMemberLeft(Long memberId) implements ChannelReaderCommand { }
 }
