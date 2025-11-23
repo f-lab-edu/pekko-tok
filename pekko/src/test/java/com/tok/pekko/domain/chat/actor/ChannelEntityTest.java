@@ -72,7 +72,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -95,7 +96,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -156,7 +158,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -185,7 +188,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         Long userId = 100L;
@@ -209,7 +213,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         Long userId = 100L;
@@ -242,7 +247,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 10, 0, 0);
@@ -278,7 +284,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -336,7 +343,8 @@ class ChannelEntityTest {
                 Clock.systemDefaultZone(),
                 channelId,
                 messages,
-                messageStoragePort
+                messageStoragePort,
+                mock(ActorRef.class)
         ));
 
         verify(messageStoragePort, timeout(1000)).findRecentMessages(eq(channelId), eq(50), any());
@@ -355,7 +363,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -391,7 +400,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         Long messageId = 1L;
@@ -414,7 +424,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -454,7 +465,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -498,7 +510,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         Long messageId = 1L;
@@ -522,7 +535,8 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        mock(ActorRef.class)
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();

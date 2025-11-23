@@ -37,6 +37,9 @@ public interface ClientSessionProtocol {
     // 외부에서 클라이언트가 기존 채널에서 탈퇴했음을 전파하는 메시지 : ClientSessionActorManagementService -> ClientSessionActor
     record SyncLeaveChannel(Long channelId) implements ClientSessionCommand { }
 
+    // 외부에서 클라이언트가 새로운 채널에 참여했음을 전파하는 메시지 : ClientSessionActorManagementService -> ClientSessionActor
+    record SyncInvitedChannel(Long channelId) implements ClientSessionCommand { }
+
     // ClientSessionActor 종료를 위한 메시지 : 외부 -> Shutdown
     record Shutdown() implements ClientSessionCommand { }
 

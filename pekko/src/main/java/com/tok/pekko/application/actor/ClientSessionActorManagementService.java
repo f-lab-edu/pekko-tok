@@ -3,6 +3,7 @@ package com.tok.pekko.application.actor;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncInvitedChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -19,6 +20,8 @@ import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.actor.typed.javadsl.AskPattern;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @RequiredArgsConstructor
@@ -75,6 +78,20 @@ public class ClientSessionActorManagementService {
 
         if (clientSession != null) {
             clientSession.tell(new SyncLeaveChannel(channelId));
+        }
+    }
+
+    public void syncInvitedChannel(Long channelId, Long inviteeId) {
+        Mono.fromRunnable(() -> asyncInvitedChannel(channelId, inviteeId))
+            .subscribeOn(Schedulers.boundedElastic())
+            .subscribe();
+    }
+
+    private void asyncInvitedChannel(Long channelId, Long userId) {
+        ActorRef<ClientSessionCommand> clientSession = clientSessions.get(userId);
+
+        if (clientSession != null) {
+            clientSession.tell(new SyncInvitedChannel(channelId));
         }
     }
 

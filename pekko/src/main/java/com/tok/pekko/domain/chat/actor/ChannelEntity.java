@@ -17,6 +17,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
+import com.tok.pekko.domain.chat.port.out.InviteUserEventProtocol.InviteUserEventCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
+import org.apache.pekko.actor.typed.pubsub.Topic.Command;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityTypeKey;
 
 public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
@@ -41,7 +43,8 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
             Clock clock,
             Long channelId,
             ChatMessages messages,
-            MessageStoragePort messageStoragePort
+            MessageStoragePort messageStoragePort,
+            ActorRef<Command<InviteUserEventCommand>> inviteUserTopic
     ) {
         return Behaviors.setup(
                 context -> {
@@ -52,7 +55,8 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
                             clock,
                             channelId,
                             messages,
-                            messageStoragePort
+                            messageStoragePort,
+                            inviteUserTopic
                     );
                 }
         );
@@ -64,13 +68,15 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     private final MessageStoragePort messageStoragePort;
     private final SnowflakeSequenceGenerator sequenceGenerator;
     private final Map<String, ActorRef<ChannelReaderCommand>> readers;
+    private final ActorRef<Command<InviteUserEventCommand>> inviteUserTopic;
 
     private ChannelEntity(
             ActorContext<ChannelEntityCommand> context,
             Clock clock,
             Long channelId,
             ChatMessages messages,
-            MessageStoragePort messageStoragePort
+            MessageStoragePort messageStoragePort,
+            ActorRef<Command<InviteUserEventCommand>> inviteUserTopic
     ) {
         super(context);
 
@@ -78,6 +84,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         this.channelId = channelId;
         this.messages = messages;
         this.messageStoragePort = messageStoragePort;
+        this.inviteUserTopic = inviteUserTopic;
         this.sequenceGenerator = new SnowflakeSequenceGenerator(channelId);
         this.readers = new HashMap<>();
     }
@@ -198,5 +205,4 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
     // 이벤트 처리가 완료되었음을 전파받는 메시지 : ChannelEventHandlerEntity -> ChannelEntity
     record DomainEventProcessed(Long eventId) implements ChannelEntityCommand { }
-
 }

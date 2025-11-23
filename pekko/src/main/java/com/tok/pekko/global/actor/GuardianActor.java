@@ -3,12 +3,21 @@ package com.tok.pekko.global.actor;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor;
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor;
+import com.tok.pekko.adapter.out.websocket.InviteUserEventListenerActor;
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity;
+import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.InviteUserEventProtocol.InviteUserEventCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
 import com.tok.pekko.global.common.CborSerializable;
+import java.time.Clock;
 import java.time.Duration;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.Behavior;
@@ -17,17 +26,42 @@ import org.apache.pekko.actor.typed.javadsl.AbstractBehavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
 import org.apache.pekko.actor.typed.javadsl.Receive;
+import org.apache.pekko.actor.typed.pubsub.Topic;
+import org.apache.pekko.actor.typed.pubsub.Topic.Command;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
 
 public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
-    public static Behavior<GuardianCommand> create() {
-        return Behaviors.setup(GuardianActor::new);
+    public static Behavior<GuardianCommand> create(
+            Clock clock,
+            MessageStoragePort messageStoragePort,
+            ChannelActorStoragePort channelActorStoragePort,
+            ChannelMembershipActorStoragePort channelMembershipActorStoragePort,
+            ClientSessionActorManagementService clientSessionActorManagementService
+    ) {
+        return Behaviors.setup(
+                context -> new GuardianActor(
+                        context,
+                        clock,
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        channelMembershipActorStoragePort,
+                        clientSessionActorManagementService
+                )
+        );
     }
 
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
 
-    private GuardianActor(ActorContext<GuardianCommand> context) {
+    private GuardianActor(
+            ActorContext<GuardianCommand> context,
+            Clock clock,
+            MessageStoragePort messageStoragePort,
+            ChannelActorStoragePort channelActorStoragePort,
+            ChannelMembershipActorStoragePort channelMembershipActorStoragePort,
+            ClientSessionActorManagementService clientSessionActorManagementService
+    ) {
         super(context);
 
         ClusterSharding clusterSharding = ClusterSharding.get(context.getSystem());
@@ -35,6 +69,41 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
         this.readerRegistry = context.spawn(
                 ChannelReaderRegistryActor.create(clusterSharding, Duration.ofSeconds(240L)),
                 "channel-reader-registry-actor"
+        );
+
+        ActorRef<Command<InviteUserEventCommand>> inviteUserTopic = context.spawn(
+                Topic.create(InviteUserEventCommand.class, "user-channel-events"),
+                "user-channel-topic"
+        );
+
+        clusterSharding.init(
+                Entity.of(
+                        ChannelEventHandlerEntity.ENTITY_TYPE_KEY,
+                        entityContext -> ChannelEventHandlerEntity.create(
+                                clusterSharding,
+                                Long.valueOf(entityContext.getEntityId()),
+                                messageStoragePort,
+                                channelActorStoragePort,
+                                channelMembershipActorStoragePort
+                        )
+                )
+        );
+        clusterSharding.init(
+                Entity.of(
+                        ChannelEntity.ENTITY_TYPE_KEY,
+                        entityContext -> ChannelEntity.create(
+                                clock,
+                                Long.valueOf(entityContext.getEntityId()),
+                                new ChatMessages(),
+                                messageStoragePort,
+                                inviteUserTopic
+                        )
+                )
+        );
+
+        context.spawn(
+                InviteUserEventListenerActor.create(inviteUserTopic, clientSessionActorManagementService),
+                "invite-user-event-listener-actor"
         );
     }
 

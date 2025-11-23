@@ -1,8 +1,6 @@
 package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.domain.chat.actor.ChannelEntity;
-import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity;
-import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -18,7 +16,6 @@ import org.apache.pekko.actor.Address;
 import org.apache.pekko.actor.AddressFromURIString;
 import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
-import org.apache.pekko.cluster.sharding.typed.javadsl.Entity;
 import org.apache.pekko.cluster.typed.Cluster;
 import org.apache.pekko.cluster.typed.JoinSeedNodes;
 import org.springframework.context.annotation.Bean;
@@ -35,36 +32,11 @@ public class ClusterConfig {
     private final MessageStoragePort messageStoragePort;
     private final ChannelActorStoragePort channelActorStoragePort;
     private final ChannelMembershipActorStoragePort channelMembershipActorStoragePort;
+    private final ClientSessionActorManagementService clientSessionActorManagementService;
     private final Environment environment;
 
     @Bean
-    public ClusterSharding clusterSharding(MessageStoragePort messageStoragePort) {
-        ClusterSharding clusterSharding = ClusterSharding.get(actorSystem());
-
-        clusterSharding.init(
-                Entity.of(
-                        ChannelEventHandlerEntity.ENTITY_TYPE_KEY,
-                        entityContext -> ChannelEventHandlerEntity.create(
-                                clusterSharding,
-                                Long.valueOf(entityContext.getEntityId()),
-                                messageStoragePort,
-                                channelActorStoragePort,
-                                channelMembershipActorStoragePort
-                        )
-                )
-        );
-        clusterSharding.init(
-                Entity.of(
-                        ChannelEntity.ENTITY_TYPE_KEY,
-                        entityContext -> ChannelEntity.create(
-                                clock,
-                                Long.valueOf(entityContext.getEntityId()),
-                                new ChatMessages(),
-                                messageStoragePort
-                        )
-                )
-        );
-
+    public ClusterSharding clusterSharding() {
         return ClusterSharding.get(actorSystem());
     }
 
@@ -72,7 +44,13 @@ public class ClusterConfig {
     public ActorSystem<GuardianCommand> actorSystem() {
         Config config = buildConfig();
         ActorSystem<GuardianCommand> system = ActorSystem.create(
-                GuardianActor.create(),
+                GuardianActor.create(
+                        clock,
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        channelMembershipActorStoragePort,
+                        clientSessionActorManagementService
+                ),
                 "ChatCluster",
                 config
         );

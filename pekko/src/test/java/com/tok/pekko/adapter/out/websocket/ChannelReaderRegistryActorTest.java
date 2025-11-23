@@ -45,15 +45,13 @@ class ChannelReaderRegistryActorTest {
 
     private static ActorTestKit testKit;
     private static ClusterSharding clusterSharding;
-    private static MessageStoragePort mockMessageStoragePort;
 
     @BeforeAll
     static void setup() {
         testKit = ActorTestKit.create(ConfigFactory.load());
 
-        mockMessageStoragePort = mock(MessageStoragePort.class);
-
         clusterSharding = ClusterSharding.get(testKit.system());
+
         clusterSharding.init(
                 Entity.of(
                         ChannelEntity.ENTITY_TYPE_KEY,
@@ -61,7 +59,8 @@ class ChannelReaderRegistryActorTest {
                                 Clock.systemDefaultZone(),
                                 Long.parseLong(entityContext.getEntityId()),
                                 new ChatMessages(),
-                                mockMessageStoragePort
+                                mock(MessageStoragePort.class),
+                                mock(ActorRef.class)
                         )
                 )
         );
