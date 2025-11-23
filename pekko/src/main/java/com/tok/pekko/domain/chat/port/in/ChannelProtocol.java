@@ -1,6 +1,7 @@
 package com.tok.pekko.domain.chat.port.in;
 
 import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
@@ -44,6 +45,9 @@ public interface ChannelProtocol {
 
     // 영속화된 채널과 모든 채널 참여자를 동기화하기 위한 메시지 : 외부 -> ChannelEntity
     record SyncChannel(Channel channel) implements ChannelEntityCommand { }
+
+    // 영속화된 채널 참여자를 동기화하기 위한 메시지 : ChannelEventHandlerEntity -> ChannelEntity
+    record SyncStoredMembership(ChannelMembership channelMembership) implements ChannelEntityCommand { }
 
     // ChannelEntity를 외부에서 종료시키기 위한 메시지 : 외부 -> ChannelEntity
     record Shutdown() implements ChannelEntityCommand { }

@@ -6,6 +6,8 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.ChannelEventHandlerCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.EventSucceeded;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -38,10 +40,26 @@ public class MessageStorageAdapter implements MessageStoragePort {
     }
 
     @Override
+    public void update(Long eventId, ChatMessage updatedMessage, ActorRef<ChannelEventHandlerCommand> replyTo) {
+        Mono.fromRunnable(() -> messageRepository.update(updatedMessage.messageId(), updatedMessage.message()))
+            .subscribeOn(Schedulers.boundedElastic())
+            .doOnSuccess(ignored -> replyTo.tell(new EventSucceeded(eventId)))
+            .subscribe();
+    }
+
+    @Override
     public void delete(Long messageId, ActorRef<ChannelEntityCommand> replyTo) {
         Mono.fromRunnable(() -> messageRepository.delete(messageId))
             .subscribeOn(Schedulers.boundedElastic())
             .doOnSuccess(ignored -> replyTo.tell(new SyncDeletedMessage(messageId)))
+            .subscribe();
+    }
+
+    @Override
+    public void delete(Long eventId, Long messageId, ActorRef<ChannelEventHandlerCommand> replyTo) {
+        Mono.fromRunnable(() -> messageRepository.delete(messageId))
+            .subscribeOn(Schedulers.boundedElastic())
+            .doOnSuccess(ignored -> replyTo.tell(new EventSucceeded(eventId)))
             .subscribe();
     }
 

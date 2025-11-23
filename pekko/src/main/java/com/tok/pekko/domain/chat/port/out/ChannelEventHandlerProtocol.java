@@ -15,4 +15,7 @@ public interface ChannelEventHandlerProtocol {
 
     // 도메인 이벤트 처리가 실패되었음을 전파받기 위한 메시지 : 외부 -> ChannelEventHandlerEntity
     record EventFailed(Long eventId, Throwable throwable) implements ChannelEventHandlerCommand { }
+
+    // ChannelEventHandlerEntity 종료를 위한 메시지 : 외부 -> ChannelEventHandlerEntity
+    record Shutdown() implements ChannelEventHandlerCommand { }
 }
