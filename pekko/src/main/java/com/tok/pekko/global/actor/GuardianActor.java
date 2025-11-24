@@ -95,7 +95,9 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                                 clock,
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChatMessages(),
+                                clusterSharding,
                                 messageStoragePort,
+                                channelActorStoragePort,
                                 inviteUserTopic
                         )
                 )

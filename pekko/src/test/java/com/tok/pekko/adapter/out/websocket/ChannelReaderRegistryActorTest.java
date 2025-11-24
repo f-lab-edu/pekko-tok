@@ -1,5 +1,6 @@
 package com.tok.pekko.adapter.out.websocket;
 
+import com.tok.pekko.adapter.out.persistence.ChannelActorStorageAdapter;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
@@ -59,7 +60,9 @@ class ChannelReaderRegistryActorTest {
                                 Clock.systemDefaultZone(),
                                 Long.parseLong(entityContext.getEntityId()),
                                 new ChatMessages(),
+                                clusterSharding,
                                 mock(MessageStoragePort.class),
+                                mock(ChannelActorStorageAdapter.class),
                                 mock(ActorRef.class)
                         )
                 )
