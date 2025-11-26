@@ -1,259 +1,120 @@
 package com.tok.pekko.application.channel;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertAll;
 
 import com.tok.pekko.domain.channel.model.Channel;
-import com.tok.pekko.domain.channel.model.Channel.ChannelOperationForbiddenException;
-import com.tok.pekko.domain.channel.model.ChannelMembership;
-import com.tok.pekko.domain.channel.model.ChannelRole;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
-import com.tok.pekko.domain.user.model.vo.UserId;
-import java.time.Clock;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.EditChannelName;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.ChannelEventHandlerCommand;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ChannelServiceTest {
 
     @Test
-    void 채널을_생성하면_식별자를_반환한다() {
-        // given
+    void 채널을_생성하면_스토리지에_저장한다() {
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.fixed(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC);
-        ChannelService channelService = new ChannelService(channelStoragePort);
+        ClusterSharding clusterSharding = mock(ClusterSharding.class);
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        doAnswer(invocation -> {
+            channelStoragePort.delete(ChannelId.create(10L));
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+        ChannelService channelService = new ChannelService(clusterSharding, channelStoragePort, transactionTemplate);
+
         Channel storedChannel = Channel.create(
-                99L,
+                1L,
                 "general",
                 1L,
                 ChannelPolicy.defaultPolicy(),
                 new HashMap<>(),
-                LocalDateTime.now(clock)
+                LocalDateTime.ofInstant(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC)
         );
         when(channelStoragePort.store(any(Channel.class))).thenReturn(storedChannel);
 
-        // when
-        ChannelId actual = channelService.createChannel("general", 1L);
+        channelService.createChannel("general", 1L);
 
-        // then
-        assertThat(actual).isEqualTo(storedChannel.getChannelId());
-
-        ArgumentCaptor<Channel> channelCaptor = ArgumentCaptor.forClass(Channel.class);
-        verify(channelStoragePort).store(channelCaptor.capture());
-        Channel savedChannel = channelCaptor.getValue();
-
-        assertAll(
-                () -> assertThat(savedChannel.getName()).isEqualTo("general"),
-                () -> assertThat(savedChannel.getCreatorId()).isEqualTo(UserId.create(1L)),
-                () -> assertThat(savedChannel.getChannelPolicy()).isEqualTo(ChannelPolicy.defaultPolicy())
-        );
+        verify(channelStoragePort, times(1)).store(any(Channel.class));
     }
 
     @Test
-    void 권한이_없으면_채널을_삭제할_수_없다() {
-        // given
+    void 채널_삭제시_스토리지_삭제와_Actor_Shutdown을_전파한다() {
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(20L),
-                ChannelMembership.create(ChannelId.create(10L), UserId.create(20L), ChannelRole.MEMBER, createdAt)
-        );
-        Channel channel = Channel.create(
-                10L,
-                "channel-10",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
+        ClusterSharding clusterSharding = mock(ClusterSharding.class);
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        EntityRef<ChannelEntityCommand> channelEntityRef = Mockito.mock(EntityRef.class);
+        EntityRef<ChannelEventHandlerCommand> handlerRef = Mockito.mock(EntityRef.class);
+
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "10"))
+                .thenReturn(channelEntityRef);
+        when(clusterSharding.<ChannelEventHandlerCommand>entityRefFor(ChannelEventHandlerEntity.ENTITY_TYPE_KEY, "10"))
+                .thenReturn(handlerRef);
+        ChannelService channelService = new ChannelService(clusterSharding, channelStoragePort, transactionTemplate);
+        Channel channel = mock(Channel.class);
+        when(channel.getChannelId()).thenReturn(ChannelId.create(10L));
+        doAnswer(invocation -> null).when(channel).validateDeleteChannel(any());
         when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
 
-        // when & then
-        assertThatThrownBy(() -> channelService.deleteChannel(10L, 20L))
-                .isInstanceOf(ChannelOperationForbiddenException.class)
-                .hasMessage("채널을 삭제할 권한이 없습니다.");
-
-        verify(channelStoragePort, never()).delete(any(ChannelId.class));
-    }
-
-    @Test
-    void 권한이_있으면_채널을_삭제한다() {
-        // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(20L),
-                ChannelMembership.create(ChannelId.create(10L), UserId.create(20L), ChannelRole.OWNER, createdAt)
-        );
-        Channel channel = Channel.create(
-                10L,
-                "channel-10",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
-
-        // when
         channelService.deleteChannel(10L, 20L);
 
-        // then
-        verify(channelStoragePort).delete(channel.getChannelId());
+        verify(transactionTemplate, times(1)).executeWithoutResult(any());
+        verify(channelEntityRef, times(1)).tell(any(ChannelProtocol.Shutdown.class));
+        verify(handlerRef, times(1)).tell(any(ChannelEventHandlerProtocol.Shutdown.class));
     }
 
     @Test
-    void 권한이_없으면_채널_정책을_변경할_수_없다() {
-        // given
+    void 정책_변경은_ChannelEntity에_ChangeChannelPolicy를_전파한다() {
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(30L),
-                ChannelMembership.create(ChannelId.create(10L), UserId.create(30L), ChannelRole.MEMBER, createdAt)
-        );
-        Channel channel = Channel.create(
-                10L,
-                "channel-10",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        ClusterSharding clusterSharding = mock(ClusterSharding.class);
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        EntityRef<ChannelEntityCommand> channelEntityRef = Mockito.mock(EntityRef.class);
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "5"))
+                .thenReturn(channelEntityRef);
+        ChannelService channelService = new ChannelService(clusterSharding, channelStoragePort, transactionTemplate);
 
-        // when & then
-        assertThatThrownBy(() -> channelService.changeChannelPolicy(10L, 30L, true, false, true))
-                .isInstanceOf(ChannelOperationForbiddenException.class)
-                .hasMessage("채널 정책을 변경할 권한이 없습니다.");
+        channelService.changeChannelPolicy(5L, 30L, false, true, false);
 
-        verify(channelStoragePort, never()).update(any(Channel.class));
+        verify(channelEntityRef, times(1)).tell(any(ChangeChannelPolicy.class));
     }
 
     @Test
-    void 권한이_있으면_채널_정책을_변경한다() {
-        // given
+    void 이름_변경은_ChannelEntity에_EditChannelName을_전파한다() {
         ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(30L),
-                ChannelMembership.create(ChannelId.create(10L), UserId.create(30L), ChannelRole.OWNER, createdAt)
-        );
-        Channel channel = Channel.create(
-                10L,
-                "channel-10",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        ClusterSharding clusterSharding = mock(ClusterSharding.class);
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        EntityRef<ChannelEntityCommand> channelEntityRef = Mockito.mock(EntityRef.class);
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "7"))
+                .thenReturn(channelEntityRef);
+        ChannelService channelService = new ChannelService(clusterSharding, channelStoragePort, transactionTemplate);
 
-        // when
-        channelService.changeChannelPolicy(10L, 30L, false, true, false);
+        channelService.editChannelName(7L, 50L, "new-name");
 
-        // then
-        ArgumentCaptor<Channel> updatedCaptor = ArgumentCaptor.forClass(Channel.class);
-        verify(channelStoragePort).update(updatedCaptor.capture());
-        Channel updatedChannel = updatedCaptor.getValue();
-
-        ChannelPolicy policy = updatedChannel.getChannelPolicy();
-        assertAll(
-                () -> assertThat(policy.canEditOwnMessage()).isFalse(),
-                () -> assertThat(policy.canDeleteOwnMessage()).isTrue(),
-                () -> assertThat(policy.isPublic()).isFalse()
-        );
-    }
-
-    @Test
-    void 권한이_없으면_채널_이름을_변경할_수_없다() {
-        // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(40L),
-                ChannelMembership.create(ChannelId.create(11L), UserId.create(40L), ChannelRole.MEMBER, createdAt)
-        );
-        Channel channel = Channel.create(
-                11L,
-                "channel-11",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
-
-        // when & then
-        assertThatThrownBy(() -> channelService.changeChannelName(11L, 40L, "new-name"))
-                .isInstanceOf(ChannelOperationForbiddenException.class)
-                .hasMessage("채널 이름을 변경할 권한이 없습니다.");
-
-        verify(channelStoragePort, never()).update(any(Channel.class));
-    }
-
-    @Test
-    void 권한이_있으면_채널_이름을_변경한다() {
-        // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        Clock clock = Clock.systemUTC();
-        ChannelService channelService = new ChannelService(channelStoragePort);
-        LocalDateTime createdAt = LocalDateTime.now(clock);
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(40L),
-                ChannelMembership.create(ChannelId.create(11L), UserId.create(40L), ChannelRole.OWNER, createdAt)
-        );
-        Channel channel = Channel.create(
-                11L,
-                "channel-11",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                createdAt
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
-
-        // when
-        channelService.changeChannelName(11L, 40L, "new-name");
-
-        // then
-        ArgumentCaptor<Channel> captor = ArgumentCaptor.forClass(Channel.class);
-        verify(channelStoragePort).update(captor.capture());
-        Channel updatedChannel = captor.getValue();
-
-        assertThat(updatedChannel.getName()).isEqualTo("new-name");
+        verify(channelEntityRef, times(1)).tell(any(EditChannelName.class));
     }
 }

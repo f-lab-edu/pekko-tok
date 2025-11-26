@@ -61,7 +61,7 @@ public interface ChannelProtocol {
     record LeaveMember(UserId memberId) implements ChannelEntityCommand { }
 
     // 채널에 사용자를 초대하기 위한 메시지 : 외부 -> ChannelEntity
-    record InviteUser(UserId inviterId, UserId inviteeId, ActorRef<ChannelEntityCommand> replyTo) implements ChannelEntityCommand { }
+    record InviteUser(UserId inviterId, UserId inviteeId) implements ChannelEntityCommand { }
 
     // 역할이 MEMBER인 채널 사용자를 MANAGER로 승격시키기 위한 메시지 : 외부 -> ChannelEntity
     record PromoteToManager(UserId executorId, UserId targetUserId) implements ChannelEntityCommand { }

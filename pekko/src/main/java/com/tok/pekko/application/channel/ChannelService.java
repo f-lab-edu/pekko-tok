@@ -5,19 +5,32 @@ import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.EditChannelName;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.ChannelEventHandlerCommand;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class ChannelService {
 
+    private final ClusterSharding clusterSharding;
     private final ChannelStoragePort channelStoragePort;
+    private final TransactionTemplate transactionTemplate;
 
+    @Transactional
     public ChannelId createChannel(String name, Long creatorId) {
         Channel channel = Channel.create(name, creatorId, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
 
@@ -30,8 +43,18 @@ public class ChannelService {
                                             .orElseThrow(ChannelNotFoundException::new);
         UserId deleter = UserId.create(deleterId);
 
-        channel.validateDeleteChannel(deleter);
-        channelStoragePort.delete(channel.getChannelId());
+        transactionTemplate.executeWithoutResult(
+                status -> {
+                    channel.validateDeleteChannel(deleter);
+                    channelStoragePort.delete(channel.getChannelId());
+                }
+        );
+
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
+        EntityRef<ChannelEventHandlerCommand> channelEventHandler = getChannelEventHandler(channelId);
+
+        channelEntity.tell(new ChannelProtocol.Shutdown());
+        channelEventHandler.tell(new ChannelEventHandlerProtocol.Shutdown());
     }
 
     public void changeChannelPolicy(
@@ -41,21 +64,30 @@ public class ChannelService {
             boolean canDeleteOwnMessage,
             boolean isPublic
     ) {
-        Channel channel = channelStoragePort.findChannel(channelId, changerId)
-                                            .orElseThrow();
-        UserId changer = UserId.create(changerId);
-        ChannelPolicy updatedChannelPolicy = new ChannelPolicy(canEditOwnMessage, canDeleteOwnMessage, isPublic);
-        Channel updatedPolicyChannel = channel.changeChannelPolicy(changer, updatedChannelPolicy);
+        EntityRef<ChannelEntityCommand> channel = getChannelEntity(channelId);
 
-        channelStoragePort.update(updatedPolicyChannel);
+        channel.tell(
+                new ChangeChannelPolicy(UserId.create(changerId), canEditOwnMessage, canDeleteOwnMessage, isPublic)
+        );
     }
 
-    public void changeChannelName(Long channelId, Long changerId, String changedName) {
-        Channel channel = channelStoragePort.findChannel(channelId, changerId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId changer = UserId.create(changerId);
-        Channel updatedChannel = channel.editName(changer, changedName);
+    public void editChannelName(Long channelId, Long changerId, String changedName) {
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelStoragePort.update(updatedChannel);
+        channelEntity.tell(new EditChannelName(UserId.create(changerId), changedName));
+    }
+
+    private EntityRef<ChannelEntityCommand> getChannelEntity(Long channelId) {
+        return clusterSharding.entityRefFor(
+                ChannelEntity.ENTITY_TYPE_KEY,
+                String.valueOf(channelId)
+        );
+    }
+
+    private EntityRef<ChannelEventHandlerCommand> getChannelEventHandler(Long channelId) {
+        return clusterSharding.entityRefFor(
+                ChannelEventHandlerEntity.ENTITY_TYPE_KEY,
+                String.valueOf(channelId)
+        );
     }
 }

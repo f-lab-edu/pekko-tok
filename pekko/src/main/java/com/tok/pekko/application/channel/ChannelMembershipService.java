@@ -1,109 +1,90 @@
 package com.tok.pekko.application.channel;
 
 import com.tok.pekko.application.actor.ClientSessionActorManagementService;
-import com.tok.pekko.application.channel.exception.ChannelNotFoundException;
-import com.tok.pekko.domain.channel.model.Channel;
-import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
-import com.tok.pekko.domain.channel.model.ChannelRole;
-import com.tok.pekko.domain.channel.port.out.ChannelMembershipStoragePort;
-import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.AddPermission;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.DemoteToMember;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.InviteUser;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.JoinUser;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.KickMember;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.LeaveMember;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.PromoteToManager;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemovePermission;
 import com.tok.pekko.domain.user.model.vo.UserId;
-import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class ChannelMembershipService {
 
-    private final Clock clock;
-    private final ChannelStoragePort channelStoragePort;
-    private final ChannelMembershipStoragePort channelMembershipStoragePort;
+    private final ClusterSharding clusterSharding;
     private final ClientSessionActorManagementService clientSessionActorManagementService;
 
     public void joinChannel(Long channelId, Long joinerId) {
-        Channel channel = channelStoragePort.findChannel(channelId, joinerId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId joiner = UserId.create(joinerId);
-        ChannelMembership joinerMembership = channel.joinUser(joiner, ChannelRole.MEMBER, LocalDateTime.now(clock));
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.joinChannel(channel.getChannelId(), joinerMembership);
-        clientSessionActorManagementService.syncJoinChannel(channelId, joinerId);
+        channelEntity.ask(
+                (ActorRef<ChannelEntityCommand> replyTo) -> new JoinUser(
+                        UserId.create(joinerId),
+                        replyTo
+                ),
+                Duration.ofSeconds(3L)
+        ).thenAccept(response -> clientSessionActorManagementService.syncJoinChannel(channelId, joinerId));
     }
 
     public void inviteMember(Long channelId, Long inviterId, Long inviteeId) {
-        Channel channel = channelStoragePort.findChannel(channelId, inviterId, inviteeId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId inviter = UserId.create(inviterId);
-        UserId invitee = UserId.create(inviteeId);
-        ChannelMembership inviteeMembership = channel.inviteMember(inviter, invitee, LocalDateTime.now(clock));
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.joinChannel(channel.getChannelId(), inviteeMembership);
-        clientSessionActorManagementService.syncJoinChannel(channelId, inviteeId);
+         channelEntity.tell(new InviteUser(UserId.create(inviterId), UserId.create(inviteeId)));
     }
 
-    public void leaveChannel(Long channelId, Long userId) {
-        Channel channel = channelStoragePort.findChannel(channelId, userId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId user = UserId.create(userId);
-        ChannelMembership leaveMembership = channel.leaveMember(user);
+    public void leaveChannel(Long channelId, Long memberId) {
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.leaveChannel(leaveMembership);
-        clientSessionActorManagementService.syncLeaveChannel(channelId, userId);
+        channelEntity.tell(new LeaveMember(UserId.create(memberId)));
     }
 
     public void promoteToManager(Long channelId, Long executorId, Long targetUserId) {
-        Channel channel = channelStoragePort.findChannel(channelId, executorId, targetUserId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId executor = UserId.create(executorId);
-        UserId targetUser = UserId.create(targetUserId);
-        ChannelMembership targetUserMembership = channel.promoteToManager(executor, targetUser);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.promoteToManager(targetUserMembership);
+        channelEntity.tell(new PromoteToManager(UserId.create(executorId), UserId.create(targetUserId)));
     }
 
     public void demoteToMember(Long channelId, Long executorId, Long targetUserId) {
-        Channel channel = channelStoragePort.findChannel(channelId, executorId, targetUserId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId executor = UserId.create(executorId);
-        UserId targetUser = UserId.create(targetUserId);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        ChannelMembership targetUserMembership = channel.demoteToMember(executor, targetUser);
-
-        channelMembershipStoragePort.demoteToMember(targetUserMembership);
+        channelEntity.tell(new DemoteToMember(UserId.create(executorId), UserId.create(targetUserId)));
     }
 
     public void addPermission(Long channelId, Long grantorId, Long granteeId, ChannelPermissionType permission) {
-        Channel channel = channelStoragePort.findChannel(channelId, grantorId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId grantor = UserId.create(grantorId);
-        UserId grantee = UserId.create(granteeId);
-        ChannelMembership granteeMembership = channel.addPermission(grantor, grantee, permission);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.addPermission(granteeMembership, permission);
+        channelEntity.tell(new AddPermission(UserId.create(grantorId), UserId.create(granteeId), permission));
     }
 
     public void removePermission(Long channelId, Long grantorId, Long granteeId, ChannelPermissionType permission) {
-        Channel channel = channelStoragePort.findChannel(channelId, grantorId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId grantor = UserId.create(grantorId);
-        UserId grantee = UserId.create(granteeId);
-        ChannelMembership granteeMembership = channel.removePermission(grantor, grantee, permission);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.removePermission(granteeMembership, permission);
+        channelEntity.tell(new RemovePermission(UserId.create(grantorId), UserId.create(granteeId), permission));
     }
 
     public void kickMember(Long channelId, Long executorId, Long targetUserId) {
-        Channel channel = channelStoragePort.findChannel(channelId, executorId, targetUserId)
-                                           .orElseThrow(ChannelNotFoundException::new);
-        UserId executor = UserId.create(executorId);
-        UserId targetUser = UserId.create(targetUserId);
-        ChannelMembership kickedMembership = channel.kickMember(executor, targetUser);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
 
-        channelMembershipStoragePort.kickMember(kickedMembership);
+        channelEntity.tell(new KickMember(UserId.create(executorId), UserId.create(targetUserId)));
+    }
+
+    private EntityRef<ChannelEntityCommand> getChannelEntity(Long channelId) {
+        return clusterSharding.entityRefFor(
+                ChannelEntity.ENTITY_TYPE_KEY,
+                String.valueOf(channelId)
+        );
     }
 }

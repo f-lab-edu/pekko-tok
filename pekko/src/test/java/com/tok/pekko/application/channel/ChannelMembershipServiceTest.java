@@ -1,132 +1,85 @@
 package com.tok.pekko.application.channel;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tok.pekko.application.actor.ClientSessionActorManagementService;
-import com.tok.pekko.domain.channel.model.Channel;
-import com.tok.pekko.domain.channel.model.Channel.ChannelMembershipOperationForbiddenException;
-import com.tok.pekko.domain.channel.model.ChannelMembership;
-import com.tok.pekko.domain.channel.model.ChannelRole;
-import com.tok.pekko.domain.channel.model.vo.ChannelId;
-import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
-import com.tok.pekko.domain.channel.port.out.ChannelMembershipStoragePort;
-import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
-import com.tok.pekko.domain.user.model.vo.UserId;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.AddPermission;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.InviteUser;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.PromoteToManager;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemovePermission;
+import java.time.Duration;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ChannelMembershipServiceTest {
 
     @Test
-    void 멤버가_채널에_참여한다() {
+    void 멤버가_채널에_참여하면_ChannelEntity에_join을_요청하고_syncJoinChannel을_호출한다() {
         // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
-        Clock clock = Clock.fixed(Instant.parse("2024-03-01T12:30:00Z"), ZoneOffset.UTC);
         ClientSessionActorManagementService clientSessionActorManagementService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(
-                clock,
-                channelStoragePort,
-                channelMembershipStoragePort,
-                clientSessionActorManagementService
-        );
-        Channel channel = Channel.create(
-                "general",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                LocalDateTime.now(clock)
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        EntityRef<ChannelEntityCommand> entityRef = mock(EntityRef.class);
+        ClusterSharding clusterSharding = mock(ClusterSharding.class);
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "1"))
+                .thenReturn(entityRef);
+        when(entityRef.ask(any(), any(Duration.class))).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+        ChannelMembershipService service = new ChannelMembershipService(clusterSharding, clientSessionActorManagementService);
 
         // when
         service.joinChannel(1L, 10L);
 
         // then
-        verify(channelMembershipStoragePort, times(1)).joinChannel(eq(channel.getChannelId()), any(ChannelMembership.class));
         verify(clientSessionActorManagementService, times(1)).syncJoinChannel(1L, 10L);
+        verify(entityRef, times(1)).ask(any(), any(Duration.class));
     }
 
     @Test
-    void 초대_권한이_없는_사용자는_멤버를_초대할_수_없다() {
+    void 멤버를_초대하면_ChannelEntity에_초대_메시지를_보낸다() {
         // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
-        Clock clock = Clock.systemUTC();
         ClientSessionActorManagementService clientSessionActorManagementService = mock(ClientSessionActorManagementService.class);
-        ChannelMembershipService service = new ChannelMembershipService(
-                clock,
-                channelStoragePort,
-                channelMembershipStoragePort,
-                clientSessionActorManagementService
-        );
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(30L),
-                ChannelMembership.create(ChannelId.create(2L), UserId.create(30L), ChannelRole.MEMBER, LocalDateTime.now(clock))
-        );
-        Channel channel = Channel.create(
-                2L,
-                "channel-2",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                LocalDateTime.now(clock)
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
-
-        // when & then
-        assertThatThrownBy(() -> service.inviteMember(2L, 30L, 40L))
-                .isInstanceOf(ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("멤버 초대 권한이 없습니다.");
-    }
-
-    @Test
-    void 오너는_멤버를_초대할_수_있다() {
-        // given
-        ChannelStoragePort channelStoragePort = mock(ChannelStoragePort.class);
-        ChannelMembershipStoragePort channelMembershipStoragePort = mock(ChannelMembershipStoragePort.class);
-        ClientSessionActorManagementService clientSessionActorManagementService = mock(ClientSessionActorManagementService.class);
-        Clock clock = Clock.systemUTC();
-        ChannelMembershipService service = new ChannelMembershipService(
-                clock, channelStoragePort, channelMembershipStoragePort, clientSessionActorManagementService);
-
-        Map<UserId, ChannelMembership> memberships = new HashMap<>();
-        memberships.put(
-                UserId.create(30L),
-                ChannelMembership.create(ChannelId.create(2L), UserId.create(30L), ChannelRole.OWNER, LocalDateTime.now(clock))
-        );
-        Channel channel = Channel.create(
-                2L,
-                "channel-2",
-                1L,
-                ChannelPolicy.defaultPolicy(),
-                memberships,
-                LocalDateTime.now(clock)
-        );
-        when(channelStoragePort.findChannel(anyLong(), anyLong(), anyLong())).thenReturn(Optional.of(channel));
+        EntityRef<ChannelEntityCommand> entityRef = Mockito.mock(EntityRef.class);
+        ClusterSharding clusterSharding = Mockito.mock(ClusterSharding.class);
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "2"))
+                .thenReturn(entityRef);
+        ChannelMembershipService service = new ChannelMembershipService(clusterSharding, clientSessionActorManagementService);
 
         // when
         service.inviteMember(2L, 30L, 40L);
 
         // then
-        verify(channelMembershipStoragePort, times(1)).joinChannel(eq(channel.getChannelId()), any(ChannelMembership.class));
-        verify(clientSessionActorManagementService, times(1)).syncJoinChannel(2L, 40L);
+        verify(entityRef, times(1)).tell(any(InviteUser.class));
+    }
+
+    @Test
+    void 승격과_권한_부여_메시지가_ChannelEntity로_전파된다() {
+        // given
+        ClientSessionActorManagementService clientSessionActorManagementService = mock(ClientSessionActorManagementService.class);
+        EntityRef<ChannelEntityCommand> entityRef = Mockito.mock(EntityRef.class);
+        ClusterSharding clusterSharding = Mockito.mock(ClusterSharding.class);
+        when(clusterSharding.<ChannelEntityCommand>entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, "3"))
+                .thenReturn(entityRef);
+        ChannelMembershipService service = new ChannelMembershipService(clusterSharding, clientSessionActorManagementService);
+
+        // when
+        service.promoteToManager(3L, 1L, 2L);
+        service.addPermission(3L, 1L, 2L, ChannelPermissionType.MEMBER_INVITE);
+        service.removePermission(3L, 1L, 2L, ChannelPermissionType.MEMBER_INVITE);
+
+        // then
+        verify(entityRef, times(1)).tell(any(PromoteToManager.class));
+        verify(entityRef, times(1)).tell(any(AddPermission.class));
+        verify(entityRef, times(1)).tell(any(RemovePermission.class));
     }
 }

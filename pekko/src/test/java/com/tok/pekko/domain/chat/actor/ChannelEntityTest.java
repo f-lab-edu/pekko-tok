@@ -843,10 +843,9 @@ class ChannelEntityTest {
 
         UserId inviterId = UserId.create(1L);
         UserId inviteeId = UserId.create(2L);
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe();
 
         // when
-        channelEntity.tell(new InviteUser(inviterId, inviteeId, replyProbe.ref()));
+        channelEntity.tell(new InviteUser(inviterId, inviteeId));
 
         readerProbe.expectMessageClass(NotifyMembershipCountChanged.class);
 
