@@ -2,14 +2,16 @@ package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.ChannelRole;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
+import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,9 +101,11 @@ public class JdbcChannelRepository implements ChannelRepository {
                     cm.id AS membership_id,
                     cm.user_id AS membership_user_id,
                     cm.channel_role,
-                    cm.joined_at AS membership_joined_at
+                    cm.joined_at AS membership_joined_at,
+                    cmp.permission AS manager_permission
                 FROM channels c
                 INNER JOIN channel_memberships cm ON cm.channel_id = c.id
+                LEFT JOIN channel_manager_permissions cmp ON cmp.manager_membership_id = cm.id
                 WHERE c.id = :channelId AND c.is_deleted = false AND cm.user_id IN (:memberIds)
                 """;
 
@@ -128,9 +132,11 @@ public class JdbcChannelRepository implements ChannelRepository {
                     cm.id AS membership_id,
                     cm.user_id AS membership_user_id,
                     cm.channel_role,
-                    cm.joined_at AS membership_joined_at
+                    cm.joined_at AS membership_joined_at,
+                    cmp.permission AS manager_permission
                 FROM channels c
                 LEFT JOIN channel_memberships cm ON c.id = cm.channel_id
+                LEFT JOIN channel_manager_permissions cmp ON cmp.manager_membership_id = cm.id
                 WHERE c.id = :channelId AND c.is_deleted = false
                 """;
 
@@ -193,9 +199,10 @@ public class JdbcChannelRepository implements ChannelRepository {
                     rs.getBoolean("can_delete_own_message"),
                     rs.getBoolean("is_public")
             );
-            LocalDateTime createdAt = toLocalDateTime(rs.getTimestamp("created_at"));
+            LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
             Map<UserId, ChannelMembership> memberships = new HashMap<>();
-            ChannelId chId = ChannelId.create(channelId);
+
+            Map<Long, EnumSet<ChannelPermissionType>> managerPermissions = new HashMap<>();
 
             do {
                 Long membershipId = rs.getLong("membership_id");
@@ -206,18 +213,49 @@ public class JdbcChannelRepository implements ChannelRepository {
                 Long userIdValue = rs.getLong("membership_user_id");
                 UserId userId = UserId.create(userIdValue);
                 ChannelRole role = ChannelRole.find(rs.getString("channel_role"));
-                LocalDateTime joinedAt = toLocalDateTime(rs.getTimestamp("membership_joined_at"));
+                LocalDateTime joinedAt = rs.getTimestamp("membership_joined_at").toLocalDateTime();
 
-                ChannelMembership membership = ChannelMembership.create(chId, userId, role, joinedAt)
-                                                                .withAssignedId(membershipId);
+                String managerPermission = rs.getString("manager_permission");
+                if (managerPermission != null) {
+                    managerPermissions.computeIfAbsent(membershipId, ignored -> EnumSet.noneOf(ChannelPermissionType.class))
+                                .add(ChannelPermissionType.valueOf(managerPermission));
+                }
+
+                ChannelMembership membership = createMembership(
+                        ChannelId.create(channelId),
+                        membershipId,
+                        userId,
+                        role,
+                        joinedAt,
+                        managerPermissions.get(membershipId)
+                );
                 memberships.put(userId, membership);
             } while (rs.next());
 
             return Channel.create(channelId, name, creatorId, channelPolicy, memberships, createdAt);
         }
 
-        private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-            return timestamp != null ? timestamp.toLocalDateTime() : null;
+        private ChannelMembership createMembership(
+                ChannelId channelId,
+                Long membershipId,
+                UserId userId,
+                ChannelRole role,
+                LocalDateTime joinedAt,
+                EnumSet<ChannelPermissionType> permissions
+        ) {
+            if (role.isManager() && permissions != null && !permissions.isEmpty()) {
+                return ChannelMembership.create(
+                        membershipId,
+                        channelId.getValue(),
+                        userId.getValue(),
+                        role,
+                        ChannelManagePermissions.ofManager(permissions),
+                        joinedAt
+                );
+            }
+
+            return ChannelMembership.create(channelId, userId, role, joinedAt)
+                                    .withAssignedId(membershipId);
         }
     }
 }
