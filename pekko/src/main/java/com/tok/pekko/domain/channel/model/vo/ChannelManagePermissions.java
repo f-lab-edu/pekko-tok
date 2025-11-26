@@ -1,7 +1,6 @@
 package com.tok.pekko.domain.channel.model.vo;
 
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
@@ -62,7 +61,11 @@ public class ChannelManagePermissions {
     }
 
     public Set<ChannelPermissionType> getAll() {
-        return Collections.unmodifiableSet(EnumSet.copyOf(permissions));
+        if (permissions.isEmpty()) {
+            return EnumSet.noneOf(ChannelPermissionType.class);
+        }
+
+        return EnumSet.copyOf(permissions);
     }
 
     public int size() {
