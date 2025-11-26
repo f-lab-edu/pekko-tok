@@ -4,7 +4,9 @@ import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyFailure;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
@@ -32,6 +34,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditCha
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -195,6 +198,9 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         clientSessions.put(command.userId(), command.clientSession());
         getContext().watch(command.clientSession());
 
+        channelEntity.tell(new ResolveMembership(UserId.create(command.userId()), getContext().getSelf()));
+        channelEntity.tell(new ResolveChannelMetadata(getContext().getSelf()));
+
         return this;
     }
 
@@ -276,7 +282,14 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     private Behavior<ChannelReaderCommand> onNotifyEditChannelName(NotifyEditChannelName command) {
         clientSessions.values()
-                      .forEach(clientSession -> clientSession.tell(new PropagateEditChannelName(channelId, command.editedName())));
+                      .forEach(
+                              clientSession -> clientSession.tell(
+                                      new PropagateEditChannelName(
+                                              channelId,
+                                              command.editedName()
+                                      )
+                              )
+                      );
 
         return this;
     }
@@ -285,7 +298,13 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
         ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.memberId());
 
         if (clientSession != null) {
-            clientSession.tell(new PropagateChangeChannelMembership(channelId, command.channelMembership(), command.membershipCount()));
+            clientSession.tell(
+                    new PropagateChangeChannelMembership(
+                            channelId,
+                            command.channelMembership(),
+                            command.membershipCount()
+                    )
+            );
         }
 
         return this;
@@ -293,15 +312,30 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     private Behavior<ChannelReaderCommand> onNotifyMembershipCountChanged(NotifyMembershipCountChanged command) {
         clientSessions.values()
-                      .forEach(session -> session.tell(new PropagateMembershipCount(channelId, command.membershipCount())));
+                      .forEach(
+                              session -> session.tell(
+                                      new PropagateMembershipCount(
+                                              channelId,
+                                              command.membershipCount()
+                                      )
+                              )
+                      );
         return this;
     }
 
     private Behavior<ChannelReaderCommand> onSyncMembership(SyncMembership command) {
         ActorRef<ClientSessionCommand> clientSession = clientSessions.get(command.userId());
+
         if (clientSession != null) {
-            clientSession.tell(new PropagateChangeChannelMembership(channelId, command.membership(), command.membershipCount()));
+            clientSession.tell(
+                    new PropagateChangeChannelMembership(
+                            channelId,
+                            command.membership(),
+                            command.membershipCount()
+                    )
+            );
         }
+
         return this;
     }
 
