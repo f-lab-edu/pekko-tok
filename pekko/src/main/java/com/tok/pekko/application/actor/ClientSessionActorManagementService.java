@@ -13,6 +13,7 @@ import com.tok.pekko.global.actor.GuardianActor.SpawnClientSession;
 import com.tok.pekko.global.actor.GuardianActor.SpawnedClientSession;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -74,6 +75,10 @@ public class ClientSessionActorManagementService {
         }
 
         return clientSession;
+    }
+
+    public Optional<ActorRef<ClientSessionCommand>> findClientSessionOptional(Long userId) {
+        return Optional.ofNullable(clientSessions.get(userId));
     }
 
     public void syncJoinChannel(Long channelId, Long userId) {

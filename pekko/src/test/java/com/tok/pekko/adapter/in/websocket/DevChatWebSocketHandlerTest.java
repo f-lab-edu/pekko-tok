@@ -41,7 +41,7 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 정상적으로_웹소켓을_연결하면_필요한_흐름을_정의하고_Actor에게_메시지를_전달한다() throws Exception {
         // given
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
@@ -52,15 +52,14 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.empty());
@@ -81,7 +80,7 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓으로_인한_메시지를_보낼_때_마다_EntityRe의_tell_메서드를_통해_적절한_메시지를_전달한다() throws Exception {
         // given
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
@@ -93,16 +92,15 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
-        String messageContent = "테스트 메시지";
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
+        String messageContent = "{\"channelId\":1,\"message\":\"테스트\"}";
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
@@ -123,16 +121,15 @@ class DevChatWebSocketHandlerTest {
     }
 
     @Test
-    void 웹소켓_연결_시_channelId가_쿼리_파라미터에_없다면_예외가_발생한다() throws Exception {
+    void 웹소켓_연결_시_channelId가_없어도_userId만_있으면_연결된다() throws Exception {
         // given
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
@@ -142,11 +139,11 @@ class DevChatWebSocketHandlerTest {
         URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
+        given(session.receive()).willReturn(Flux.empty());
+        given(session.send(any())).willReturn(Mono.empty());
 
         // when & Then
-        assertThatThrownBy(() -> handler.handle(session))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("channelId");
+        StepVerifier.create(handler.handle(session)).verifyComplete();
     }
 
     @Test
@@ -158,15 +155,14 @@ class DevChatWebSocketHandlerTest {
         WebSocketSession session = mock(WebSocketSession.class);
         HandshakeInfo handshakeInfo = mock(HandshakeInfo.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1");
+        URI uri = new URI("ws://localhost:8080/ws/chat");
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
 
@@ -190,15 +186,14 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
@@ -230,15 +225,14 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
@@ -272,15 +266,14 @@ class DevChatWebSocketHandlerTest {
 
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = CompletableFuture.completedFuture(clientSessionActor);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
@@ -298,7 +291,7 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_세션으로_여러_메시지를_받으면_순차적으로_처리한다() throws Exception {
         // given
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
@@ -311,21 +304,20 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=1&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.just(message1, message2));
-        given(message1.getPayloadAsText()).willReturn("메시지1");
-        given(message2.getPayloadAsText()).willReturn("메시지2");
+        given(message1.getPayloadAsText()).willReturn("{\"channelId\":1,\"message\":\"메시지1\"}");
+        given(message2.getPayloadAsText()).willReturn("{\"channelId\":1,\"message\":\"메시지2\"}");
         given(session.send(any())).willReturn(Mono.empty());
         given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
         given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);
@@ -354,15 +346,14 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=123&userId=456");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=456");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
@@ -381,7 +372,7 @@ class DevChatWebSocketHandlerTest {
     @Test
     void 웹소켓_연결_시_유효한_파라미터가_전달되면_유효한_channelId로_ChatChannelEntity를_조회한다() throws Exception {
         // given
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
         ClientSessionActorManagementService managementService = mock(ClientSessionActorManagementService.class);
         WebSocketSession session = mock(WebSocketSession.class);
@@ -393,20 +384,19 @@ class DevChatWebSocketHandlerTest {
         @SuppressWarnings("unchecked")
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession = mock(CompletionStage.class);
 
-        given(managementService.findClientSession(anyLong()))
-                .willThrow(new ClientSessionActorManagementService.ClientSessionNotFoundException());
+        given(managementService.findClientSessionOptional(anyLong())).willReturn(java.util.Optional.empty());
         DevChatWebSocketHandler handler = new DevChatWebSocketHandler(
                 objectMapper,
                 clusterSharding,
                 managementService
         );
 
-        URI uri = new URI("ws://localhost:8080/ws/chat?channelId=999&userId=100");
+        URI uri = new URI("ws://localhost:8080/ws/chat?userId=100");
 
         given(session.getHandshakeInfo()).willReturn(handshakeInfo);
         given(handshakeInfo.getUri()).willReturn(uri);
         given(session.receive()).willReturn(Flux.just(webSocketMessage));
-        given(webSocketMessage.getPayloadAsText()).willReturn("테스트");
+        given(webSocketMessage.getPayloadAsText()).willReturn("{\"channelId\":999,\"message\":\"테스트\"}");
         given(session.send(any())).willReturn(Mono.empty());
         given(clusterSharding.<ChannelEntityCommand>entityRefFor(any(), anyString())).willReturn(entityRef);
         given(managementService.createClientSessionActor(any(ClientMessageSender.class), eq(100L))).willReturn(clientSession);

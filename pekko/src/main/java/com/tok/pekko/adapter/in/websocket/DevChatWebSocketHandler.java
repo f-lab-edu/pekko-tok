@@ -9,6 +9,7 @@ import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ReSyncSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SessionPongReceived;
 import java.net.URI;
 import java.util.Map;
@@ -93,13 +94,14 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
             WebSocketConnectionContext context,
             WebSocketMessageSender messageSender
     ) {
-        try {
-            ActorRef<ClientSessionCommand> existing = managementService.findClientSession(context.userId());
+        return managementService.findClientSessionOptional(context.userId())
+                                .map(this::reSyncAndWrap)
+                                .orElseGet(() -> managementService.createClientSessionActor(messageSender, context.userId()));
+    }
 
-            return CompletableFuture.completedFuture(existing);
-        } catch (ClientSessionActorManagementService.ClientSessionNotFoundException ignored) {
-            return managementService.createClientSessionActor(messageSender, context.userId());
-        }
+    private CompletionStage<ActorRef<ClientSessionCommand>> reSyncAndWrap(ActorRef<ClientSessionCommand> actorRef) {
+        actorRef.tell(new ReSyncSession());
+        return CompletableFuture.completedFuture(actorRef);
     }
 
     private Mono<Void> handleInboundMessages(
@@ -128,7 +130,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
             return Mono.empty();
         }
 
-        forwardMessageToActor(context, payload);
+        forwardMessageToActor(payload, context.userId());
         return Mono.empty();
     }
 
@@ -168,14 +170,16 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         return false;
     }
 
-    private void forwardMessageToActor(WebSocketConnectionContext context, String messagePayload) {
-        EntityRef<ChannelEntityCommand> channelEntity = getEntity(context.channelId());
-        SendMessage command = new SendMessage(
-                context.userId(),
-                messagePayload
-        );
+    private void forwardMessageToActor(String messagePayload, Long userId) {
+        ClientMessage clientMessage = parseClientMessage(messagePayload);
 
-        channelEntity.tell(command);
+        if (clientMessage == null) {
+            return;
+        }
+
+        EntityRef<ChannelEntityCommand> channelEntity = getEntity(clientMessage.channelId());
+
+        channelEntity.tell(new SendMessage(userId, clientMessage.message()));
     }
 
     private Flux<WebSocketMessage> handleOutboundMessages(
@@ -214,7 +218,25 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         );
     }
 
-    private record WebSocketConnectionContext(Long channelId, Long userId) {
+    private ClientMessage parseClientMessage(String payload) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            Long channelId = node.path("channelId").asLong();
+            String message = node.path("message").asText();
+
+            if (channelId <= 0 || message == null || message.isBlank()) {
+                return null;
+            }
+
+            return new ClientMessage(channelId, message);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private record ClientMessage(Long channelId, String message) { }
+
+    private record WebSocketConnectionContext(Long userId) {
 
         static WebSocketConnectionContext from(WebSocketSession session) {
             URI uri = session.getHandshakeInfo().getUri();
@@ -222,10 +244,9 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
                                                                        .build()
                                                                        .getQueryParams();
 
-            Long channelId = extractRequiredParam(params, "channelId");
             Long userId = extractRequiredParam(params, "userId");
 
-            return new WebSocketConnectionContext(channelId, userId);
+            return new WebSocketConnectionContext(userId);
         }
 
         private static Long extractRequiredParam(MultiValueMap<String, String> params, String key) {
