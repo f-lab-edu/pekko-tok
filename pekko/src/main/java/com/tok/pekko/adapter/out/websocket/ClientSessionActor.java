@@ -25,6 +25,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembers
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ReSyncSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncInvitedChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SessionPongReceived;
@@ -119,6 +120,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(FoundRegisteredChannelIds.class, this::onFoundRegisteredChannelIds)
                                   .onMessage(FoundChannelReaders.class, this::onFoundChannelReaders)
                                   .onMessage(SyncJoinChannel.class, this::onSyncJoinChannel)
+                                  .onMessage(SyncInvitedChannel.class, this::onSyncInvitedChannel)
                                   .onMessage(SyncLeaveChannel.class, this::onSyncLeaveChannel)
                                   .onMessage(Shutdown.class, this::onShutdown)
                                   .onMessage(SessionPongReceived.class, this::onSessionPongReceived)
@@ -221,6 +223,12 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private Behavior<ClientSessionCommand> onSyncJoinChannel(SyncJoinChannel command) {
         readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onSyncInvitedChannel(SyncInvitedChannel command) {
+        readerRegistry.tell(new GetChannelReaderActor(userId, List.of(command.channelId()), getContext().getSelf()));
+        clientMessageSender.sendInvitedChannel(command.channelId());
         return this;
     }
 
