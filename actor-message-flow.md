@@ -440,3 +440,73 @@
 - WebSocketSession -> ClientSessionActor
   - ClientSessionProtocol.SessionPongReceived 메시지 전달
     - Client Session인 WebSocket Session으로부터 Pong을 전달하기 위한 메시지
+
+## ChannelEventHandlerEntity 도메인 이벤트 처리
+
+> ChannelEntity가 발생시킨 도메인 이벤트를 ChannelEventHandlerEntity가 외부 스토리지에 반영하고 처리 결과를 재전파하는 과정
+
+### 1. ChannelEntity에서 도메인 이벤트 전달
+
+> ChannelEntity 내부적으로 수행한 비즈니스 로직 결과를 ChannelEventHandlerEntity에게 전달하는 과정
+
+- ChannelEntity -> ChannelEventHandlerEntity
+  - ChannelEventHandlerProtocol.HandleChannelPolicyChanged
+    - 채널 정책 변경 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleChannelNameEdited
+    - 채널 이름 변경 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleUserJoined
+    - 채널 참여 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleMemberLeft
+    - 채널 탈퇴 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleUserInvited
+    - 채널 초대 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandlePromotedToManager
+    - 매니저 승격 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleDemotedToMember
+    - 멤버 강등 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandlePermissionAdded
+    - 권한 추가 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandlePermissionRemoved
+    - 권한 삭제 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleMemberKicked
+    - 강퇴 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleMessageEdited
+    - 채팅 메시지 수정 도메인 이벤트를 처리하는 메시지
+  - ChannelEventHandlerProtocol.HandleMessageDeleted
+    - 채팅 메시지 삭제 도메인 이벤트를 처리하는 메시지
+
+### 2. ChannelEventHandlerEntity의 스토리지 반영
+
+> 수신한 도메인 이벤트를 외부 영속 계층에 적용하는 과정
+
+- ChannelEventHandlerEntity -> ChannelActorStoragePort
+  - ChannelActorStoragePort.update() 호출
+    - 채널 정책/이름 변경 이벤트를 영속화
+- ChannelEventHandlerEntity -> ChannelMembershipActorStoragePort
+  - join()/leave()/inviteUser()/promoteToManager()/demoteToMember()/addPermission()/removePermission()/kickMember() 호출
+    - 멤버십 관련 도메인 이벤트를 영속화
+- ChannelEventHandlerEntity -> MessageStoragePort
+  - update()/delete() 호출
+    - 메시지 수정/삭제 도메인 이벤트를 영속화
+
+### 3. 스토리지 처리 결과 전파
+
+> 스토리지 어댑터가 도메인 이벤트 처리 결과를 전달하고 ChannelEntity가 이벤트 보관소에서 정리하는 과정
+
+- ChannelActorStoragePort / ChannelMembershipActorStoragePort / MessageStoragePort -> ChannelEventHandlerEntity
+  - ChannelEventHandlerProtocol.EventSucceeded 또는 ChannelEventHandlerProtocol.EventFailed 메시지 전달
+    - 도메인 이벤트 처리 성공/실패를 알리기 위한 메시지
+- ChannelEventHandlerEntity -> ChannelEntity
+  - ChannelEntity.DomainEventProcessed 메시지 전달
+    - 처리 결과와 무관하게 ChannelEntity에 이벤트 처리가 종료되었음을 알리는 메시지
+
+### 4. 영속화된 멤버십 정보 반영
+
+> 멤버십 영속화 시 생성된 PK 등을 ChannelEntity에 반영하는 과정
+
+- ChannelMembershipActorStoragePort -> ChannelEventHandlerEntity
+  - ChannelEventHandlerProtocol.NotifyStoredMembership 메시지 전달
+    - ChannelMembership 영속화 시 생성된 PK를 ChannelEntity에서 관리하는 Channel에 반영하기 위한 메시지
+- ChannelEventHandlerEntity -> ChannelEntity
+  - ChannelProtocol.SyncStoredMembership 메시지 전달
+    - 영속화된 ChannelMembership을 Primary 상태에 동기화하기 위한 메시지
