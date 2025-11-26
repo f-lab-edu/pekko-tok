@@ -37,8 +37,7 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
             Clock clock,
             MessageStoragePort messageStoragePort,
             ChannelActorStoragePort channelActorStoragePort,
-            ChannelMembershipActorStoragePort channelMembershipActorStoragePort,
-            ClientSessionActorManagementService clientSessionActorManagementService
+            ChannelMembershipActorStoragePort channelMembershipActorStoragePort
     ) {
         return Behaviors.setup(
                 context -> new GuardianActor(
@@ -46,21 +45,21 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                         clock,
                         messageStoragePort,
                         channelActorStoragePort,
-                        channelMembershipActorStoragePort,
-                        clientSessionActorManagementService
+                        channelMembershipActorStoragePort
                 )
         );
     }
 
     private final ActorRef<ChannelReaderRegistryCommand> readerRegistry;
+    private final ActorRef<Command<InviteUserEventCommand>> inviteUserTopic;
+    private ActorRef<InviteUserEventCommand> inviteUserEventListener;
 
     private GuardianActor(
             ActorContext<GuardianCommand> context,
             Clock clock,
             MessageStoragePort messageStoragePort,
             ChannelActorStoragePort channelActorStoragePort,
-            ChannelMembershipActorStoragePort channelMembershipActorStoragePort,
-            ClientSessionActorManagementService clientSessionActorManagementService
+            ChannelMembershipActorStoragePort channelMembershipActorStoragePort
     ) {
         super(context);
 
@@ -71,10 +70,11 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                 "channel-reader-registry-actor"
         );
 
-        ActorRef<Command<InviteUserEventCommand>> inviteUserTopic = context.spawn(
+        this.inviteUserTopic = context.spawn(
                 Topic.create(InviteUserEventCommand.class, "user-channel-events"),
                 "user-channel-topic"
         );
+        this.inviteUserEventListener = null;
 
         clusterSharding.init(
                 Entity.of(
@@ -102,16 +102,12 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
                         )
                 )
         );
-
-        context.spawn(
-                InviteUserEventListenerActor.create(inviteUserTopic, clientSessionActorManagementService),
-                "invite-user-event-listener-actor"
-        );
     }
 
     @Override
     public Receive<GuardianCommand> createReceive() {
         return newReceiveBuilder().onMessage(SpawnClientSession.class, this::onSpawnClientSession)
+                                  .onMessage(InitializeInviteUserListener.class, this::onInitializeInviteUserListener)
                                   .build();
     }
 
@@ -134,6 +130,19 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
         return this;
     }
 
+    private Behavior<GuardianCommand> onInitializeInviteUserListener(InitializeInviteUserListener command) {
+        if (inviteUserEventListener != null) {
+            return this;
+        }
+
+        inviteUserEventListener = getContext().spawn(
+                InviteUserEventListenerActor.create(inviteUserTopic, command.clientSessionActorManagementService()),
+                "invite-user-event-listener-actor"
+        );
+
+        return this;
+    }
+
     public interface GuardianCommand extends CborSerializable { }
 
     // Client WebSocket Session 연결 시 외부로부터 ClientSessionActor Spawn을 요청하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
@@ -141,4 +150,7 @@ public class GuardianActor extends AbstractBehavior<GuardianCommand> {
 
     // ClientSessionActor spawn 완료 후 ActorRef를 ClientSessionActorManagementService.AskPattern에 전달하기 위한 메시지 : ClientSessionActorManagementService -> GuardianActor
     public record SpawnedClientSession(ActorRef<ClientSessionCommand> clientSession) implements GuardianCommand { }
+
+    // InviteUserEventListenerActor를 초기화하기 위한 메시지 : 외부 -> GuardianActor
+    public record InitializeInviteUserListener(ClientSessionActorManagementService clientSessionActorManagementService) implements GuardianCommand { }
 }

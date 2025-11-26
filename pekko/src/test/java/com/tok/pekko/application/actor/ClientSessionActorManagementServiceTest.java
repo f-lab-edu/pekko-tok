@@ -44,8 +44,7 @@ class ClientSessionActorManagementServiceTest {
                         Clock.systemDefaultZone(),
                         mock(MessageStoragePort.class),
                         mock(ChannelActorStoragePort.class),
-                        mock(ChannelMembershipActorStoragePort.class),
-                        mock(ClientSessionActorManagementService.class)
+                        mock(ChannelMembershipActorStoragePort.class)
                 ),
                 "test-system",
                 config

@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.RequiredArgsConstructor;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.actor.typed.javadsl.AskPattern;
@@ -24,13 +23,25 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 @Service
-@RequiredArgsConstructor
 public class ClientSessionActorManagementService {
 
     private final ActorSystem<GuardianCommand> actorSystem;
     private final MessageStoragePort messageStoragePort;
     private final ChannelMembershipActorMessagePort channelMembershipActorMessagePort;
-    private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions = new ConcurrentHashMap<>();
+    private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions;
+
+    public ClientSessionActorManagementService(
+            ActorSystem<GuardianCommand> actorSystem,
+            MessageStoragePort messageStoragePort,
+            ChannelMembershipActorMessagePort channelMembershipActorMessagePort
+    ) {
+        this.actorSystem = actorSystem;
+        this.messageStoragePort = messageStoragePort;
+        this.channelMembershipActorMessagePort = channelMembershipActorMessagePort;
+        this.clientSessions = new ConcurrentHashMap<>();
+
+        actorSystem.tell(new GuardianActor.InitializeInviteUserListener(this));
+    }
 
     public CompletionStage<ActorRef<ClientSessionCommand>> createClientSessionActor(
             ClientMessageSender clientMessageSender,

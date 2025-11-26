@@ -1,6 +1,5 @@
 package com.tok.pekko.global.config.actor;
 
-import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
@@ -32,7 +31,6 @@ public class ClusterConfig {
     private final MessageStoragePort messageStoragePort;
     private final ChannelActorStoragePort channelActorStoragePort;
     private final ChannelMembershipActorStoragePort channelMembershipActorStoragePort;
-    private final ClientSessionActorManagementService clientSessionActorManagementService;
     private final Environment environment;
 
     @Bean
@@ -48,8 +46,7 @@ public class ClusterConfig {
                         clock,
                         messageStoragePort,
                         channelActorStoragePort,
-                        channelMembershipActorStoragePort,
-                        clientSessionActorManagementService
+                        channelMembershipActorStoragePort
                 ),
                 "ChatCluster",
                 config

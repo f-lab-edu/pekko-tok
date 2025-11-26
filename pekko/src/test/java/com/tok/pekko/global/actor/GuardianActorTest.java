@@ -1,7 +1,6 @@
 package com.tok.pekko.global.actor;
 
 import com.tok.pekko.adapter.out.websocket.ClientMessageSender;
-import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
@@ -50,8 +49,7 @@ class GuardianActorTest {
                         Clock.systemDefaultZone(),
                         mock(MessageStoragePort.class),
                         mock(ChannelActorStoragePort.class),
-                        mock(ChannelMembershipActorStoragePort.class),
-                        mock(ClientSessionActorManagementService.class)
+                        mock(ChannelMembershipActorStoragePort.class)
                 ),
                 "test-system",
                 config
@@ -65,8 +63,7 @@ class GuardianActorTest {
                         Clock.systemDefaultZone(),
                         mock(MessageStoragePort.class),
                         mock(ChannelActorStoragePort.class),
-                        mock(ChannelMembershipActorStoragePort.class),
-                        mock(ClientSessionActorManagementService.class)
+                        mock(ChannelMembershipActorStoragePort.class)
                 )
         );
         responseProbe = testKit.createTestProbe();
