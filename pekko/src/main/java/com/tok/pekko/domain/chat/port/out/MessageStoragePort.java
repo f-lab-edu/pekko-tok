@@ -10,11 +10,7 @@ public interface MessageStoragePort {
 
     void store(ChatMessage message, ActorRef<ChannelEntityCommand> replyTo);
 
-    void update(Long messageId, String updatedMessage, ActorRef<ChannelEntityCommand> replyTo);
-
     void update(Long eventId, ChatMessage updatedMessage, ActorRef<ChannelEventHandlerCommand> replyTo);
-
-    void delete(Long messageId, ActorRef<ChannelEntityCommand> replyTo);
 
     void delete(Long eventId, Long messageId, ActorRef<ChannelEventHandlerCommand> replyTo);
 

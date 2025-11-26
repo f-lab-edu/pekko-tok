@@ -9,6 +9,8 @@ import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.ChannelPolicyChanged;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.DemotedToMember;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.MemberKicked;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.MemberLeft;
+import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.MessageDeleted;
+import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.MessageEdited;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.PermissionAdded;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.PermissionRemoved;
 import com.tok.pekko.domain.chat.actor.ChannelDomainEvent.PromotedToManager;
@@ -19,6 +21,8 @@ import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleChannelPo
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleDemotedToMember;
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleMemberKicked;
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleMemberLeft;
+import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleMessageDeleted;
+import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandleMessageEdited;
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandlePermissionAdded;
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandlePermissionRemoved;
 import com.tok.pekko.domain.chat.actor.ChannelEventHandlerEntity.HandlePromotedToManager;
@@ -49,11 +53,11 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveHistory;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncChannel;
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncStoredMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyFailure;
@@ -69,6 +73,7 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.InviteUserEventProtocol.InviteUserEventCommand;
 import com.tok.pekko.domain.chat.port.out.InviteUserEventProtocol.Invited;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -183,8 +188,6 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
                                   .onMessage(UpdateMessage.class, this::onUpdateMessage)
                                   .onMessage(DeleteMessage.class, this::onDeleteMessage)
                                   .onMessage(SyncPersistedMessage.class, this::onSyncPersistedMessage)
-                                  .onMessage(SyncUpdatedMessage.class, this::onSyncUpdatedMessage)
-                                  .onMessage(SyncDeletedMessage.class, this::onSyncDeletedMessage)
                                   .onMessage(RemoveShutdownReader.class, this::onRemoveShutdownReader)
                                   .onMessage(RequestSyncMessages.class, this::onRequestSyncMessages)
                                   .onMessage(ResolveHistory.class, this::onResolveHistory)
@@ -203,6 +206,8 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
                                   .onMessage(DomainEventProcessed.class, this::onDomainEventProcessed)
                                   .onMessage(ResolveChannelMetadata.class, this::onResolveChannelMetadata)
                                   .onMessage(SyncChannel.class, this::onSyncChannel)
+                                  .onMessage(SyncStoredMembership.class, this::onSyncStoredMembership)
+                                  .onMessage(Shutdown.class, this::onShutdown)
                                   .build();
     }
 
@@ -210,8 +215,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         this.messages.syncMessages(command.messages());
 
         if (!initialMessagesLoaded) {
-            pendingInitialSyncReaders.values()
-                                     .forEach(reader -> reader.tell(new DeliverSyncMessages(command.messages())));
+            broadcastSyncMessages(command.messages());
             initialMessagesLoaded = true;
             pendingInitialSyncReaders.clear();
         }
@@ -226,42 +230,92 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     }
 
     private Behavior<ChannelEntityCommand> onSendMessage(SendMessage command) {
+        if (deferUntilChannelSynced(command)) {
+            return this;
+        }
+
+        try {
+            this.channelHolder.channel.validateMemberSendMessage(UserId.create(command.userId()));
+        } catch (IllegalArgumentException ex) {
+            notifyFailure(command.userId(), ex.getMessage());
+            return this;
+        }
+
         ChatMessage message = createChatMessage(command);
 
         messageStoragePort.store(message, getContext().getSelf());
-
         return this;
     }
 
     private Behavior<ChannelEntityCommand> onUpdateMessage(UpdateMessage command) {
-        messageStoragePort.update(command.messageId(), command.updatedMessage(), getContext().getSelf());
+        if (deferUntilChannelSynced(command)) {
+            return this;
+        }
+        try {
+            LocalDateTime now = LocalDateTime.now(clock);
+            ChatMessage updatedMessage = messages.update(
+                    this.channelHolder.channel,
+                    command.executorId(),
+                    command.messageId(),
+                    command.updatedMessage(),
+                    now
+            );
 
-        return this;
-    }
+            Long eventId = eventIdGenerator.nextSequence();
+            MessageEdited messageEditedEvent = new MessageEdited(
+                    channelId,
+                    eventId,
+                    now,
+                    updatedMessage
+            );
+            EventHolder eventHolder = new EventHolder(
+                    messageEditedEvent,
+                    event -> channelEventHandler.tell(new HandleMessageEdited(event))
+            );
 
-    private Behavior<ChannelEntityCommand> onSyncUpdatedMessage(SyncUpdatedMessage command) {
-        LocalDateTime now = LocalDateTime.now(clock);
+            events.put(eventId, eventHolder);
+            channelEventHandler.tell(new HandleMessageEdited(messageEditedEvent));
+            readers.values()
+                   .forEach(
+                           reader -> reader.tell(
+                                   new SyncUpdate(command.messageId(), command.updatedMessage(), now)
+                           )
+                   );
+        } catch (IllegalArgumentException ex) {
+            notifyFailure(command.executorId(), ex.getMessage());
+        }
 
-        messages.update(command.messageId(), command.updatedMessage(), now);
-        readers.values()
-                .forEach(
-                        reader -> reader.tell(
-                                new SyncUpdate(command.messageId(), command.updatedMessage(), now)
-                        )
-                );
         return this;
     }
 
     private Behavior<ChannelEntityCommand> onDeleteMessage(DeleteMessage command) {
-        messageStoragePort.delete(command.messageId(), getContext().getSelf());
+        if (deferUntilChannelSynced(command)) {
+            return this;
+        }
+        try {
+            ChatMessage deletedMessage = messages.delete(
+                    this.channelHolder.channel,
+                    command.executorId(),
+                    command.messageId()
+            );
 
-        return this;
-    }
+            Long eventId = eventIdGenerator.nextSequence();
+            MessageDeleted messageDeletedEvent = new MessageDeleted(
+                    channelId, eventId, LocalDateTime.now(clock),
+                    deletedMessage.messageId()
+            );
+            EventHolder eventHolder = new EventHolder(
+                    messageDeletedEvent,
+                    event -> channelEventHandler.tell(new HandleMessageDeleted(event))
+            );
 
-    private Behavior<ChannelEntityCommand> onSyncDeletedMessage(SyncDeletedMessage command) {
-        messages.delete(command.messageId());
-        readers.values()
-               .forEach(reader -> reader.tell(new SyncDeletion(command.messageId())));
+            events.put(eventId, eventHolder);
+            channelEventHandler.tell(new HandleMessageDeleted(messageDeletedEvent));
+            readers.values()
+                   .forEach(reader -> reader.tell(new SyncDeletion(command.messageId())));
+        } catch (IllegalArgumentException ex) {
+            notifyFailure(command.executorId().getValue(), ex.getMessage());
+        }
 
         return this;
     }
@@ -426,6 +480,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
             events.put(eventId, eventHolder);
             channelEventHandler.tell(new HandleMemberLeft(memberLeftEvent));
+            broadcastMembershipCount();
         } catch (IllegalArgumentException ex) {
             notifyFailure(command.memberId().getValue(), ex.getMessage());
         }
@@ -674,6 +729,16 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         return this;
     }
 
+    private Behavior<ChannelEntityCommand> onSyncStoredMembership(SyncStoredMembership command) {
+        if (this.channelHolder.channel == null) {
+            deferUntilChannelSynced(command);
+            return this;
+        }
+
+        this.channelHolder.channel.syncMembership(command.channelMembership());
+        return this;
+    }
+
     private Behavior<ChannelEntityCommand> onResolveMembership(ResolveMembership command) {
         if (deferUntilChannelSynced(command)) {
             return this;
@@ -729,6 +794,10 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         processPendingChannelCommands();
 
         return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onShutdown(Shutdown command) {
+        return Behaviors.stopped();
     }
 
     private ChatMessage createChatMessage(SendMessage command) {
@@ -787,6 +856,11 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
                                new NotifyFailure(userId, reason)
                        )
                );
+    }
+
+    private void broadcastSyncMessages(List<ChatMessage> syncedMessages) {
+        pendingInitialSyncReaders.values()
+                                 .forEach(reader -> reader.tell(new DeliverSyncMessages(syncedMessages)));
     }
 
     private static class ChannelHolder {

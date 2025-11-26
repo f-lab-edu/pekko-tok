@@ -1,13 +1,32 @@
 package com.tok.pekko.adapter.out.persistence;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.ChannelEventHandlerCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.EventFailed;
+import com.tok.pekko.domain.chat.port.out.ChannelEventHandlerProtocol.EventSucceeded;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.global.config.dev.BlockHoundTestInstallUtils;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
@@ -17,25 +36,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
@@ -376,130 +378,112 @@ class MessageStorageAdapterTest {
     }
 
     @Test
-    void 메시지_삭제_성공_시_삭제_이벤트를_전달한다() {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+    void 메시지_삭제_성공_시_EventSucceeded를_전달한다() {
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
+        Long eventId = 99L;
 
         willDoNothing().given(messageRepository).delete(eq(messageId));
 
-        // when
-        adapter.delete(messageId, replyProbe.ref());
+        adapter.delete(eventId, messageId, replyProbe.ref());
 
-        // then
-        SyncDeletedMessage syncDeletedMessage = replyProbe.expectMessageClass(
-                SyncDeletedMessage.class,
-                Duration.ofSeconds(3)
-        );
-        assertThat(syncDeletedMessage.messageId()).isEqualTo(messageId);
+        replyProbe.expectMessageClass(EventSucceeded.class, Duration.ofSeconds(3));
+        verify(messageRepository, timeout(1000)).delete(messageId);
     }
 
     @Test
-    void 메시지_삭제_실패_시_이벤트를_전달하지_않는다() {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+    void 메시지_삭제_실패_시_EventFailed를_전달한다() {
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
+        Long eventId = 100L;
 
         willThrow(new RuntimeException("Database error")).given(messageRepository).delete(anyLong());
 
-        // when
-        adapter.delete(messageId, replyProbe.ref());
+        adapter.delete(eventId, messageId, replyProbe.ref());
 
-        // then
-        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+        replyProbe.expectMessageClass(EventFailed.class, Duration.ofSeconds(3));
     }
 
     @Test
     void 메시지_삭제_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
         Long messageId = 1L;
+        Long eventId = 200L;
 
         willDoNothing().given(messageRepository).delete(anyLong());
 
-        // when
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> errorHolder = new AtomicReference<>();
 
-        Mono.fromRunnable(() -> adapter.delete(messageId, replyProbe.ref()))
+        Mono.fromRunnable(() -> adapter.delete(eventId, messageId, replyProbe.ref()))
             .subscribeOn(Schedulers.parallel())
             .doFinally(ignored -> latch.countDown())
             .subscribe(null, errorHolder::set);
 
         latch.await();
 
-        // then
-        assertAll(
-                () -> assertThat(errorHolder.get()).isNull(),
-                () -> replyProbe.expectMessageClass(SyncDeletedMessage.class, Duration.ofSeconds(1))
-        );
+        assertThat(errorHolder.get()).isNull();
+        replyProbe.expectMessageClass(EventSucceeded.class, Duration.ofSeconds(1));
     }
 
     @Test
-    void 메시지_수정_성공_시_Repository의_update를_호출한다() {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+    void 메시지_수정_성공_시_EventSucceeded를_전달한다() {
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
-        Long messageId = 1L;
-        String updatedMessage = "Updated Message";
+        Long eventId = 50L;
+        ChatMessage updatedMessage = new ChatMessage(1L, 10L, 100L, 1L, "Updated Message", LocalDateTime.now(), LocalDateTime.now());
 
-        willDoNothing().given(messageRepository).update(eq(messageId), eq(updatedMessage));
+        willDoNothing().given(messageRepository).update(updatedMessage.messageId(), updatedMessage.message());
 
-        // when
-        adapter.update(messageId, updatedMessage, replyProbe.ref());
+        adapter.update(eventId, updatedMessage, replyProbe.ref());
 
-        // then
-        verify(messageRepository, timeout(1000)).update(messageId, updatedMessage);
+        replyProbe.expectMessageClass(EventSucceeded.class, Duration.ofSeconds(3));
+        verify(messageRepository, timeout(1000)).update(updatedMessage.messageId(), updatedMessage.message());
     }
 
     @Test
-    void 메시지_수정_실패_시_이벤트를_전달하지_않는다() {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+    void 메시지_수정_실패_시_EventFailed를_전달한다() {
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
-        Long messageId = 1L;
-        String updatedMessage = "Updated Message";
+        Long eventId = 60L;
+        ChatMessage updatedMessage = new ChatMessage(1L, 10L, 100L, 1L, "Updated Message", LocalDateTime.now(), LocalDateTime.now());
 
-        willThrow(new RuntimeException("Database error")).given(messageRepository).update(anyLong(), any());
+        willThrow(new RuntimeException("DB error")).given(messageRepository).update(anyLong(), anyString());
 
-        // when
-        adapter.update(messageId, updatedMessage, replyProbe.ref());
+        adapter.update(eventId, updatedMessage, replyProbe.ref());
 
-        // then
-        replyProbe.expectNoMessage(Duration.ofSeconds(1));
+        replyProbe.expectMessageClass(EventFailed.class, Duration.ofSeconds(3));
     }
 
     @Test
     void 메시지_수정_시_호출자_스레드를_블로킹하지_않는다() throws InterruptedException {
-        // given
-        TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
+        TestProbe<ChannelEventHandlerCommand> replyProbe = testKit.createTestProbe(ChannelEventHandlerCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
-        Long messageId = 1L;
-        String updatedMessage = "Updated Message";
+        Long eventId = 70L;
+        ChatMessage updatedMessage = new ChatMessage(1L, 10L, 100L, 1L, "Updated Message", LocalDateTime.now(), LocalDateTime.now());
 
-        willDoNothing().given(messageRepository).update(anyLong(), any());
+        willDoNothing().given(messageRepository).update(anyLong(), anyString());
 
-        // when
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> errorHolder = new AtomicReference<>();
 
-        Mono.fromRunnable(() -> adapter.update(messageId, updatedMessage, replyProbe.ref()))
+        Mono.fromRunnable(() -> adapter.update(eventId, updatedMessage, replyProbe.ref()))
             .subscribeOn(Schedulers.parallel())
             .doFinally(ignored -> latch.countDown())
             .subscribe(null, errorHolder::set);
 
         latch.await();
 
-        // then
         assertThat(errorHolder.get()).isNull();
+        replyProbe.expectMessageClass(EventSucceeded.class, Duration.ofSeconds(1));
     }
 }

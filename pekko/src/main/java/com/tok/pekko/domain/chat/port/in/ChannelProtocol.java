@@ -25,19 +25,13 @@ public interface ChannelProtocol {
     record SendMessage(Long userId, String message) implements ChannelEntityCommand { }
 
     // 기존 채팅 메시지 수정을 요청받는 메시지 : 외부 -> ChannelEntity
-    record UpdateMessage(Long messageId, String updatedMessage) implements ChannelEntityCommand { }
+    record UpdateMessage(Long executorId, Long messageId, String updatedMessage) implements ChannelEntityCommand { }
 
     // 기존 채팅 메시지 삭제를 요청받는 메시지 : 외부 -> ChannelEntity
-    record DeleteMessage(Long messageId) implements ChannelEntityCommand { }
+    record DeleteMessage(UserId executorId, Long messageId) implements ChannelEntityCommand { }
 
     // 영속화된 채팅 메시지를 ChannelEntity에게 전달하는 메시지 : MessageStorageAdapter -> ChannelEntity
     record SyncPersistedMessage(ChatMessage message) implements ChannelEntityCommand { }
-
-    // 변경 사항이 영속화된 채팅 메시지를 ChannelEntity에게 전달하는 메시지 : MessageStorageAdapter -> ChannelEntity
-    record SyncUpdatedMessage(Long messageId, String updatedMessage) implements ChannelEntityCommand { }
-
-    // 삭제된 채팅 메시지를 ChannelEntity에게 전달하는 메시지 : MessageStorageAdapter -> ChannelEntity
-    record SyncDeletedMessage(Long messageId) implements ChannelEntityCommand { }
 
     // ChannelReaderActor가 아직 동기화받지 못한 채팅 히스토리를 ChannelEntity가 요청받는 메시지 : ChannelReaderActor -> ChannelEntity
     record ResolveHistory(long messageSequence, int size, ActorRef<ClientSessionCommand> replyTo) implements ChannelEntityCommand { }

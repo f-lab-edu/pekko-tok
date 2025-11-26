@@ -1,5 +1,7 @@
 package com.tok.pekko.domain.chat.actor;
 
+import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import com.tok.pekko.global.common.ActorThreadSafe;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -47,11 +49,11 @@ public class ChatMessages {
     }
 
     @ActorThreadSafe
-    public ChatMessage delete(Long messageId) {
-        validateMessageId(messageId);
-
+    public ChatMessage delete(Channel channel, UserId executorId, Long messageId) {
         ChatMessageNode node = findChatMessageNode(messageId);
         ChatMessage deletedMessage = node.data;
+
+        channel.validateMemberDeleteMessage(executorId, deletedMessage);
 
         removeNode(node);
         messageIdMap.remove(messageId);
@@ -75,15 +77,17 @@ public class ChatMessages {
     }
 
     @ActorThreadSafe
-    public ChatMessage update(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
+    public ChatMessage update(Channel channel, Long executorId, Long messageId, String updatedMessage, LocalDateTime updatedAt) {
         ChatMessageNode node = messageIdMap.get(messageId);
 
         if (node == null) {
-            throw new IllegalArgumentException("존재하지 않는 채팅 메시지입니다.");
+            throw new MessageNotFoundException();
         }
+        ChatMessage message = node.data;
+        channel.validateMemberEditMessage(UserId.create(executorId), message);
 
         node.data = node.data
-                        .updateMessage(updatedMessage, updatedAt);
+                .updateMessage(updatedMessage, updatedAt);
         return node.data;
     }
 
@@ -152,12 +156,6 @@ public class ChatMessages {
         }
     }
 
-    private void validateMessageId(Long messageId) {
-        if (messageId == null) {
-            throw new IllegalArgumentException("메시지 ID는 null 일 수 없습니다.");
-        }
-    }
-
     private void validateSize(int size) {
         if (size <= 0) {
             throw new IllegalArgumentException("조회하려는 메시지 개수는 양수여야 합니다.");
@@ -189,7 +187,7 @@ public class ChatMessages {
         ChatMessageNode node = messageIdMap.get(messageId);
 
         if (node == null) {
-            throw new IllegalArgumentException("존재하지 않는 메시지입니다: " + messageId);
+            throw new MessageNotFoundException();
         }
 
         return node;
@@ -283,6 +281,13 @@ public class ChatMessages {
 
         ChatMessageNode(ChatMessage data) {
             this.data = data;
+        }
+    }
+
+    public static class MessageNotFoundException extends IllegalArgumentException {
+
+        public MessageNotFoundException() {
+            super("존재하지 않는 채팅 메시지입니다.");
         }
     }
 }

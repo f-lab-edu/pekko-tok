@@ -22,11 +22,9 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ResolveMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SendMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncChannel;
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncDeletedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncPersistedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncStoredMembership;
-import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
@@ -272,6 +270,26 @@ class ChannelEntityTest {
         Long userId = 100L;
         String messageContent = "Test message";
 
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelMembership membership = ChannelMembership.create(
+                1L,
+                channelId,
+                userId,
+                ChannelRole.MEMBER,
+                ChannelManagePermissions.ofMember(),
+                LocalDateTime.now()
+        );
+        memberships.put(UserId.create(userId), membership);
+        Channel channel = Channel.create(
+                channelId,
+                "test-channel",
+                userId,
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                LocalDateTime.now()
+        );
+        channelEntity.tell(new SyncChannel(channel));
+
         // when
         channelEntity.tell(new SendMessage(userId, messageContent));
 
@@ -307,6 +325,26 @@ class ChannelEntityTest {
 
         Long userId = 100L;
         String messageContent = "Test message";
+
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelMembership membership = ChannelMembership.create(
+                1L,
+                channelId,
+                userId,
+                ChannelRole.MEMBER,
+                ChannelManagePermissions.ofMember(),
+                LocalDateTime.now()
+        );
+        memberships.put(UserId.create(userId), membership);
+        Channel channel = Channel.create(
+                channelId,
+                "test-channel",
+                userId,
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                LocalDateTime.now()
+        );
+        channelEntity.tell(new SyncChannel(channel));
 
         // when
         channelEntity.tell(new SendMessage(userId, messageContent));
@@ -528,7 +566,7 @@ class ChannelEntityTest {
     }
 
     @Test
-    void DeleteMessage_메시지를_받으면_MessageStoragePort에_메시지_삭제를_요청한다() {
+    void DeleteMessage_메시지를_받으면_reader에게_SyncDeletion을_전달한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -552,131 +590,47 @@ class ChannelEntityTest {
                         mock(ActorRef.class)
                 )
         );
-
-        Long messageId = 1L;
-
-        // when
-        channelEntity.tell(new DeleteMessage(messageId));
-
-        // then
-        verify(messageStoragePort, timeout(1000)).delete(eq(messageId), eq(channelEntity));
-    }
-
-    @Test
-    void SyncDeletedMessage_메시지를_받으면_모든_reader에게_SyncDeletion_메시지를_전달한다() {
-        // given
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
-        ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        EntityRef<ChannelEventHandlerCommand> entityRef = mock(EntityRef.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-        doNothing().when(channelActorStoragePort).find(anyLong(), any());
-        when(clusterSharding.entityRefFor(any(EntityTypeKey.class), anyString())).thenReturn(entityRef);
-
-        ActorRef<ChannelEntityCommand> channelEntity = testKit.spawn(
-                ChannelEntity.create(
-                        Clock.systemDefaultZone(),
-                        channelId,
-                        messages,
-                        clusterSharding,
-                        messageStoragePort,
-                        channelActorStoragePort,
-                        mock(ActorRef.class)
-                )
-        );
-
-        TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
-        TestProbe<ChannelReaderCommand> reader2Probe = testKit.createTestProbe();
-
-        channelEntity.tell(new RegisterReader("reader1", reader1Probe.ref()));
-        channelEntity.tell(new RegisterReader("reader2", reader2Probe.ref()));
-
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        ChatMessage message = new ChatMessage(1L, channelId, 100L, 1L, "Test", timestamp, timestamp);
-        channelEntity.tell(new SyncPersistedMessage(message));
-
-        reader1Probe.expectMessageClass(SyncNewMessage.class);
-        reader2Probe.expectMessageClass(SyncNewMessage.class);
-
-        Long messageId = 1L;
-
-        // when
-        channelEntity.tell(new SyncDeletedMessage(messageId));
-
-        // then
-        SyncDeletion syncDeletion1 = reader1Probe.expectMessageClass(SyncDeletion.class);
-
-        assertThat(syncDeletion1.messageId()).isEqualTo(messageId);
-
-        SyncDeletion syncDeletion2 = reader2Probe.expectMessageClass(SyncDeletion.class);
-
-        assertThat(syncDeletion2.messageId()).isEqualTo(messageId);
-    }
-
-    @Test
-    void SyncDeletedMessage_메시지를_받으면_messages에서_메시지가_삭제된다() {
-        // given
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
-        ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        EntityRef<ChannelEventHandlerCommand> entityRef = mock(EntityRef.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-        doNothing().when(channelActorStoragePort).find(anyLong(), any());
-        when(clusterSharding.entityRefFor(any(EntityTypeKey.class), anyString())).thenReturn(entityRef);
-
-        ActorRef<ChannelEntityCommand> channelEntity = testKit.spawn(
-                ChannelEntity.create(
-                        Clock.systemDefaultZone(),
-                        channelId,
-                        messages,
-                        clusterSharding,
-                        messageStoragePort,
-                        channelActorStoragePort,
-                        mock(ActorRef.class)
-                )
-        );
-
-        channelEntity.tell(new SyncRecentMessages(List.of()));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
         channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
 
-        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
-        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1);
-        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2, timestamp2);
+        UserId ownerId = UserId.create(1L);
+        LocalDateTime now = LocalDateTime.now();
 
-        channelEntity.tell(new SyncPersistedMessage(message1));
-        readerProbe.expectMessageClass(SyncNewMessage.class);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelMembership ownerMembership = ChannelMembership.create(
+                1L,
+                channelId,
+                ownerId.getValue(),
+                ChannelRole.OWNER,
+                ChannelManagePermissions.ofOwner(),
+                now
+        );
+        memberships.put(ownerId, ownerMembership);
 
-        channelEntity.tell(new SyncPersistedMessage(message2));
+        Channel channel = Channel.create(
+                channelId,
+                "test-channel",
+                ownerId.getValue(),
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                now
+        );
+        channelEntity.tell(new SyncChannel(channel));
+
+        ChatMessage message = new ChatMessage(1L, channelId, ownerId.getValue(), 1L, "message", now, now);
+        channelEntity.tell(new SyncPersistedMessage(message));
         readerProbe.expectMessageClass(SyncNewMessage.class);
 
         // when
-        channelEntity.tell(new SyncDeletedMessage(1L));
-        readerProbe.expectMessageClass(SyncDeletion.class);
-
-        TestProbe<ChannelReaderCommand> syncProbe = testKit.createTestProbe();
-        channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));
+        channelEntity.tell(new DeleteMessage(ownerId, message.messageId()));
 
         // then
-        DeliverSyncMessages actual = syncProbe.expectMessageClass(DeliverSyncMessages.class);
-
-        assertAll(
-                () -> assertThat(actual.messages()).hasSize(1),
-                () -> assertThat(actual.messages()).extracting(ChatMessage::messageId)
-                                                      .containsExactly(2L)
-        );
+        readerProbe.expectMessageClass(SyncDeletion.class);
     }
 
     @Test
-    void UpdateMessage_메시지를_받으면_MessageStoragePort에_메시지_수정을_요청한다() {
+    void UpdateMessage_메시지를_받으면_reader에게_SyncUpdate를_전달한다() {
         // given
         Long channelId = 1L;
         ChatMessages messages = new ChatMessages();
@@ -700,87 +654,49 @@ class ChannelEntityTest {
                         mock(ActorRef.class)
                 )
         );
+
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
+
+        UserId ownerId = UserId.create(1L);
+        LocalDateTime now = LocalDateTime.now();
+
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelMembership ownerMembership = ChannelMembership.create(
+                1L,
+                channelId,
+                ownerId.getValue(),
+                ChannelRole.OWNER,
+                ChannelManagePermissions.ofOwner(),
+                now
+        );
+        memberships.put(ownerId, ownerMembership);
+
+        Channel channel = Channel.create(
+                channelId,
+                "test-channel",
+                ownerId.getValue(),
+                ChannelPolicy.defaultPolicy(),
+                memberships,
+                now
+        );
+        channelEntity.tell(new SyncChannel(channel));
+
+        ChatMessage message = new ChatMessage(1L, channelId, ownerId.getValue(), 1L, "message", now, now);
+        channelEntity.tell(new SyncPersistedMessage(message));
+        readerProbe.expectMessageClass(SyncNewMessage.class);
 
         Long messageId = 1L;
         String updatedMessage = "Updated message";
 
         // when
-        channelEntity.tell(new UpdateMessage(messageId, updatedMessage));
-
-        // then
-        verify(messageStoragePort, timeout(1000)).update(eq(messageId), eq(updatedMessage), eq(channelEntity));
-    }
-
-    @Test
-    void SyncUpdatedMessage_메시지를_받으면_messages에서_메시지를_수정하고_reader에게_전파한다() {
-        // given
-        Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
-        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
-        ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
-        ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        EntityRef<ChannelEventHandlerCommand> entityRef = mock(EntityRef.class);
-
-        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
-        doNothing().when(channelActorStoragePort).find(anyLong(), any());
-        when(clusterSharding.entityRefFor(any(EntityTypeKey.class), anyString())).thenReturn(entityRef);
-
-        ActorRef<ChannelEntityCommand> channelEntity = testKit.spawn(
-                ChannelEntity.create(
-                        Clock.systemDefaultZone(),
-                        channelId,
-                        messages,
-                        clusterSharding,
-                        messageStoragePort,
-                        channelActorStoragePort,
-                        mock(ActorRef.class)
-                )
-        );
-
-        channelEntity.tell(new SyncRecentMessages(List.of()));
-
-        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
-        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
-
-        LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 12, 0, 0);
-        LocalDateTime timestamp2 = LocalDateTime.of(2025, 10, 17, 12, 0, 1);
-        ChatMessage message1 = new ChatMessage(1L, channelId, 100L, 1L, "Message 1", timestamp1, timestamp1);
-        ChatMessage message2 = new ChatMessage(2L, channelId, 100L, 2L, "Message 2", timestamp2, timestamp2);
-
-        channelEntity.tell(new SyncPersistedMessage(message1));
-        readerProbe.expectMessageClass(SyncNewMessage.class);
-
-        channelEntity.tell(new SyncPersistedMessage(message2));
-        readerProbe.expectMessageClass(SyncNewMessage.class);
-
-        // when
-        channelEntity.tell(new SyncUpdatedMessage(1L, "Updated Message 1"));
+        channelEntity.tell(new UpdateMessage(ownerId.getValue(), messageId, updatedMessage));
 
         // then
         SyncUpdate syncUpdate = readerProbe.expectMessageClass(SyncUpdate.class);
-
         assertAll(
-                () -> assertThat(syncUpdate.messageId()).isEqualTo(1L),
-                () -> assertThat(syncUpdate.updatedMessage()).isEqualTo("Updated Message 1"),
-                () -> assertThat(syncUpdate.updatedAt()).isNotNull()
-        );
-
-        TestProbe<ChannelReaderCommand> syncProbe = testKit.createTestProbe();
-
-        channelEntity.tell(new RequestSyncMessages(syncProbe.ref()));
-
-        DeliverSyncMessages deliverSyncMessages = syncProbe.expectMessageClass(DeliverSyncMessages.class);
-
-        assertAll(
-                () -> assertThat(deliverSyncMessages.messages()).hasSize(2),
-                () -> assertThat(deliverSyncMessages.messages())
-                        .filteredOn(msg -> msg.messageId().equals(1L))
-                        .extracting(ChatMessage::message)
-                        .containsExactly("Updated Message 1"),
-                () -> assertThat(deliverSyncMessages.messages())
-                        .filteredOn(msg -> msg.messageId().equals(2L))
-                        .extracting(ChatMessage::message)
-                        .containsExactly("Message 2")
+                () -> assertThat(syncUpdate.messageId()).isEqualTo(messageId),
+                () -> assertThat(syncUpdate.updatedMessage()).isEqualTo(updatedMessage)
         );
     }
 
@@ -1139,7 +1055,6 @@ class ChannelEntityTest {
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
         ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
         ClusterSharding clusterSharding = mock(ClusterSharding.class);
-        @SuppressWarnings("unchecked")
         EntityRef<ChannelEventHandlerCommand> entityRef = mock(EntityRef.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());

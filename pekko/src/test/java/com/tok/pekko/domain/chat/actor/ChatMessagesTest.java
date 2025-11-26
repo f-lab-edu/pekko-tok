@@ -3,7 +3,12 @@ package com.tok.pekko.domain.chat.actor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
 
+import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,6 +26,8 @@ class ChatMessagesTest {
     @Test
     void 빈_ChatMessages를_생성한다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
 
         assertThat(chatMessages.getRecentMessages(10)).isEmpty();
     }
@@ -343,6 +350,8 @@ class ChatMessagesTest {
     @Test
     void 메시지를_삭제한다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         LocalDateTime timestamp3 = LocalDateTime.now();
@@ -354,7 +363,7 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        ChatMessage deleted = chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(channel, UserId.create(999L), 2L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
@@ -368,6 +377,8 @@ class ChatMessagesTest {
     @Test
     void 첫번째_메시지를_삭제한다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         LocalDateTime timestamp3 = LocalDateTime.now();
@@ -379,7 +390,7 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        ChatMessage deleted = chatMessages.delete(3L);
+        ChatMessage deleted = chatMessages.delete(channel, UserId.create(999L), 3L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
@@ -392,6 +403,8 @@ class ChatMessagesTest {
     @Test
     void 마지막_메시지를_삭제한다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         LocalDateTime timestamp3 = LocalDateTime.now();
@@ -403,7 +416,7 @@ class ChatMessagesTest {
         chatMessages.add(message2);
         chatMessages.add(message3);
 
-        ChatMessage deleted = chatMessages.delete(1L);
+        ChatMessage deleted = chatMessages.delete(channel, UserId.create(999L), 1L);
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
@@ -416,27 +429,33 @@ class ChatMessagesTest {
     @Test
     void 존재하지_않는_메시지는_삭제할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", timestamp, timestamp);
         chatMessages.add(message);
 
-        assertThatThrownBy(() -> chatMessages.delete(999L))
+        assertThatThrownBy(() -> chatMessages.delete(channel, UserId.create(999L), 999L))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("존재하지 않는 메시지입니다: 999");
+                .hasMessage("존재하지 않는 채팅 메시지입니다.");
     }
 
     @Test
     void 메시지_ID로_null을_전달하면_메시지를_삭제할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
 
-        assertThatThrownBy(() -> chatMessages.delete(null))
+        assertThatThrownBy(() -> chatMessages.delete(channel, UserId.create(1L), null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("메시지 ID는 null 일 수 없습니다.");
+                .hasMessage("존재하지 않는 채팅 메시지입니다.");
     }
 
     @Test
     void 모든_메시지를_삭제할_수_있다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         ChatMessage message1 = new ChatMessage(1L, 10L, 100L, 1000L, "Message 1", timestamp1, timestamp1);
@@ -445,8 +464,8 @@ class ChatMessagesTest {
         chatMessages.add(message1);
         chatMessages.add(message2);
 
-        ChatMessage deleted1 = chatMessages.delete(1L);
-        ChatMessage deleted2 = chatMessages.delete(2L);
+        ChatMessage deleted1 = chatMessages.delete(channel, UserId.create(999L), 1L);
+        ChatMessage deleted2 = chatMessages.delete(channel, UserId.create(999L), 2L);
 
         assertAll(
                 () -> assertThat(deleted1).isEqualTo(message1),
@@ -457,6 +476,7 @@ class ChatMessagesTest {
 
     @Test
     void 메시지_히스토리_조회_시_삭제된_메시지는_포함되지_않는다() {
+        Channel channel = mock(Channel.class);
         ChatMessages chatMessages = new ChatMessages();
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
@@ -467,7 +487,7 @@ class ChatMessagesTest {
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", timestamp3, timestamp3));
         chatMessages.add(new ChatMessage(4L, 40L, 400L, 4000L, "Message 4", timestamp4, timestamp4));
 
-        ChatMessage deleted = chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(channel, UserId.create(999L), 2L);
         List<ChatMessage> history = chatMessages.getHistory(3500L, 10);
 
         assertAll(
@@ -482,6 +502,8 @@ class ChatMessagesTest {
     @Test
     void 특정_시점_이후_메시지_조회_시_삭제된_메시지는_포함되지_않는다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberDeleteMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         LocalDateTime timestamp3 = LocalDateTime.now();
@@ -489,7 +511,7 @@ class ChatMessagesTest {
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", timestamp2, timestamp2));
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", timestamp3, timestamp3));
 
-        ChatMessage deleted = chatMessages.delete(2L);
+        ChatMessage deleted = chatMessages.delete(channel, UserId.create(999L), 2L);
         List<ChatMessage> messagesAfter = chatMessages.getMessagesAfter(1500L);
 
         assertAll(
@@ -504,11 +526,13 @@ class ChatMessagesTest {
     @Test
     void 메시지를_수정한다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberEditMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage original = new ChatMessage(1L, 10L, 100L, 1000L, "Original", timestamp, timestamp);
         chatMessages.add(original);
 
-        ChatMessage updated = chatMessages.update(1L, "Updated", LocalDateTime.now());
+        ChatMessage updated = chatMessages.update(channel, 100L, 1L, "Updated", LocalDateTime.now());
 
         List<ChatMessage> result = chatMessages.getRecentMessages(10);
         assertAll(
@@ -529,7 +553,10 @@ class ChatMessagesTest {
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", timestamp, timestamp);
         chatMessages.add(message);
 
-        assertThatThrownBy(() -> chatMessages.update(999L, "Updated", LocalDateTime.now()))
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberEditMessage(any(UserId.class), any(ChatMessage.class));
+
+        assertThatThrownBy(() -> chatMessages.update(channel, 100L, 999L, "Updated", LocalDateTime.now()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("존재하지 않는 채팅 메시지입니다.");
     }
@@ -537,12 +564,14 @@ class ChatMessagesTest {
     @Test
     void null_메시지로는_수정할_수_없다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberEditMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Message", timestamp, timestamp);
 
         chatMessages.add(message);
 
-        assertThatThrownBy(() -> chatMessages.update(1L, null, LocalDateTime.now()))
+        assertThatThrownBy(() -> chatMessages.update(channel, 100L, 1L, null, LocalDateTime.now()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("메시지는 비어 있을 수 없습니다.");
     }
@@ -550,6 +579,8 @@ class ChatMessagesTest {
     @Test
     void 채팅_히스토리_조회_시_수정된_메시지가_올바르게_조회된다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberEditMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp1 = LocalDateTime.now();
         LocalDateTime timestamp2 = LocalDateTime.now();
         LocalDateTime timestamp3 = LocalDateTime.now();
@@ -557,7 +588,7 @@ class ChatMessagesTest {
         chatMessages.add(new ChatMessage(2L, 20L, 200L, 2000L, "Message 2", timestamp2, timestamp2));
         chatMessages.add(new ChatMessage(3L, 30L, 300L, 3000L, "Message 3", timestamp3, timestamp3));
 
-        ChatMessage updated = chatMessages.update(2L, "Updated Message 2", LocalDateTime.now());
+        ChatMessage updated = chatMessages.update(channel, 100L, 2L, "Updated Message 2", LocalDateTime.now());
         List<ChatMessage> history = chatMessages.getHistory(2500L, 10);
 
         assertAll(
@@ -574,11 +605,13 @@ class ChatMessagesTest {
     @Test
     void 채팅_메시지_복제_시_수정된_메시지가_올바르게_동기화된다() {
         ChatMessages chatMessages = new ChatMessages();
+        Channel channel = mock(Channel.class);
+        doNothing().when(channel).validateMemberEditMessage(any(UserId.class), any(ChatMessage.class));
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = new ChatMessage(1L, 10L, 100L, 1000L, "Original", timestamp, timestamp);
         chatMessages.add(message);
 
-        ChatMessage updated = chatMessages.update(1L, "Updated", LocalDateTime.now());
+        ChatMessage updated = chatMessages.update(channel, 100L, 1L, "Updated", LocalDateTime.now());
 
         ChatMessages copy = chatMessages.deepCopy();
 
