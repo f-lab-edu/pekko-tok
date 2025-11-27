@@ -48,4 +48,12 @@ public record ChatMessage(
                 updatedAt
         );
     }
+
+    public boolean isWriter(Long writerId) {
+        return this.userId.equals(writerId);
+    }
+
+    public boolean isNotWriter(Long writerId) {
+        return !this.isWriter(writerId);
+    }
 }

@@ -138,4 +138,42 @@ class ChatMessageTest {
                           .isEqualTo("New Message")
                           .isNotEqualTo("Test Message");
     }
+
+    @Test
+    void 채팅_메시지_작성자인지_확인한다() {
+        // given
+        ChatMessage chatMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Hello",
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
+
+        // when & then
+        assertAll(
+                () -> assertThat(chatMessage.isWriter(1001L)).isTrue(),
+                () -> assertThat(chatMessage.isNotWriter(1001L)).isFalse()
+        );
+    }
+
+    @Test
+    void 채팅_메시지_작성자가_아닌지_확인한다() {
+        // given
+        ChatMessage chatMessage = ChatMessage.create(
+                1L,
+                1001L,
+                1L,
+                "Hello",
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
+
+        // when & then
+        assertAll(
+                () -> assertThat(chatMessage.isWriter(2002L)).isFalse(),
+                () -> assertThat(chatMessage.isNotWriter(2002L)).isTrue()
+        );
+    }
 }
