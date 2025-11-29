@@ -11,19 +11,6 @@ import reactor.core.publisher.Sinks;
 
 public class WebSocketMessageSender implements ClientMessageSender {
 
-    public static final String EVENT_NEW = "NEW";
-    public static final String EVENT_UPDATED = "UPDATED";
-    public static final String EVENT_DELETED = "DELETED";
-    public static final String EVENT_WS_PING = "WS_HEALTH_PING";
-    public static final String EVENT_WS_RECONNECT = "WS_RECONNECT";
-    public static final String EVENT_CHANNEL_MEMBERSHIP_CHANGED = "CHANNEL_MEMBERSHIP_CHANGED";
-    public static final String EVENT_CHANNEL_MEMBERSHIP_COUNT_CHANGED = "CHANNEL_MEMBERSHIP_COUNT_CHANGED";
-    public static final String EVENT_INVITED_CHANNEL = "CHANNEL_INVITED";
-    public static final String EVENT_CHANNEL_NAME_EDITED = "CHANNEL_NAME_EDITED";
-    public static final String EVENT_CHANNEL_KICKED = "CHANNEL_KICKED";
-    public static final String EVENT_CHANNEL_POLICY_CHANGED = "CHANNEL_POLICY_CHANGED";
-    public static final String EVENT_ERROR = "ERROR";
-
     private final AtomicReference<Sinks.Many<WebSocketPayload>> sinkHolder;
 
     public WebSocketMessageSender() {
@@ -44,7 +31,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
 
     @Override
     public void sendMessage(ChatMessage message) {
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_NEW, message);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.NEW, message);
 
         emit(webSocketPayload);
     }
@@ -56,14 +43,14 @@ public class WebSocketMessageSender implements ClientMessageSender {
 
     @Override
     public void sendDeletedMessage(ChatMessage deletedMessage) {
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_DELETED, deletedMessage);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.DELETED, deletedMessage);
 
         emit(webSocketPayload);
     }
 
     @Override
     public void sendUpdatedMessage(ChatMessage updatedMessage) {
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_UPDATED, updatedMessage);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.UPDATED, updatedMessage);
 
         emit(webSocketPayload);
     }
@@ -86,7 +73,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
                 membershipCount
         );
         WebSocketPayload webSocketPayload = new WebSocketPayload(
-                EVENT_CHANNEL_MEMBERSHIP_CHANGED,
+                WebSocketMessageType.CHANNEL_MEMBERSHIP_CHANGED,
                 channelMembershipPayload
         );
 
@@ -97,7 +84,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     public void sendChangedMembershipCount(Long channelId, int membershipCount) {
         ChannelMembershipCountPayload channelMembershipCountPayload = new ChannelMembershipCountPayload(channelId, membershipCount);
         WebSocketPayload webSocketPayload = new WebSocketPayload(
-                EVENT_CHANNEL_MEMBERSHIP_COUNT_CHANGED,
+                WebSocketMessageType.CHANNEL_MEMBERSHIP_COUNT_CHANGED,
                 channelMembershipCountPayload
         );
 
@@ -107,7 +94,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     @Override
     public void sendInvitedChannel(Long channelId) {
         ChannelInvitePayload channelInvitePayload = new ChannelInvitePayload(channelId);
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_INVITED_CHANNEL, channelInvitePayload);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.CHANNEL_INVITED, channelInvitePayload);
 
         emit(webSocketPayload);
     }
@@ -115,7 +102,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     @Override
     public void sendEditedChannelName(Long channelId, String editedName) {
         ChannelNamePayload channelNamePayload = new ChannelNamePayload(channelId, editedName);
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_NAME_EDITED, channelNamePayload);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.CHANNEL_NAME_EDITED, channelNamePayload);
 
         emit(webSocketPayload);
     }
@@ -123,7 +110,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     @Override
     public void sendKickedFromChannel(Long channelId) {
         ChannelKickedPayload channelKickedPayload = new ChannelKickedPayload(channelId);
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_KICKED, channelKickedPayload);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.CHANNEL_KICKED, channelKickedPayload);
 
         emit(webSocketPayload);
     }
@@ -131,7 +118,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     @Override
     public void sendChangedChannelPolicy(Long channelId, ChannelPolicy channelPolicy) {
         ChannelPolicyPayload channelPolicyPayload = ChannelPolicyPayload.from(channelId, channelPolicy);
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_POLICY_CHANGED, channelPolicyPayload);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.CHANNEL_POLICY_CHANGED, channelPolicyPayload);
 
         emit(webSocketPayload);
     }
@@ -139,7 +126,7 @@ public class WebSocketMessageSender implements ClientMessageSender {
     @Override
     public void sendError(Long channelId, String reason) {
         ErrorPayload errorPayload = new ErrorPayload(channelId, reason);
-        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_ERROR, errorPayload);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(WebSocketMessageType.ERROR, errorPayload);
 
         emit(webSocketPayload);
     }
@@ -152,10 +139,10 @@ public class WebSocketMessageSender implements ClientMessageSender {
         }
     }
 
-    public record WebSocketPayload(String type, Object message) {
+    public record WebSocketPayload(WebSocketMessageType type, Object message) {
 
-        static final WebSocketPayload PING_PAYLOAD = new WebSocketPayload(EVENT_WS_PING, null);
-        static final WebSocketPayload RECONNECT_PAYLOAD = new WebSocketPayload(EVENT_WS_RECONNECT, null);
+        static final WebSocketPayload PING_PAYLOAD = new WebSocketPayload(WebSocketMessageType.WS_HEALTH_PING, null);
+        static final WebSocketPayload RECONNECT_PAYLOAD = new WebSocketPayload(WebSocketMessageType.WS_RECONNECT, null);
     }
 
     public record ChannelMembershipPayload(

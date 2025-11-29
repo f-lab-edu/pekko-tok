@@ -44,7 +44,7 @@ class WebSocketMessageSenderTest {
         sender.sendMessage(message);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, message));
+        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
     }
 
     @Test
@@ -63,9 +63,9 @@ class WebSocketMessageSenderTest {
 
         // then
         assertAll(
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, messages.get(0))),
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, messages.get(1))),
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, messages.get(2)))
+                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(0))),
+                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(1))),
+                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(2)))
         );
     }
 
@@ -80,7 +80,7 @@ class WebSocketMessageSenderTest {
         sender.sendDeletedMessage(deletedMessage);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_DELETED, deletedMessage));
+        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.DELETED, deletedMessage));
     }
 
     @Test
@@ -94,7 +94,7 @@ class WebSocketMessageSenderTest {
         sender.sendUpdatedMessage(updatedMessage);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_UPDATED, updatedMessage));
+        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.UPDATED, updatedMessage));
     }
 
     @Test
@@ -107,7 +107,7 @@ class WebSocketMessageSenderTest {
         sender.sendWebSocketPing();
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_WS_PING, null));
+        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.WS_HEALTH_PING, null));
     }
 
     @Test
@@ -120,7 +120,7 @@ class WebSocketMessageSenderTest {
         sender.requestSessionReconnect();
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_WS_RECONNECT, null));
+        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.WS_RECONNECT, null));
     }
 
     @Test
@@ -137,8 +137,8 @@ class WebSocketMessageSenderTest {
         sender.sendMessage(message);
 
         // then
-        verify(firstSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, message));
-        verify(secondSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageSender.EVENT_NEW, message));
+        verify(firstSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
+        verify(secondSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
     }
 
     @Test
@@ -166,7 +166,7 @@ class WebSocketMessageSenderTest {
 
         ChannelMembershipPayload expectedPayload = ChannelMembershipPayload.from(channelId, membership, membershipCount);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_CHANNEL_MEMBERSHIP_CHANGED,
+                WebSocketMessageType.CHANNEL_MEMBERSHIP_CHANGED,
                 expectedPayload
         );
 
@@ -187,7 +187,7 @@ class WebSocketMessageSenderTest {
 
         ChannelMembershipCountPayload expectedPayload = new ChannelMembershipCountPayload(channelId, membershipCount);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_CHANNEL_MEMBERSHIP_COUNT_CHANGED,
+                WebSocketMessageType.CHANNEL_MEMBERSHIP_COUNT_CHANGED,
                 expectedPayload
         );
 
@@ -207,7 +207,7 @@ class WebSocketMessageSenderTest {
 
         ChannelInvitePayload expectedPayload = new ChannelInvitePayload(channelId);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_INVITED_CHANNEL,
+                WebSocketMessageType.CHANNEL_INVITED,
                 expectedPayload
         );
 
@@ -228,7 +228,7 @@ class WebSocketMessageSenderTest {
 
         ChannelNamePayload expectedPayload = new ChannelNamePayload(channelId, editedName);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_CHANNEL_NAME_EDITED,
+                WebSocketMessageType.CHANNEL_NAME_EDITED,
                 expectedPayload
         );
 
@@ -248,7 +248,7 @@ class WebSocketMessageSenderTest {
 
         ChannelKickedPayload expectedPayload = new ChannelKickedPayload(channelId);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_CHANNEL_KICKED,
+                WebSocketMessageType.CHANNEL_KICKED,
                 expectedPayload
         );
 
@@ -272,7 +272,7 @@ class WebSocketMessageSenderTest {
 
         ChannelPolicyPayload expectedPayload = ChannelPolicyPayload.from(channelId, channelPolicy);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_CHANNEL_POLICY_CHANGED,
+                WebSocketMessageType.CHANNEL_POLICY_CHANGED,
                 expectedPayload
         );
 
@@ -293,7 +293,7 @@ class WebSocketMessageSenderTest {
 
         ErrorPayload expectedPayload = new ErrorPayload(channelId, reason);
         WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
-                WebSocketMessageSender.EVENT_ERROR,
+                WebSocketMessageType.ERROR,
                 expectedPayload
         );
 

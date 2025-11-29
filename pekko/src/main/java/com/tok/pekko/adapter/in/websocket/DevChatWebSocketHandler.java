@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender;
+import com.tok.pekko.adapter.out.websocket.WebSocketMessageType;
 import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
@@ -17,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
@@ -32,15 +32,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-@Slf4j
 @Profile("dev")
 @Component
 @RequiredArgsConstructor
 public class DevChatWebSocketHandler implements WebSocketHandler {
 
-    private static final String HEARTBEAT_PING_MESSAGE_TYPE = "PING";
-    private static final String HEARTBEAT_PONG_MESSAGE_TYPE = "PONG";
-    private static final String SESSION_HEALTH_PONG_MESSAGE_TYPE = "WS_PONG";
     private static final String MESSAGE_SCHEMA_TYPE = "type";
 
     private final ObjectMapper objectMapper;
@@ -138,10 +134,10 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
     ) {
         try {
             JsonNode node = objectMapper.readTree(payload);
-            String type = node.path("type").asText();
+            String type = node.path(MESSAGE_SCHEMA_TYPE).asText();
 
-            if (HEARTBEAT_PING_MESSAGE_TYPE.equalsIgnoreCase(type)) {
-                sink.tryEmitNext(new WebSocketMessageSender.WebSocketPayload(HEARTBEAT_PONG_MESSAGE_TYPE, null));
+            if (WebSocketMessageType.HEARTBEAT_PING.isSameType(type)) {
+                sink.tryEmitNext(new WebSocketMessageSender.WebSocketPayload(WebSocketMessageType.HEARTBEAT_PONG, null));
                 return true;
             }
         } catch (Exception ignored) {
@@ -158,7 +154,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
             JsonNode node = objectMapper.readTree(payload);
             String type = node.path(MESSAGE_SCHEMA_TYPE).asText();
 
-            if (SESSION_HEALTH_PONG_MESSAGE_TYPE.equalsIgnoreCase(type)) {
+            if (WebSocketMessageType.SESSION_HEALTH_PONG.isSameType(type)) {
                 clientSession.thenAccept(actorRef -> actorRef.tell(new SessionPongReceived()));
                 return true;
             }
