@@ -2,6 +2,11 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.channel.model.ChannelRole;
+import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.GetHistory;
@@ -10,6 +15,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.RequestInitialHis
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.UnregisterClientSession;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorMessagePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverNewMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverDeletedMessage;
@@ -17,6 +23,13 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelMembership;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditChannelName;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ReSyncSession;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.RequestHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.Shutdown;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncJoinChannel;
@@ -24,8 +37,10 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.SyncLeaveChannel
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
 import org.apache.pekko.actor.typed.ActorRef;
@@ -42,7 +57,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-@SuppressWarnings("NonAsciiCharacters")
+@SuppressWarnings({"NonAsciiCharacters", "unchecked"})
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class ClientSessionActorTest {
 
@@ -433,5 +448,204 @@ class ClientSessionActorTest {
 
         // then
         readerProbe.expectMessageClass(UnregisterClientSession.class);
+    }
+
+    @Test
+    void PropagateChangeChannelMembership_메시지를_받으면_ClientMessageSender로_채널_멤버십_변경을_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        Long channelId = 1L;
+        ChannelMembership membership = createManagerMembership(1L, channelId, 100L);
+        int membershipCount = 5;
+
+        // when
+        clientSessionActor.tell(new PropagateChangeChannelMembership(channelId, membership, membershipCount));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendChangedChannelMembership(channelId, membership, membershipCount);
+    }
+
+    @Test
+    void PropagateMembershipCount_메시지를_받으면_ClientMessageSender로_멤버십_카운트_변경을_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        Long channelId = 1L;
+        int membershipCount = 10;
+
+        // when
+        clientSessionActor.tell(new PropagateMembershipCount(channelId, membershipCount));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendChangedMembershipCount(channelId, membershipCount);
+    }
+
+    @Test
+    void PropagateChangeChannelPolicy_메시지를_받으면_ClientMessageSender로_채널_정책_변경을_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        Long channelId = 1L;
+        ChannelPolicy channelPolicy = ChannelPolicy.defaultPolicy()
+                                                   .updatePublic(false)
+                                                   .updateEditOwnMessage(true)
+                                                   .updateDeleteOwnMessage(false);
+
+        // when
+        clientSessionActor.tell(new PropagateChangeChannelPolicy(channelId, channelPolicy));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendChangedChannelPolicy(channelId, channelPolicy);
+    }
+
+    @Test
+    void PropagateEditChannelName_메시지를_받으면_ClientMessageSender로_채널_이름_변경을_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        Long channelId = 1L;
+        String editedName = "새로운 채널명";
+
+        // when
+        clientSessionActor.tell(new PropagateEditChannelName(channelId, editedName));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendEditedChannelName(channelId, editedName);
+    }
+
+    @Test
+    void PropagateKickedMember_메시지를_받으면_ClientMessageSender로_강퇴_알림을_전송하고_reader를_제거한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        Map<Long, ActorRef<ChannelReaderCommand>> readers = Map.of(1L, readerProbe.ref());
+
+        clientSessionActor.tell(new FoundChannelReaders(readers));
+        readerProbe.expectMessageClass(RegisterClientSession.class);
+        readerProbe.expectMessageClass(RequestInitialHistory.class);
+
+        Long channelId = 1L;
+
+        // when
+        clientSessionActor.tell(new PropagateKickedMember(channelId));
+
+        // then
+        assertAll(
+                () -> verify(mockClientMessageSender, timeout(1000)).sendKickedFromChannel(channelId),
+                () -> {
+                    ReleaseClientSessionActor message = readerRegistryProbe.expectMessageClass(ReleaseClientSessionActor.class);
+                    assertThat(message.channelIds()).contains(channelId);
+                }
+        );
+    }
+
+    @Test
+    void ReSyncSession_메시지를_받으면_ChannelMembershipActorMessagePort로_참여_채널_조회를_요청한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        // when
+        clientSessionActor.tell(new ReSyncSession());
+
+        // then
+        verify(mockChannelMembershipActorMessagePort, timeout(1000).times(2))
+                .sendParticipatingChannels(eq(100L), any(ActorRef.class));
+    }
+
+    @Test
+    void NotifyFailure_메시지를_받으면_ClientMessageSender로_에러를_전송한다() {
+        // given
+        ClientMessageSender mockClientMessageSender = mock(ClientMessageSender.class);
+        MessageStoragePort mockMessageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorMessagePort mockChannelMembershipActorMessagePort = mock(
+                ChannelMembershipActorMessagePort.class);
+        TestProbe<ChannelReaderRegistryCommand> readerRegistryProbe = testKit.createTestProbe();
+
+        ActorRef<ClientSessionCommand> clientSessionActor = testKit.spawn(
+                ClientSessionActor.create(100L, mockClientMessageSender, mockMessageStoragePort,
+                        mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
+        );
+
+        Long channelId = 1L;
+        String reason = "권한이 없습니다";
+
+        // when
+        clientSessionActor.tell(new PropagateFailure(channelId, reason));
+
+        // then
+        verify(mockClientMessageSender, timeout(1000)).sendError(channelId, reason);
+    }
+
+    private ChannelMembership createManagerMembership(Long membershipId, Long channelId, Long userId) {
+        Set<ChannelPermissionType> permissions = EnumSet.of(
+                ChannelPermissionType.MESSAGE_EDIT,
+                ChannelPermissionType.MEMBER_KICK
+        );
+        ChannelManagePermissions managePermissions = ChannelManagePermissions.ofManager(permissions);
+
+        return ChannelMembership.create(
+                membershipId,
+                channelId,
+                userId,
+                ChannelRole.MANAGER,
+                managePermissions,
+                LocalDateTime.now()
+        );
     }
 }

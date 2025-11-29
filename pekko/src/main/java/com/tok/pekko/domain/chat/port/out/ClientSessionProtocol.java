@@ -1,5 +1,7 @@
 package com.tok.pekko.domain.chat.port.out;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
 import java.util.List;
@@ -40,4 +42,25 @@ public interface ClientSessionProtocol {
 
     // Client Session인 WebSocketSession으로부터 Pong을 전달하기 위한 메시지 : WebSocketHandler -> ClientSessionActor
     record SessionPongReceived() implements ClientSessionCommand { }
+
+    // 채널 정책이 변경되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateChangeChannelPolicy(Long channelId, ChannelPolicy channelPolicy) implements ClientSessionCommand { }
+
+    // 채널 이름이 변경되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateEditChannelName(Long channelId, String editedName) implements ClientSessionCommand { }
+
+    // 채널 참여자가 강퇴되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateKickedMember(Long channelId) implements ClientSessionCommand { }
+
+    // 채널 멤버 수 변경을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateMembershipCount(Long channelId, int membershipCount) implements ClientSessionCommand { }
+
+    // 채널 참여자의 정보가 변경되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateChangeChannelMembership(Long channelId, ChannelMembership channelMembership, int membershipCount) implements ClientSessionCommand { }
+
+    // WebSocket 재연결 시 참여 채널/히스토리를 다시 동기화하기 위한 메시지 : WebSocketHandler -> ClientSessionActor
+    record ReSyncSession() implements ClientSessionCommand { }
+
+    // 요청 실패를 클라이언트로 전달하기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateFailure(Long channelId, String reason) implements ClientSessionCommand { }
 }
