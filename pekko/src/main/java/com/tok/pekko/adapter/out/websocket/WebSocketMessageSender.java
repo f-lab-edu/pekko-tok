@@ -1,7 +1,11 @@
 package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import reactor.core.publisher.Sinks;
 
@@ -12,6 +16,13 @@ public class WebSocketMessageSender implements ClientMessageSender {
     public static final String EVENT_DELETED = "DELETED";
     public static final String EVENT_WS_PING = "WS_HEALTH_PING";
     public static final String EVENT_WS_RECONNECT = "WS_RECONNECT";
+    public static final String EVENT_CHANNEL_MEMBERSHIP_CHANGED = "CHANNEL_MEMBERSHIP_CHANGED";
+    public static final String EVENT_CHANNEL_MEMBERSHIP_COUNT_CHANGED = "CHANNEL_MEMBERSHIP_COUNT_CHANGED";
+    public static final String EVENT_INVITED_CHANNEL = "CHANNEL_INVITED";
+    public static final String EVENT_CHANNEL_NAME_EDITED = "CHANNEL_NAME_EDITED";
+    public static final String EVENT_CHANNEL_KICKED = "CHANNEL_KICKED";
+    public static final String EVENT_CHANNEL_POLICY_CHANGED = "CHANNEL_POLICY_CHANGED";
+    public static final String EVENT_ERROR = "ERROR";
 
     private final AtomicReference<Sinks.Many<WebSocketPayload>> sinkHolder;
 
@@ -33,7 +44,9 @@ public class WebSocketMessageSender implements ClientMessageSender {
 
     @Override
     public void sendMessage(ChatMessage message) {
-        emit(new WebSocketPayload(EVENT_NEW, message));
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_NEW, message);
+
+        emit(webSocketPayload);
     }
 
     @Override
@@ -43,22 +56,92 @@ public class WebSocketMessageSender implements ClientMessageSender {
 
     @Override
     public void sendDeletedMessage(ChatMessage deletedMessage) {
-        emit(new WebSocketPayload(EVENT_DELETED, deletedMessage));
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_DELETED, deletedMessage);
+
+        emit(webSocketPayload);
     }
 
     @Override
     public void sendUpdatedMessage(ChatMessage updatedMessage) {
-        emit(new WebSocketPayload(EVENT_UPDATED, updatedMessage));
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_UPDATED, updatedMessage);
+
+        emit(webSocketPayload);
     }
 
     @Override
     public void sendWebSocketPing() {
-        emit(new WebSocketPayload(EVENT_WS_PING, null));
+        emit(WebSocketPayload.PING_PAYLOAD);
     }
 
     @Override
     public void requestSessionReconnect() {
-        emit(new WebSocketPayload(EVENT_WS_RECONNECT, null));
+        emit(WebSocketPayload.RECONNECT_PAYLOAD);
+    }
+
+    @Override
+    public void sendChangedChannelMembership(Long channelId, ChannelMembership channelMembership, int membershipCount) {
+        ChannelMembershipPayload channelMembershipPayload = ChannelMembershipPayload.from(
+                channelId,
+                channelMembership,
+                membershipCount
+        );
+        WebSocketPayload webSocketPayload = new WebSocketPayload(
+                EVENT_CHANNEL_MEMBERSHIP_CHANGED,
+                channelMembershipPayload
+        );
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendChangedMembershipCount(Long channelId, int membershipCount) {
+        ChannelMembershipCountPayload channelMembershipCountPayload = new ChannelMembershipCountPayload(channelId, membershipCount);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(
+                EVENT_CHANNEL_MEMBERSHIP_COUNT_CHANGED,
+                channelMembershipCountPayload
+        );
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendInvitedChannel(Long channelId) {
+        ChannelInvitePayload channelInvitePayload = new ChannelInvitePayload(channelId);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_INVITED_CHANNEL, channelInvitePayload);
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendEditedChannelName(Long channelId, String editedName) {
+        ChannelNamePayload channelNamePayload = new ChannelNamePayload(channelId, editedName);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_NAME_EDITED, channelNamePayload);
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendKickedFromChannel(Long channelId) {
+        ChannelKickedPayload channelKickedPayload = new ChannelKickedPayload(channelId);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_KICKED, channelKickedPayload);
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendChangedChannelPolicy(Long channelId, ChannelPolicy channelPolicy) {
+        ChannelPolicyPayload channelPolicyPayload = ChannelPolicyPayload.from(channelId, channelPolicy);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_CHANNEL_POLICY_CHANGED, channelPolicyPayload);
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendError(Long channelId, String reason) {
+        ErrorPayload errorPayload = new ErrorPayload(channelId, reason);
+        WebSocketPayload webSocketPayload = new WebSocketPayload(EVENT_ERROR, errorPayload);
+
+        emit(webSocketPayload);
     }
 
     private void emit(WebSocketPayload payload) {
@@ -69,5 +152,53 @@ public class WebSocketMessageSender implements ClientMessageSender {
         }
     }
 
-    public record WebSocketPayload(String type, ChatMessage message) { }
+    public record WebSocketPayload(String type, Object message) {
+
+        static final WebSocketPayload PING_PAYLOAD = new WebSocketPayload(EVENT_WS_PING, null);
+        static final WebSocketPayload RECONNECT_PAYLOAD = new WebSocketPayload(EVENT_WS_RECONNECT, null);
+    }
+
+    public record ChannelMembershipPayload(
+            Long channelId,
+            Long memberId,
+            String role,
+            Set<ChannelPermissionType> permissions,
+            int membershipCount
+    ) {
+        static ChannelMembershipPayload from(Long channelId, ChannelMembership channelMembership, int membershipCount) {
+            return new ChannelMembershipPayload(
+                    channelId,
+                    channelMembership.getUserId().getValue(),
+                    channelMembership.getRole().name(),
+                    channelMembership.getPermissions().getAll(),
+                    membershipCount
+            );
+        }
+    }
+
+    public record ChannelNamePayload(Long channelId, String name) { }
+
+    public record ChannelInvitePayload(Long channelId) { }
+
+    public record ChannelKickedPayload(Long channelId) { }
+
+    public record ChannelMembershipCountPayload(Long channelId, int membershipCount) { }
+
+    public record ChannelPolicyPayload(
+            Long channelId,
+            boolean canEditOwnMessage,
+            boolean canDeleteOwnMessage,
+            boolean isPublic
+    ) {
+        static ChannelPolicyPayload from(Long channelId, ChannelPolicy policy) {
+            return new ChannelPolicyPayload(
+                    channelId,
+                    policy.canEditOwnMessage(),
+                    policy.canDeleteOwnMessage(),
+                    policy.isPublic()
+            );
+        }
+    }
+
+    public record ErrorPayload(Long channelId, String reason) { }
 }
