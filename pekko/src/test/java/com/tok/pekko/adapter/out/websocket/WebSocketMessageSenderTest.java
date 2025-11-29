@@ -1,13 +1,14 @@
 package com.tok.pekko.adapter.out.websocket;
 
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelInvitePayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelKickedPayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelMembershipCountPayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelMembershipPayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelNamePayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ChannelPolicyPayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.ErrorPayload;
-import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender.WebSocketPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelInvitePayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelKickedPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelMembershipCountPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelMembershipPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelNamePayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelPolicyPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChatMessagePayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ErrorPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketOutboundMessage;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.ChannelRole;
@@ -36,7 +37,7 @@ class WebSocketMessageSenderTest {
     @Test
     void 단일_메시지를_클라이언트에게_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         ChatMessage message = createMessage(1L, "테스트 메시지");
 
@@ -44,13 +45,13 @@ class WebSocketMessageSenderTest {
         sender.sendMessage(message);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
+        verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(message)));
     }
 
     @Test
     void 여러_메시지를_클라이언트에게_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         List<ChatMessage> messages = List.of(
                 createMessage(1L, "메시지1"),
@@ -63,16 +64,16 @@ class WebSocketMessageSenderTest {
 
         // then
         assertAll(
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(0))),
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(1))),
-                () -> verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, messages.get(2)))
+                () -> verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(messages.get(0)))),
+                () -> verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(messages.get(1)))),
+                () -> verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(messages.get(2))))
         );
     }
 
     @Test
     void 삭제된_메시지를_클라이언트에게_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         ChatMessage deletedMessage = createMessage(1L, "삭제된 메시지");
 
@@ -80,13 +81,13 @@ class WebSocketMessageSenderTest {
         sender.sendDeletedMessage(deletedMessage);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.DELETED, deletedMessage));
+        verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.DELETED, new ChatMessagePayload(deletedMessage)));
     }
 
     @Test
     void 수정된_메시지를_클라이언트에게_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         ChatMessage updatedMessage = createMessage(1L, "수정된 메시지");
 
@@ -94,40 +95,40 @@ class WebSocketMessageSenderTest {
         sender.sendUpdatedMessage(updatedMessage);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.UPDATED, updatedMessage));
+        verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.UPDATED, new ChatMessagePayload(updatedMessage)));
     }
 
     @Test
     void 웹소켓_헬스체크_핑을_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
 
         // when
         sender.sendWebSocketPing();
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.WS_HEALTH_PING, null));
+        verify(sink).tryEmitNext(WebSocketOutboundMessage.PING_MESSAGE);
     }
 
     @Test
     void 재연결을_요청한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
 
         // when
         sender.requestSessionReconnect();
 
         // then
-        verify(sink).tryEmitNext(new WebSocketPayload(WebSocketMessageType.WS_RECONNECT, null));
+        verify(sink).tryEmitNext(WebSocketOutboundMessage.RECONNECT_MESSAGE);
     }
 
     @Test
     void sink를_교체하면_새로운_sink로_메시지를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> firstSink = mock(Sinks.Many.class);
-        Sinks.Many<WebSocketPayload> secondSink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> firstSink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> secondSink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(firstSink);
         ChatMessage message = createMessage(10L, "hello");
 
@@ -137,14 +138,14 @@ class WebSocketMessageSenderTest {
         sender.sendMessage(message);
 
         // then
-        verify(firstSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
-        verify(secondSink, times(1)).tryEmitNext(new WebSocketPayload(WebSocketMessageType.NEW, message));
+        verify(firstSink, times(1)).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(message)));
+        verify(secondSink, times(1)).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.NEW, new ChatMessagePayload(message)));
     }
 
     @Test
     void sink를_detach하면_추가_메시지가_전송되지_않는다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
 
         // when
@@ -158,14 +159,14 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_멤버십_변경_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
         ChannelMembership membership = createManagerMembership(1L, channelId, 100L);
         int membershipCount = 5;
 
         ChannelMembershipPayload expectedPayload = ChannelMembershipPayload.from(channelId, membership, membershipCount);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_MEMBERSHIP_CHANGED,
                 expectedPayload
         );
@@ -180,13 +181,13 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_멤버십_카운트_변경_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
         int membershipCount = 7;
 
         ChannelMembershipCountPayload expectedPayload = new ChannelMembershipCountPayload(channelId, membershipCount);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_MEMBERSHIP_COUNT_CHANGED,
                 expectedPayload
         );
@@ -201,12 +202,12 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_초대_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
 
         ChannelInvitePayload expectedPayload = new ChannelInvitePayload(channelId);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_INVITED,
                 expectedPayload
         );
@@ -221,13 +222,13 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_이름_변경_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
         String editedName = "새로운 채널명";
 
         ChannelNamePayload expectedPayload = new ChannelNamePayload(channelId, editedName);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_NAME_EDITED,
                 expectedPayload
         );
@@ -242,12 +243,12 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_강퇴_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
 
         ChannelKickedPayload expectedPayload = new ChannelKickedPayload(channelId);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_KICKED,
                 expectedPayload
         );
@@ -262,7 +263,7 @@ class WebSocketMessageSenderTest {
     @Test
     void 채널_정책_변경_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
         ChannelPolicy channelPolicy = ChannelPolicy.defaultPolicy()
@@ -271,7 +272,7 @@ class WebSocketMessageSenderTest {
                                                    .updateDeleteOwnMessage(false);
 
         ChannelPolicyPayload expectedPayload = ChannelPolicyPayload.from(channelId, channelPolicy);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_POLICY_CHANGED,
                 expectedPayload
         );
@@ -286,13 +287,13 @@ class WebSocketMessageSenderTest {
     @Test
     void 에러_이벤트를_전송한다() {
         // given
-        Sinks.Many<WebSocketPayload> sink = mock(Sinks.Many.class);
+        Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
         Long channelId = 10L;
         String reason = "권한이 없습니다";
 
         ErrorPayload expectedPayload = new ErrorPayload(channelId, reason);
-        WebSocketPayload expectedWebSocketPayload = new WebSocketPayload(
+        WebSocketOutboundMessage expectedWebSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.ERROR,
                 expectedPayload
         );
