@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tok.pekko.adapter.out.websocket.WebSocketMessageSender;
+import com.tok.pekko.adapter.out.websocket.WebSocketMessageType;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketOutboundMessage;
 import com.tok.pekko.application.actor.ClientSessionActorManagementService;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
@@ -17,7 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pekko.actor.typed.ActorRef;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
@@ -32,15 +33,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-@Slf4j
 @Profile("dev")
 @Component
 @RequiredArgsConstructor
 public class DevChatWebSocketHandler implements WebSocketHandler {
 
-    private static final String HEARTBEAT_PING_MESSAGE_TYPE = "PING";
-    private static final String HEARTBEAT_PONG_MESSAGE_TYPE = "PONG";
-    private static final String SESSION_HEALTH_PONG_MESSAGE_TYPE = "WS_PONG";
     private static final String MESSAGE_SCHEMA_TYPE = "type";
 
     private final ObjectMapper objectMapper;
@@ -51,7 +48,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         WebSocketConnectionContext context = extractConnectionContext(session);
-        Sinks.Many<WebSocketMessageSender.WebSocketPayload> messageSink = createMessageSink();
+        Sinks.Many<WebSocketOutboundMessage> messageSink = createMessageSink();
         WebSocketMessageSender messageSender = getOrCreateMessageSender(context, messageSink);
 
         CompletionStage<ActorRef<ClientSessionCommand>> clientSession =
@@ -69,7 +66,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
         return WebSocketConnectionContext.from(session);
     }
 
-    private Sinks.Many<WebSocketMessageSender.WebSocketPayload> createMessageSink() {
+    private Sinks.Many<WebSocketOutboundMessage> createMessageSink() {
         return Sinks.many()
                     .unicast()
                     .onBackpressureBuffer();
@@ -77,7 +74,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private WebSocketMessageSender getOrCreateMessageSender(
             WebSocketConnectionContext context,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink
+            Sinks.Many<WebSocketOutboundMessage> sink
     ) {
         return clientMessageSenders.compute(
                 context.userId(),
@@ -105,7 +102,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
     private Mono<Void> handleInboundMessages(
             WebSocketSession session,
             WebSocketConnectionContext context,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink,
+            Sinks.Many<WebSocketOutboundMessage> sink,
             CompletionStage<ActorRef<ClientSessionCommand>> clientSession
     ) {
         return session.receive()
@@ -115,7 +112,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private Mono<Void> processInboundMessage(
             WebSocketConnectionContext context,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink,
+            Sinks.Many<WebSocketOutboundMessage> sink,
             CompletionStage<ActorRef<ClientSessionCommand>> clientSession,
             WebSocketMessage message
     ) {
@@ -134,14 +131,14 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private boolean handlePingMessage(
             String payload,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink
+            Sinks.Many<WebSocketOutboundMessage> sink
     ) {
         try {
             JsonNode node = objectMapper.readTree(payload);
-            String type = node.path("type").asText();
+            String type = node.path(MESSAGE_SCHEMA_TYPE).asText();
 
-            if (HEARTBEAT_PING_MESSAGE_TYPE.equalsIgnoreCase(type)) {
-                sink.tryEmitNext(new WebSocketMessageSender.WebSocketPayload(HEARTBEAT_PONG_MESSAGE_TYPE, null));
+            if (WebSocketMessageType.HEARTBEAT_PING.isSameType(type)) {
+                sink.tryEmitNext(WebSocketOutboundMessage.withoutPayload(WebSocketMessageType.HEARTBEAT_PONG));
                 return true;
             }
         } catch (Exception ignored) {
@@ -158,7 +155,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
             JsonNode node = objectMapper.readTree(payload);
             String type = node.path(MESSAGE_SCHEMA_TYPE).asText();
 
-            if (SESSION_HEALTH_PONG_MESSAGE_TYPE.equalsIgnoreCase(type)) {
+            if (WebSocketMessageType.SESSION_HEALTH_PONG.isSameType(type)) {
                 clientSession.thenAccept(actorRef -> actorRef.tell(new SessionPongReceived()));
                 return true;
             }
@@ -180,7 +177,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private Flux<WebSocketMessage> handleOutboundMessages(
             WebSocketSession session,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink
+            Sinks.Many<WebSocketOutboundMessage> sink
     ) {
         return sink.asFlux()
                    .flatMap(payload -> serializeMessage(session, payload));
@@ -188,7 +185,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private Mono<WebSocketMessage> serializeMessage(
             WebSocketSession session,
-            WebSocketMessageSender.WebSocketPayload payload
+            WebSocketOutboundMessage payload
     ) {
         try {
             String json = objectMapper.writeValueAsString(payload);
@@ -201,7 +198,7 @@ public class DevChatWebSocketHandler implements WebSocketHandler {
 
     private void cleanupConnection(
             WebSocketMessageSender messageSender,
-            Sinks.Many<WebSocketMessageSender.WebSocketPayload> sink
+            Sinks.Many<WebSocketOutboundMessage> sink
     ) {
         messageSender.detachSink(sink);
         sink.tryEmitComplete();
