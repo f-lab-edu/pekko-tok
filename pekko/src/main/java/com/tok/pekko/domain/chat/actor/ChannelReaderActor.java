@@ -51,7 +51,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
 
     public static Behavior<ChannelReaderCommand> create(
             Long channelId,
-            ChannelReaderMessages messages,
+            ChannelReaderChatMessages messages,
             EntityRef<ChannelEntityCommand> channelEntity,
             ActorRef<ChannelReaderRegistryCommand> readerRegistry
     ) {
@@ -81,7 +81,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     }
 
     private final Long channelId;
-    private final ChannelReaderMessages messages;
+    private final ChannelReaderChatMessages messages;
     private final EntityRef<ChannelEntityCommand> channelEntity;
     private final Map<Long, ActorRef<ClientSessionCommand>> clientSessions;
     private final List<RequestInitialHistory> requestInitialHistories;
@@ -91,7 +91,7 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     private ChannelReaderActor(
             ActorContext<ChannelReaderCommand> context,
             Long channelId,
-            ChannelReaderMessages messages,
+            ChannelReaderChatMessages messages,
             EntityRef<ChannelEntityCommand> channelEntity
     ) {
         super(context);

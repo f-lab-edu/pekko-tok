@@ -1,6 +1,6 @@
 package com.tok.pekko.domain.chat.actor;
 
-import com.tok.pekko.domain.chat.actor.ChannelReaderMessages.MessageNotFoundException;
+import com.tok.pekko.domain.chat.actor.ChannelReaderChatMessages.MessageNotFoundException;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
@@ -14,12 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class ChannelReaderMessagesTest {
+class ChannelReaderChatMessagesTest {
 
     @Test
     void 새로운_메시지를_추가할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test Message", timestamp, timestamp);
 
@@ -37,7 +37,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 메시지_ID로_메시지를_삭제할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test Message", timestamp, timestamp);
         messages.add(message);
@@ -55,7 +55,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 존재하지_않는_메시지를_삭제하면_예외가_발생한다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
 
         // when & then
         assertThatThrownBy(() -> messages.delete(999L))
@@ -66,7 +66,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 메시지를_수정할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Original Message", timestamp, timestamp);
         messages.add(message);
@@ -87,7 +87,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 존재하지_않는_메시지를_수정하면_예외가_발생한다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime updatedAt = LocalDateTime.now();
 
         // when & then
@@ -99,7 +99,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 특정_시퀀스_이전의_메시지_히스토리를_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         messages.add(ChatMessage.create(1L, 100L, 10L, "Message 10", timestamp, timestamp));
@@ -120,7 +120,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 최근_메시지를_지정한_개수만큼_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         messages.add(ChatMessage.create(1L, 100L, 10L, "Message 1", timestamp, timestamp));
@@ -141,7 +141,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 특정_시퀀스_이후의_메시지를_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         messages.add(ChatMessage.create(1L, 100L, 10L, "Message 10", timestamp, timestamp));
@@ -162,7 +162,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 메시지_ID로_특정_메시지를_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test Message", timestamp, timestamp);
         messages.add(message);
@@ -177,7 +177,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 모든_메시지를_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         ChatMessage message1 = ChatMessage.create(1L, 100L, 10L, "Message 1", timestamp, timestamp);
@@ -201,7 +201,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 최대_크기를_초과하면_가장_오래된_메시지가_제거된다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         for (int i = 1; i <= 101; i++) {
@@ -222,7 +222,7 @@ class ChannelReaderMessagesTest {
     @Test
     void syncMessages로_새로운_메시지_목록과_동기화할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         ChatMessage oldMessage = new ChatMessage(1L, 100L, 100L, 10L, "Old Message", timestamp, timestamp);
@@ -249,7 +249,7 @@ class ChannelReaderMessagesTest {
     @Test
     void syncMessages로_중복된_메시지는_제거되어_동기화된다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         ChatMessage originalMessage = new ChatMessage(1L, 1L, 100L, 10L, "Original", timestamp, timestamp);
@@ -272,7 +272,7 @@ class ChannelReaderMessagesTest {
     @Test
     void syncMessages에_빈_리스트를_전달하면_아무_동작도_하지_않는다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         ChatMessage message = ChatMessage.create(1L, 100L, 10L, "Message", timestamp, timestamp);
@@ -292,7 +292,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 조회하려는_메시지_개수가_0_이하면_예외가_발생한다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
 
         // when & then
         assertThatThrownBy(() -> messages.getHistory(10L, 0))
@@ -303,7 +303,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 조회하려는_메시지_개수가_최대값을_초과하면_예외가_발생한다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
 
         // when & then
         assertThatThrownBy(() -> messages.getRecentMessages(101))
@@ -314,7 +314,7 @@ class ChannelReaderMessagesTest {
     @Test
     void 여러_메시지를_추가하고_순서대로_조회할_수_있다() {
         // given
-        ChannelReaderMessages messages = new ChannelReaderMessages();
+        ChannelReaderChatMessages messages = new ChannelReaderChatMessages();
         LocalDateTime timestamp = LocalDateTime.now();
 
         ChatMessage message1 = ChatMessage.create(1L, 100L, 10L, "First", timestamp, timestamp);

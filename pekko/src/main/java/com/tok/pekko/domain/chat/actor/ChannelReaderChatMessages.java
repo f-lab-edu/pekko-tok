@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ChannelReaderMessages {
+public class ChannelReaderChatMessages {
 
     private static final int MAX_SIZE = 100;
 
@@ -18,7 +18,7 @@ public class ChannelReaderMessages {
     private final Map<Long, ChatMessageNode> messageIdMap;
     private int size;
 
-    public ChannelReaderMessages() {
+    public ChannelReaderChatMessages() {
         this.head = new ChatMessageNode(null);
         this.tail = new ChatMessageNode(null);
         this.head.next = tail;
