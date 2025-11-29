@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 @SuppressWarnings("NonAsciiCharacters")
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-class ChannelReaderChatMessagesTest {
+class ChannelReaderChannelEntityChatMessagesTest {
 
     @Test
     void 새로운_메시지를_추가할_수_있다() {

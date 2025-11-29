@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ChatMessages {
+public class ChannelEntityChatMessages {
 
     private static final int MAX_SIZE = 100;
 
@@ -18,7 +18,7 @@ public class ChatMessages {
     private final Map<Long, ChatMessageNode> messageIdMap;
     private int size;
 
-    public ChatMessages() {
+    public ChannelEntityChatMessages() {
         this.head = new ChatMessageNode(null);
         this.tail = new ChatMessageNode(null);
         this.head.next = tail;
@@ -27,8 +27,8 @@ public class ChatMessages {
         this.size = 0;
     }
 
-    public ChatMessages deepCopy() {
-        ChatMessages copy = new ChatMessages();
+    public ChannelEntityChatMessages deepCopy() {
+        ChannelEntityChatMessages copy = new ChannelEntityChatMessages();
         ChatMessageNode current = this.head.next;
 
         while (current != this.tail) {

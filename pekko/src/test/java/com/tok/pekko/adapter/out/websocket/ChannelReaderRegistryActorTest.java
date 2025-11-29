@@ -3,7 +3,7 @@ package com.tok.pekko.adapter.out.websocket;
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
-import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.domain.chat.actor.ChannelEntityChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
@@ -60,7 +60,7 @@ class ChannelReaderRegistryActorTest {
                         entityContext -> ChannelEntity.create(
                                 Clock.systemDefaultZone(),
                                 Long.parseLong(entityContext.getEntityId()),
-                                new ChatMessages(),
+                                new ChannelEntityChatMessages(),
                                 mockMessageStoragePort
                         )
                 )

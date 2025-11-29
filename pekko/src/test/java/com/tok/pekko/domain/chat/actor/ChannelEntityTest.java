@@ -62,7 +62,7 @@ class ChannelEntityTest {
     @Test
     void RegisterReader_메시지로_새로운_reader를_등록하면_기존_reader에게_메시지를_전달하지_않는다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -85,7 +85,7 @@ class ChannelEntityTest {
     @Test
     void SyncPersistedMessage_메시지를_받으면_모든_reader에게_SyncNewCommand_메시지를_전달한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -146,7 +146,7 @@ class ChannelEntityTest {
     @Test
     void RemoveShutdownReader_메시지를_받으면_해당_reader가_ChatChannelEntity에서_제거되어_메시지를_받지_않는다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -175,7 +175,7 @@ class ChannelEntityTest {
     @Test
     void SendMessage_메시지를_받으면_MessageStoragePort에_채팅_메시지_저장을_요청한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -199,7 +199,7 @@ class ChannelEntityTest {
     @Test
     void SendMessage_메시지를_받으면_유효한_ChatMessage를_생성하고_저장한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -232,7 +232,7 @@ class ChannelEntityTest {
     @Test
     void SyncRecentMessages_메시지를_받으면_messages를_동기화한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -268,7 +268,7 @@ class ChannelEntityTest {
     @Test
     void 메시지를_여러_번_동기화하면_messageSequence가_순차적으로_증가한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -327,7 +327,7 @@ class ChannelEntityTest {
     @Test
     void 생성_시_findRecentMessages를_호출한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -345,7 +345,7 @@ class ChannelEntityTest {
     @Test
     void RequestSyncMessages_메시지를_받으면_요청한_reader에게_DeliverSyncMessages를_전달한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -381,7 +381,7 @@ class ChannelEntityTest {
     @Test
     void DeleteMessage_메시지를_받으면_MessageStoragePort에_메시지_삭제를_요청한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -404,7 +404,7 @@ class ChannelEntityTest {
     @Test
     void SyncDeletedMessage_메시지를_받으면_모든_reader에게_SyncDeletion_메시지를_전달한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -444,7 +444,7 @@ class ChannelEntityTest {
     @Test
     void SyncDeletedMessage_메시지를_받으면_messages에서_메시지가_삭제된다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -488,7 +488,7 @@ class ChannelEntityTest {
     @Test
     void UpdateMessage_메시지를_받으면_MessageStoragePort에_메시지_수정을_요청한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
@@ -512,7 +512,7 @@ class ChannelEntityTest {
     @Test
     void SyncUpdatedMessage_메시지를_받으면_messages에서_메시지를_수정하고_reader에게_전파한다() {
         Long channelId = 1L;
-        ChatMessages messages = new ChatMessages();
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
