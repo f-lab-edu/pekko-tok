@@ -225,6 +225,66 @@ class ChannelMembershipTest {
     }
 
     @Test
+    void 매니저는_권한을_추가하거나_제거할_수_있다() {
+        // given
+        ChannelId channelId = ChannelId.create(10L);
+        UserId userId = UserId.create(1L);
+        LocalDateTime joinedAt = LocalDateTime.now();
+        ChannelMembership managerMembership = ChannelMembership.create(channelId, userId, ChannelRole.MANAGER, joinedAt);
+
+        // when
+        ChannelMembership addedPermissionMembership = managerMembership.addPermission(ChannelPermissionType.MEMBER_KICK);
+        ChannelMembership removedPermissionMembership = addedPermissionMembership.removePermission(ChannelPermissionType.MESSAGE_EDIT);
+
+        // then
+        assertAll(
+                () -> assertThat(addedPermissionMembership.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue(),
+                () -> assertThat(addedPermissionMembership.hasPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(removedPermissionMembership.lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(removedPermissionMembership.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue()
+        );
+    }
+
+    @Test
+    void 멤버는_권한을_추가하거나_제거할_수_없다() {
+        // given
+        ChannelId channelId = ChannelId.create(10L);
+        UserId userId = UserId.create(1L);
+        LocalDateTime joinedAt = LocalDateTime.now();
+        ChannelMembership memberMembership = ChannelMembership.create(channelId, userId, ChannelRole.MEMBER, joinedAt);
+
+        // when & then
+        assertAll(
+                () -> assertThatThrownBy(() -> memberMembership.addPermission(ChannelPermissionType.MEMBER_KICK))
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage("매니저가 아니라면 채널 권한을 관리할 수 없습니다."),
+                () -> assertThatThrownBy(() -> memberMembership.removePermission(ChannelPermissionType.MESSAGE_EDIT))
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage("매니저가 아니라면 채널 권한을 관리할 수 없습니다.")
+        );
+    }
+
+    @Test
+    void 매니저는_삭제_권한이_없으면_메시지를_삭제할_수_없다() {
+        // given
+        ChannelId channelId = ChannelId.create(10L);
+        UserId userId = UserId.create(1L);
+        LocalDateTime joinedAt = LocalDateTime.now();
+        ChannelMembership managerMembership = ChannelMembership.create(channelId, userId, ChannelRole.MANAGER, joinedAt);
+
+        // when
+        ChannelMembership permissionGrantedMembership = managerMembership.addPermission(ChannelPermissionType.MESSAGE_DELETE);
+
+        // then
+        assertAll(
+                () -> assertThat(managerMembership.canDeleteMessage()).isFalse(),
+                () -> assertThat(managerMembership.cannotDeleteMessage()).isTrue(),
+                () -> assertThat(permissionGrantedMembership.canDeleteMessage()).isTrue(),
+                () -> assertThat(permissionGrantedMembership.cannotDeleteMessage()).isFalse()
+        );
+    }
+
+    @Test
     void 멤버를_매니저로_승격할_수_있다() {
         // given
         ChannelId channelId = ChannelId.create(10L);

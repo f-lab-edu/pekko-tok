@@ -9,6 +9,7 @@ import com.tok.pekko.domain.channel.model.Channel.ChannelOperationForbiddenExcep
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelManagePermissions;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
+import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -104,8 +105,8 @@ class ChannelTest {
 
         // when & then
         assertAll(
-                () -> assertThat(publicChannel.isPublic()).isTrue(),
-                () -> assertThat(privateChannel.isPublic()).isFalse()
+                () -> assertThat(publicChannel.getChannelPolicy().isPublic()).isTrue(),
+                () -> assertThat(privateChannel.getChannelPolicy().isPublic()).isFalse()
         );
     }
 
@@ -116,7 +117,7 @@ class ChannelTest {
         UserId userId = UserId.create(2L);
 
         // when & then
-        assertDoesNotThrow(() -> channel.validateJoinMember(userId));
+        assertDoesNotThrow(() -> channel.joinUser(userId, ChannelRole.MEMBER, LocalDateTime.now()));
     }
 
     @Test
@@ -127,8 +128,8 @@ class ChannelTest {
         UserId userId = UserId.create(2L);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateJoinMember(userId))
-                .isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> channel.joinUser(userId, ChannelRole.MEMBER, LocalDateTime.now()))
+                .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");
     }
 
@@ -142,7 +143,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateJoinMember(userId))
+        assertThatThrownBy(() -> channel.joinUser(userId, ChannelRole.MEMBER, createdAt))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 채널에 참여한 사용자입니다.");
     }
@@ -159,7 +160,7 @@ class ChannelTest {
         UserId inviteeId = UserId.create(3L);
 
         // when & then
-        assertDoesNotThrow(() -> channel.validateInviteMember(inviterId, inviteeId));
+        assertDoesNotThrow(() -> channel.inviteMember(inviterId, inviteeId, LocalDateTime.now()));
     }
 
     @Test
@@ -174,9 +175,9 @@ class ChannelTest {
         UserId inviteeId = UserId.create(3L);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateInviteMember(inviterId, inviteeId))
+        assertThatThrownBy(() -> channel.inviteMember(inviterId, inviteeId, LocalDateTime.now()))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("멤버를 초대할 권한이 없습니다.");
+                .hasMessage("멤버 초대 권한이 없습니다.");
     }
 
     @Test
@@ -192,9 +193,9 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "private", 1L, privatePolicy, memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.validateInviteMember(inviterId, inviteeId))
+        assertThatThrownBy(() -> channel.inviteMember(inviterId, inviteeId, LocalDateTime.now()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 채널에 참여한 사용자입니다.");
+                .hasMessage("이미 해당 채널에 참여한 사용자입니다.");
     }
 
     @Test
@@ -229,7 +230,7 @@ class ChannelTest {
         // when & then
         assertThatThrownBy(() -> channel.promoteToManager(executorId, targetUserId))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("멤버의 역할을 변경할 권한이 없습니다.");
+                .hasMessage("역할을 변경할 권한이 없습니다.");
     }
 
     @Test
@@ -279,7 +280,7 @@ class ChannelTest {
         // when & then
         assertThatThrownBy(() -> channel.promoteToManager(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너를 매니저로 강등시킬 수 없습니다.");
+                .hasMessage("채널 오너를 매니저로 강등할 수 없습니다.");
     }
 
     @Test
@@ -314,7 +315,7 @@ class ChannelTest {
         // when & then
         assertThatThrownBy(() -> channel.demoteToMember(executorId, targetUserId))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
-                .hasMessage("멤버의 역할을 변경할 권한이 없습니다.");
+                .hasMessage("역할을 변경할 권한이 없습니다.");
     }
 
     @Test
@@ -348,7 +349,7 @@ class ChannelTest {
         // when & then
         assertThatThrownBy(() -> channel.demoteToMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너를 멤버로 강등시킬 수 없습니다.");
+                .hasMessage("채널 오너를 멤버로 강등시킬 수 없습니다.");
     }
 
     @Test
@@ -378,8 +379,14 @@ class ChannelTest {
         memberships.put(granteeId, ChannelMembership.create(ChannelId.create(1L), granteeId, ChannelRole.MANAGER, createdAt));
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
-        // when & then
-        assertDoesNotThrow(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK));
+        // when
+        ChannelMembership updatedMembership = channel.addPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK);
+
+        // then
+        assertAll(
+                () -> assertThat(updatedMembership.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue(),
+                () -> assertThat(channel.getMemberships().get(granteeId).hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue()
+        );
     }
 
     @Test
@@ -394,7 +401,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.addPermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
@@ -411,7 +418,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.addPermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("해당 멤버는 매니저가 아닙니다.");
     }
@@ -430,7 +437,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedAddTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK))
+        assertThatThrownBy(() -> channel.addPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 해당 권한을 가지고 있습니다.");
     }
@@ -448,8 +455,14 @@ class ChannelTest {
         memberships.put(granteeId, ChannelMembership.create(1L, 1L, granteeId.getValue(), ChannelRole.MANAGER, permissions, createdAt));
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
-        // when & then
-        assertDoesNotThrow(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT));
+        // when
+        ChannelMembership removedPermissionMembership = channel.removePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT);
+
+        // then
+        assertAll(
+                () -> assertThat(removedPermissionMembership.lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(channel.getMemberships().get(granteeId).lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue()
+        );
     }
 
     @Test
@@ -466,7 +479,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
+        assertThatThrownBy(() -> channel.removePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT))
                 .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
                 .hasMessage("매니저의 권한을 추가할 권한이 없습니다.");
     }
@@ -486,7 +499,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedRemoveTarget(grantorId, granteeId, ChannelPermissionType.MEMBER_INVITE))
+        assertThatThrownBy(() -> channel.removePermission(grantorId, granteeId, ChannelPermissionType.MEMBER_INVITE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("해당 권한을 가지고 있지 않습니다.");
     }
@@ -501,12 +514,13 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership actual = channel.getValidatedLeaveMember(userId);
+        ChannelMembership actual = channel.leaveMember(userId);
 
         // then
         assertAll(
                 () -> assertThat(actual.getUserId().getValue()).isEqualTo(2L),
-                () -> assertThat(actual.getChannelId().getValue()).isEqualTo(1L)
+                () -> assertThat(actual.getChannelId().getValue()).isEqualTo(1L),
+                () -> assertThat(channel.getMemberships()).doesNotContainKey(userId)
         );
     }
 
@@ -520,9 +534,9 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedLeaveMember(userId))
+        assertThatThrownBy(() -> channel.leaveMember(userId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너는 채널에서 나갈 수 없습니다.");
+                .hasMessage("채널 오너는 채널에서 나갈 수 없습니다.");
     }
 
     @Test
@@ -564,7 +578,7 @@ class ChannelTest {
         String newName = "random";
 
         // when
-        Channel changedChannel = channel.changeName(changerId, newName);
+        Channel changedChannel = channel.editName(changerId, newName);
 
         // then
         assertAll(
@@ -585,7 +599,7 @@ class ChannelTest {
         String newName = "random";
 
         // when & then
-        assertThatThrownBy(() -> channel.changeName(changerId, newName))
+        assertThatThrownBy(() -> channel.editName(changerId, newName))
                 .isInstanceOf(ChannelOperationForbiddenException.class)
                 .hasMessage("채널 이름을 변경할 권한이 없습니다.");
     }
@@ -600,7 +614,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.changeName(changerId, ""))
+        assertThatThrownBy(() -> channel.editName(changerId, ""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("채널 이름은 필수입니다.");
     }
@@ -652,7 +666,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.kickMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("멤버를 강퇴할 권한이 없습니다.");
     }
@@ -670,7 +684,7 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.kickMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("멤버를 강퇴할 권한이 없습니다.");
     }
@@ -685,9 +699,9 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, executorId))
+        assertThatThrownBy(() -> channel.kickMember(executorId, executorId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("자기 자신을 강퇴할 수 없습니다.");
+                .hasMessage("멤버만 강퇴할 수 있습니다.");
     }
 
     @Test
@@ -702,9 +716,9 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when & then
-        assertThatThrownBy(() -> channel.getValidatedKickedMember(executorId, targetUserId))
+        assertThatThrownBy(() -> channel.kickMember(executorId, targetUserId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("오너를 강퇴할 수 없습니다.");
+                .hasMessage("멤버만 강퇴할 수 있습니다.");
     }
 
     @Test
@@ -720,12 +734,91 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership actual = channel.getValidatedKickedMember(executorId, targetUserId);
+        ChannelMembership actual = channel.kickMember(executorId, targetUserId);
 
         // then
         assertAll(
                 () -> assertThat(actual.getChannelId().getValue()).isEqualTo(1L),
-                () -> assertThat(actual.getUserId()).isEqualTo(targetUserId)
+                () -> assertThat(actual.getUserId()).isEqualTo(targetUserId),
+                () -> assertThat(channel.getMemberships()).doesNotContainKey(targetUserId)
         );
+    }
+
+    @Test
+    void 메시지_수정_권한이_없으면_타인의_메시지를_수정할_수_없다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MEMBER_KICK));
+        memberships.put(executorId, ChannelMembership.create(1L, 1L, executorId.getValue(), ChannelRole.MANAGER, permissions, now));
+        UserId writerId = UserId.create(2L);
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChatMessage targetMessage = ChatMessage.create(1L, writerId.getValue(), 1L, "Hello", now, now);
+
+        // when & then
+        assertThatThrownBy(() -> channel.validateMemberEditMessage(executorId, targetMessage))
+                .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
+                .hasMessage("메시지를 수정할 권한이 없습니다.");
+    }
+
+    @Test
+    void 자신의_메시지라도_정책이_금지하면_수정할_수_없다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        memberships.put(executorId, ChannelMembership.create(ChannelId.create(1L), executorId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, new ChannelPolicy(false, true, true), memberships, now);
+        ChatMessage targetMessage = ChatMessage.create(1L, executorId.getValue(), 1L, "Hello", now, now);
+
+        // when & then
+        assertThatThrownBy(() -> channel.validateMemberEditMessage(executorId, targetMessage))
+                .isInstanceOf(ChannelOperationForbiddenException.class)
+                .hasMessage("자신의 메시지를 수정할 수 없습니다.");
+    }
+
+    @Test
+    void 메시지_삭제_권한이_없으면_타인의_메시지를_삭제할_수_없다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        memberships.put(executorId, ChannelMembership.create(ChannelId.create(1L), executorId, ChannelRole.MANAGER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChatMessage targetMessage = ChatMessage.create(1L, 2L, 1L, "Hello", now, now);
+
+        // when & then
+        assertThatThrownBy(() -> channel.validateMemberDeleteMessage(executorId, targetMessage))
+                .isInstanceOf(Channel.ChannelMembershipOperationForbiddenException.class)
+                .hasMessage("메시지를 삭제할 권한이 없습니다.");
+    }
+
+    @Test
+    void 자신의_메시지라도_정책이_금지하면_삭제할_수_없다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        memberships.put(executorId, ChannelMembership.create(ChannelId.create(1L), executorId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, new ChannelPolicy(true, false, true), memberships, now);
+        ChatMessage targetMessage = ChatMessage.create(1L, executorId.getValue(), 1L, "Hello", now, now);
+
+        // when & then
+        assertThatThrownBy(() -> channel.validateMemberDeleteMessage(executorId, targetMessage))
+                .isInstanceOf(ChannelOperationForbiddenException.class)
+                .hasMessage("자신의 메시지를 삭제할 수 없습니다.");
+    }
+
+    @Test
+    void 채널_멤버가_아니면_메시지를_보낼_수_없다() {
+        // given
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
+        UserId senderId = UserId.create(2L);
+
+        // when & then
+        assertThatThrownBy(() -> channel.validateMemberSendMessage(senderId))
+                .isInstanceOf(Channel.ChannelMembershipNotFoundException.class)
+                .hasMessage("채널 멤버를 찾을 수 없습니다.");
     }
 }

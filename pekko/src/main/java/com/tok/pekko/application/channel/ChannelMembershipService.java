@@ -30,10 +30,7 @@ public class ChannelMembershipService {
                                             .orElseThrow(ChannelNotFoundException::new);
         UserId joiner = UserId.create(joinerId);
 
-        channel.validateJoinMember(joiner);
-
-        ChannelMembership joinerMembership = ChannelMembership.create(
-                channel.getChannelId(),
+        ChannelMembership joinerMembership = channel.joinUser(
                 joiner,
                 ChannelRole.MEMBER,
                 LocalDateTime.now(clock)
@@ -50,14 +47,7 @@ public class ChannelMembershipService {
         UserId inviter = UserId.create(inviterId);
         UserId invitee = UserId.create(inviteeId);
 
-        channel.validateInviteMember(inviter, invitee);
-
-        ChannelMembership inviteeMembership = ChannelMembership.create(
-                channel.getChannelId(),
-                invitee,
-                ChannelRole.MEMBER,
-                LocalDateTime.now(clock)
-        );
+        ChannelMembership inviteeMembership = channel.inviteMember(inviter, invitee, LocalDateTime.now(clock));
 
         channelMembershipStoragePort.joinChannel(channel.getChannelId(), inviteeMembership);
         clientSessionActorManagementService.syncJoinChannel(channelId, inviteeId);
@@ -68,7 +58,7 @@ public class ChannelMembershipService {
                                             .orElseThrow(ChannelNotFoundException::new);
         UserId user = UserId.create(userId);
 
-        ChannelMembership leaveMembership = channel.getValidatedLeaveMember(user);
+        ChannelMembership leaveMembership = channel.leaveMember(user);
 
         channelMembershipStoragePort.leaveChannel(leaveMembership);
         clientSessionActorManagementService.syncLeaveChannel(channelId, userId);
@@ -101,7 +91,7 @@ public class ChannelMembershipService {
         UserId grantor = UserId.create(grantorId);
         UserId grantee = UserId.create(granteeId);
 
-        ChannelMembership granteeMembership = channel.getValidatedAddTarget(grantor, grantee, permission);
+        ChannelMembership granteeMembership = channel.addPermission(grantor, grantee, permission);
 
         channelMembershipStoragePort.addPermission(granteeMembership, permission);
     }
@@ -112,7 +102,7 @@ public class ChannelMembershipService {
         UserId grantor = UserId.create(grantorId);
         UserId grantee = UserId.create(granteeId);
 
-        ChannelMembership granteeMembership = channel.getValidatedRemoveTarget(grantor, grantee, permission);
+        ChannelMembership granteeMembership = channel.removePermission(grantor, grantee, permission);
         channelMembershipStoragePort.removePermission(granteeMembership, permission);
     }
 
@@ -121,8 +111,7 @@ public class ChannelMembershipService {
                                            .orElseThrow(ChannelNotFoundException::new);
         UserId executor = UserId.create(executorId);
         UserId targetUser = UserId.create(targetUserId);
-
-        ChannelMembership kickedMembership = channel.getValidatedKickedMember(executor, targetUser);
+        ChannelMembership kickedMembership = channel.kickMember(executor, targetUser);
 
         channelMembershipStoragePort.kickMember(kickedMembership);
     }

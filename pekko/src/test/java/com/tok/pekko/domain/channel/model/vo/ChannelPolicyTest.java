@@ -111,4 +111,40 @@ class ChannelPolicyTest {
                 () -> assertThat(policy1).doesNotHaveSameHashCodeAs(policy2)
         );
     }
+
+    @Test
+    void 비공개_채널인지_확인한다() {
+        // given
+        ChannelPolicy policy = new ChannelPolicy(true, true, false);
+
+        // when & then
+        assertAll(
+                () -> assertThat(policy.isPrivate()).isTrue(),
+                () -> assertThat(policy.isPublic()).isFalse()
+        );
+    }
+
+    @Test
+    void 자신이_작성한_채팅_메시지_수정_불가_정책인지_확인한다() {
+        // given
+        ChannelPolicy policy = new ChannelPolicy(false, true, true);
+
+        // when & then
+        assertAll(
+                () -> assertThat(policy.cannotEditOwnMessage()).isTrue(),
+                () -> assertThat(policy.canEditOwnMessage()).isFalse()
+        );
+    }
+
+    @Test
+    void 자신이_작성한_채팅_메시지_삭제_불가_정책인지_확인한다() {
+        // given
+        ChannelPolicy policy = new ChannelPolicy(true, false, true);
+
+        // when & then
+        assertAll(
+                () -> assertThat(policy.cannotDeleteOwnMessage()).isTrue(),
+                () -> assertThat(policy.canDeleteOwnMessage()).isFalse()
+        );
+    }
 }
