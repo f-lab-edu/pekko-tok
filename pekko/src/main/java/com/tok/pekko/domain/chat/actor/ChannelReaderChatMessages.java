@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@ActorThreadSafe
 public class ChannelReaderChatMessages {
 
     private static final int MAX_SIZE = 100;
@@ -27,13 +28,11 @@ public class ChannelReaderChatMessages {
         this.size = 0;
     }
 
-    @ActorThreadSafe
     public void add(ChatMessage message) {
         addNewMessageNode(message);
         evictOldest();
     }
 
-    @ActorThreadSafe
     public ChatMessage delete(Long messageId) {
         ChatMessageNode node = findChatMessageNode(messageId);
         ChatMessage deletedMessage = node.data;
@@ -45,7 +44,6 @@ public class ChannelReaderChatMessages {
         return deletedMessage;
     }
 
-    @ActorThreadSafe
     public void syncMessages(List<ChatMessage> newMessages) {
         if (newMessages.isEmpty()) {
             return;
@@ -59,7 +57,6 @@ public class ChannelReaderChatMessages {
         rebuildWithMessages(limitedMessages);
     }
 
-    @ActorThreadSafe
     public ChatMessage update(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
         ChatMessageNode node = messageIdMap.get(messageId);
 
@@ -72,7 +69,6 @@ public class ChannelReaderChatMessages {
         return node.data;
     }
 
-    @ActorThreadSafe
     public List<ChatMessage> getHistory(long beforeMessageSequence, int size) {
         validateSize(size);
 
@@ -89,7 +85,6 @@ public class ChannelReaderChatMessages {
         return result;
     }
 
-    @ActorThreadSafe
     public List<ChatMessage> getRecentMessages(int size) {
         validateSize(size);
 
@@ -104,7 +99,6 @@ public class ChannelReaderChatMessages {
         return result;
     }
 
-    @ActorThreadSafe
     public List<ChatMessage> getMessagesAfter(long afterMessageSequence) {
         List<ChatMessage> result = new ArrayList<>();
         ChatMessageNode current = head.next;
