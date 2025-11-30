@@ -140,7 +140,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onDeliverUpdatedMessage(DeliverUpdatedMessage command) {
-        clientMessageSender.sendMessage(command.updatedMessage());
+        clientMessageSender.sendUpdatedMessage(command.messageId(), command.updatedMessage(), command.updatedAt());
 
         return this;
     }

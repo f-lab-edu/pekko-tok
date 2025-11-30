@@ -296,8 +296,12 @@ class ChannelReaderActorTest {
         );
 
         assertAll(
-                () -> assertThat(deliveredUpdatedMessage1.updatedMessage()).isEqualTo(updatedMessage),
-                () -> assertThat(deliveredUpdatedMessage2.updatedMessage()).isEqualTo(updatedMessage)
+                () -> assertThat(deliveredUpdatedMessage1.messageId()).isEqualTo(messageId),
+                () -> assertThat(deliveredUpdatedMessage1.updatedMessage()).isEqualTo(updatedMessageContent),
+                () -> assertThat(deliveredUpdatedMessage1.updatedAt()).isEqualTo(timestamp),
+                () -> assertThat(deliveredUpdatedMessage2.messageId()).isEqualTo(messageId),
+                () -> assertThat(deliveredUpdatedMessage2.updatedMessage()).isEqualTo(updatedMessageContent),
+                () -> assertThat(deliveredUpdatedMessage2.updatedAt()).isEqualTo(timestamp)
         );
     }
 

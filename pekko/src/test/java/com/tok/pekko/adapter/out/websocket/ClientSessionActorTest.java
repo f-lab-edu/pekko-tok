@@ -52,6 +52,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
@@ -331,13 +333,12 @@ class ClientSessionActorTest {
         );
 
         LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
-        ChatMessage updatedMessage = new ChatMessage(1L, 1L, 100L, 1L, "Updated Message", timestamp, timestamp);
 
         // when
-        clientSessionActor.tell(new DeliverUpdatedMessage(updatedMessage));
+        clientSessionActor.tell(new DeliverUpdatedMessage(1L, "수정된 메시지", timestamp));
 
         // then
-        verify(mockClientMessageSender, timeout(1000)).sendMessage(updatedMessage);
+        verify(mockClientMessageSender, timeout(1000)).sendUpdatedMessage(anyLong(), anyString(), any(LocalDateTime.class));
     }
 
     @Test

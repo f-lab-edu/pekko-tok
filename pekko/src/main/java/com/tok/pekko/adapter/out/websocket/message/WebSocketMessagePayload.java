@@ -5,6 +5,7 @@ import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 public interface WebSocketMessagePayload {
@@ -22,8 +23,9 @@ public interface WebSocketMessagePayload {
     record ChannelKickedPayload(Long channelId) implements WebSocketMessagePayload { }
     record ChannelMembershipCountPayload(Long channelId, int membershipCount) implements WebSocketMessagePayload { }
     record ChannelNamePayload(Long channelId, String name) implements WebSocketMessagePayload { }
-    record DeletedChatMessagePayload(Long deletedChatMessageId) implements WebSocketMessagePayload { }
     record ChatMessagePayload(ChatMessage message) implements WebSocketMessagePayload { }
+    record UpdatedChatMessagePayload(Long messageId, String updatedMessage, LocalDateTime updatedAt) implements WebSocketMessagePayload { }
+    record DeletedChatMessagePayload(Long deletedChatMessageId) implements WebSocketMessagePayload { }
     record ErrorPayload(Long channelId, String reason) implements WebSocketMessagePayload { }
 
     record ChannelMembershipPayload(

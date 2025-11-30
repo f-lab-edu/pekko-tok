@@ -322,14 +322,18 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     }
 
     private void applySyncUpdate(SyncUpdate command) {
-        ChatMessage updatedMessage = messages.update(
-                command.messageId(),
-                command.updatedMessage(),
-                command.updatedAt()
-        );
+        messages.update(command.messageId(), command.updatedMessage(), command.updatedAt());
 
         clientSessions.values()
-                      .forEach(clientSession -> clientSession.tell(new DeliverUpdatedMessage(updatedMessage)));
+                      .forEach(
+                              clientSession -> clientSession.tell(
+                                      new DeliverUpdatedMessage(
+                                              command.messageId(),
+                                              command.updatedMessage(),
+                                              command.updatedAt()
+                                      )
+                              )
+                      );
     }
 
     private void applySyncDeletion(SyncDeletion command) {

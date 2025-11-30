@@ -9,6 +9,7 @@ import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.Chann
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.DeletedChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ErrorPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.UpdatedChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketOutboundMessage;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
@@ -94,13 +95,20 @@ class WebSocketMessageSenderTest {
         // given
         Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
-        ChatMessage updatedMessage = createMessage(1L, "수정된 메시지");
+        Long messageId = 1L;
+        String updatedMessage = "수정된 메시지";
+        LocalDateTime updatedAt = LocalDateTime.now();
 
         // when
-        sender.sendUpdatedMessage(updatedMessage);
+        sender.sendUpdatedMessage(messageId, updatedMessage, updatedAt);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.UPDATED, new ChatMessagePayload(updatedMessage)));
+        verify(sink).tryEmitNext(
+                new WebSocketOutboundMessage(
+                        WebSocketMessageType.UPDATED,
+                        new UpdatedChatMessagePayload(messageId, updatedMessage, updatedAt)
+                )
+        );
     }
 
     @Test
