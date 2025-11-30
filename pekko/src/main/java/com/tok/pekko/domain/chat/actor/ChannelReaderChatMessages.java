@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ActorThreadSafe
@@ -33,15 +34,13 @@ public class ChannelReaderChatMessages {
         evictOldest();
     }
 
-    public ChatMessage delete(Long messageId) {
-        ChatMessageNode node = findChatMessageNode(messageId);
-        ChatMessage deletedMessage = node.data;
-
-        removeNode(node);
-        messageIdMap.remove(messageId);
-        size--;
-
-        return deletedMessage;
+    public void delete(Long messageId) {
+        findChatMessageNode(messageId)
+                .ifPresent(node -> {
+                    removeNode(node);
+                    messageIdMap.remove(messageId);
+                    size--;
+                });
     }
 
     public void syncMessages(List<ChatMessage> newMessages) {
@@ -57,20 +56,21 @@ public class ChannelReaderChatMessages {
         rebuildWithMessages(limitedMessages);
     }
 
-    public ChatMessage update(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
+    public void update(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
         ChatMessageNode node = messageIdMap.get(messageId);
 
-        if (node == null) {
-            throw new IllegalArgumentException("존재하지 않는 채팅 메시지입니다.");
+        if (node != null) {
+            node.data = node.data.updateMessage(updatedMessage, updatedAt);
         }
-
-        node.data = node.data
-                .updateMessage(updatedMessage, updatedAt);
-        return node.data;
     }
 
     public List<ChatMessage> getHistory(long beforeMessageSequence, int size) {
-        validateSize(size);
+        if (size <= 0) {
+            return List.of();
+        }
+        if (size > MAX_SIZE) {
+            size = MAX_SIZE;
+        }
 
         List<ChatMessage> result = new ArrayList<>();
         ChatMessageNode current = head.next;
@@ -86,7 +86,12 @@ public class ChannelReaderChatMessages {
     }
 
     public List<ChatMessage> getRecentMessages(int size) {
-        validateSize(size);
+        if (size <= 0) {
+            return List.of();
+        }
+        if (size > MAX_SIZE) {
+            size = MAX_SIZE;
+        }
 
         List<ChatMessage> result = new ArrayList<>();
         ChatMessageNode current = head.next;
@@ -130,15 +135,6 @@ public class ChannelReaderChatMessages {
         return result;
     }
 
-    private void validateSize(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("조회하려는 메시지 개수는 양수여야 합니다.");
-        }
-        if (size > MAX_SIZE) {
-            throw new IllegalArgumentException("조회하려는 메시지 개수는 " + MAX_SIZE + "개를 넘을 수 없습니다.");
-        }
-    }
-
     private void addNewMessageNode(ChatMessage message) {
         ChatMessageNode newNode = new ChatMessageNode(message);
 
@@ -157,14 +153,10 @@ public class ChannelReaderChatMessages {
         }
     }
 
-    private ChatMessageNode findChatMessageNode(Long messageId) {
+    private Optional<ChatMessageNode> findChatMessageNode(Long messageId) {
         ChatMessageNode node = messageIdMap.get(messageId);
 
-        if (node == null) {
-            throw new MessageNotFoundException();
-        }
-
-        return node;
+        return Optional.ofNullable(node);
     }
 
     private List<ChatMessage> mergeWithCurrentMessages(List<ChatMessage> newMessages) {
@@ -255,13 +247,6 @@ public class ChannelReaderChatMessages {
 
         ChatMessageNode(ChatMessage data) {
             this.data = data;
-        }
-    }
-
-    public static class MessageNotFoundException extends IllegalArgumentException {
-
-        public MessageNotFoundException() {
-            super("존재하지 않는 메시지입니다.");
         }
     }
 }

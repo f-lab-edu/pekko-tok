@@ -263,21 +263,9 @@ class ChannelReaderActorTest {
         Long messageId = 1L;
         String updatedMessageContent = "Updated Message";
         LocalDateTime timestamp = LocalDateTime.now();
-        ChatMessage updatedMessage = new ChatMessage(
-                messageId,
-                1L,
-                1001L,
-                1L,
-                updatedMessageContent,
-                timestamp,
-                timestamp
-        );
 
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
-
-        given(mockMessages.update(eq(messageId), eq(updatedMessageContent), any(LocalDateTime.class))).willReturn(updatedMessage);
-
         completeInitialSync(readerActor);
 
         // when
