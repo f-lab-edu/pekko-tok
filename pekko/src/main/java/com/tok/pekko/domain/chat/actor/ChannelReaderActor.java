@@ -333,10 +333,10 @@ public class ChannelReaderActor extends AbstractBehavior<ChannelReaderCommand> {
     }
 
     private void applySyncDeletion(SyncDeletion command) {
-        ChatMessage deletedMessage = messages.delete(command.messageId());
+        messages.delete(command.messageId());
 
         clientSessions.values()
-                      .forEach(clientSession -> clientSession.tell(new DeliverDeletedMessage(deletedMessage)));
+                      .forEach(clientSession -> clientSession.tell(new DeliverDeletedMessage(command.messageId())));
     }
 
     private void fulfillPendingInitialHistoryRequests() {

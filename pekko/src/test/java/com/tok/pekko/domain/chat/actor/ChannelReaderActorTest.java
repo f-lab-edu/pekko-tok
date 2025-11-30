@@ -220,21 +220,9 @@ class ChannelReaderActorTest {
         );
 
         Long messageId = 1L;
-        LocalDateTime timestamp = LocalDateTime.now();
-        ChatMessage deletedMessage = new ChatMessage(
-                messageId,
-                1L,
-                1001L,
-                1L,
-                "Deleted Message",
-                timestamp,
-                timestamp
-        );
 
         readerActor.tell(new RegisterClientSession(100L, clientSessionProbe1.ref()));
         readerActor.tell(new RegisterClientSession(101L, clientSessionProbe2.ref()));
-
-        given(mockMessages.delete(messageId)).willReturn(deletedMessage);
 
         completeInitialSync(readerActor);
 
@@ -254,8 +242,8 @@ class ChannelReaderActorTest {
         );
 
         assertAll(
-                () -> assertThat(deliveredDeletedMessage1.deletedMessage()).isEqualTo(deletedMessage),
-                () -> assertThat(deliveredDeletedMessage2.deletedMessage()).isEqualTo(deletedMessage)
+                () -> assertThat(deliveredDeletedMessage1.deletedMessageId()).isEqualTo(messageId),
+                () -> assertThat(deliveredDeletedMessage2.deletedMessageId()).isEqualTo(messageId)
         );
     }
 

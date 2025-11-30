@@ -309,14 +309,11 @@ class ClientSessionActorTest {
                         mockChannelMembershipActorMessagePort, readerRegistryProbe.ref())
         );
 
-        LocalDateTime timestamp = LocalDateTime.of(2025, 10, 17, 14, 0, 0);
-        ChatMessage deletedMessage = new ChatMessage(1L, 1L, 100L, 1L, "Deleted Message", timestamp, timestamp);
-
         // when
-        clientSessionActor.tell(new DeliverDeletedMessage(deletedMessage));
+        clientSessionActor.tell(new DeliverDeletedMessage(1L));
 
         // then
-        verify(mockClientMessageSender, timeout(1000)).sendDeletedMessage(deletedMessage);
+        verify(mockClientMessageSender, timeout(1000)).sendDeletedMessage(1L);
     }
 
     @Test

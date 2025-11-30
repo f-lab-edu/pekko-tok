@@ -17,7 +17,7 @@ public interface ClientSessionProtocol {
     record DeliverUpdatedMessage(ChatMessage updatedMessage) implements ClientSessionCommand { }
 
     // ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 삭제된 채팅 메시지를 전달받는 메시지 : ChannelReaderActor -> ClientSessionActor
-    record DeliverDeletedMessage(ChatMessage deletedMessage) implements ClientSessionCommand { }
+    record DeliverDeletedMessage(Long deletedMessageId) implements ClientSessionCommand { }
 
     // 채팅 히스토리를 요청하는 메시지 : 외부 -> ClientSessionActor
     record RequestHistory(Long channelId, long messageSequence, int size) implements ClientSessionCommand { }

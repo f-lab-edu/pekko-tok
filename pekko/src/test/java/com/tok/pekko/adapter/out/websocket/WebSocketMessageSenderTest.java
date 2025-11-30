@@ -7,6 +7,7 @@ import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.Chann
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelNamePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelPolicyPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChatMessagePayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.DeletedChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ErrorPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketOutboundMessage;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
@@ -71,17 +72,21 @@ class WebSocketMessageSenderTest {
     }
 
     @Test
-    void 삭제된_메시지를_클라이언트에게_전송한다() {
+    void 삭제된_메시지의_ID를_클라이언트에게_전송한다() {
         // given
         Sinks.Many<WebSocketOutboundMessage> sink = mock(Sinks.Many.class);
         WebSocketMessageSender sender = new WebSocketMessageSender(sink);
-        ChatMessage deletedMessage = createMessage(1L, "삭제된 메시지");
 
         // when
-        sender.sendDeletedMessage(deletedMessage);
+        sender.sendDeletedMessage(1L);
 
         // then
-        verify(sink).tryEmitNext(new WebSocketOutboundMessage(WebSocketMessageType.DELETED, new ChatMessagePayload(deletedMessage)));
+        verify(sink).tryEmitNext(
+                new WebSocketOutboundMessage(
+                        WebSocketMessageType.DELETED,
+                        new DeletedChatMessagePayload(1L)
+                )
+        );
     }
 
     @Test

@@ -146,7 +146,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
     }
 
     private Behavior<ClientSessionCommand> onDeliverDeletedMessage(DeliverDeletedMessage command) {
-        clientMessageSender.sendDeletedMessage(command.deletedMessage());
+        clientMessageSender.sendDeletedMessage(command.deletedMessageId());
 
         return this;
     }

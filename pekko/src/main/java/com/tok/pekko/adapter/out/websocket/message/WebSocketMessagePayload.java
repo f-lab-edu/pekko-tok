@@ -22,6 +22,7 @@ public interface WebSocketMessagePayload {
     record ChannelKickedPayload(Long channelId) implements WebSocketMessagePayload { }
     record ChannelMembershipCountPayload(Long channelId, int membershipCount) implements WebSocketMessagePayload { }
     record ChannelNamePayload(Long channelId, String name) implements WebSocketMessagePayload { }
+    record DeletedChatMessagePayload(Long deletedChatMessageId) implements WebSocketMessagePayload { }
     record ChatMessagePayload(ChatMessage message) implements WebSocketMessagePayload { }
     record ErrorPayload(Long channelId, String reason) implements WebSocketMessagePayload { }
 
