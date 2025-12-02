@@ -4,6 +4,7 @@ import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ClientSessionProtocol {
@@ -14,10 +15,10 @@ public interface ClientSessionProtocol {
     record DeliverNewMessage(ChatMessage message) implements ClientSessionCommand { }
 
     // ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 수정된 채팅 메시지를 전달받는 메시지 : ChannelReaderActor -> ClientSessionActor
-    record DeliverUpdatedMessage(ChatMessage updatedMessage) implements ClientSessionCommand { }
+    record DeliverUpdatedMessage(Long messageId, String updatedMessage, LocalDateTime updatedAt) implements ClientSessionCommand { }
 
     // ChannelEntity-ChannelReaderActor까지 완전히 동기화된, 삭제된 채팅 메시지를 전달받는 메시지 : ChannelReaderActor -> ClientSessionActor
-    record DeliverDeletedMessage(ChatMessage deletedMessage) implements ClientSessionCommand { }
+    record DeliverDeletedMessage(Long deletedMessageId) implements ClientSessionCommand { }
 
     // 채팅 히스토리를 요청하는 메시지 : 외부 -> ClientSessionActor
     record RequestHistory(Long channelId, long messageSequence, int size) implements ClientSessionCommand { }

@@ -14,6 +14,7 @@ import lombok.Getter;
 
 @Getter
 @EqualsAndHashCode(of = "channelId")
+@ActorThreadSafe
 public class Channel {
 
     private final ChannelId channelId;
@@ -89,7 +90,6 @@ public class Channel {
         );
     }
 
-    @ActorThreadSafe
     public ChannelMembership joinUser(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
         if (channelPolicy.isPrivate()) {
             throw new ChannelMembershipOperationForbiddenException("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");
@@ -104,7 +104,6 @@ public class Channel {
         return joinerMembership;
     }
 
-    @ActorThreadSafe
     public ChannelMembership inviteMember(UserId inviterId, UserId inviteeId, LocalDateTime invitedAt) {
         ChannelMembership inviterMembership = memberships.get(inviterId);
 
@@ -129,7 +128,6 @@ public class Channel {
         return inviteeMembership;
     }
 
-    @ActorThreadSafe
     public ChannelMembership leaveMember(UserId memberId) {
         ChannelMembership channelMembership = memberships.get(memberId);
 
@@ -143,7 +141,6 @@ public class Channel {
         return memberships.remove(memberId);
     }
 
-    @ActorThreadSafe
     public ChannelMembership kickMember(UserId executorId, UserId targetUserId) {
         ChannelMembership executorMembership = memberships.get(executorId);
 
@@ -166,7 +163,6 @@ public class Channel {
         return memberships.remove(targetUserId);
     }
 
-    @ActorThreadSafe
     public ChannelMembership addPermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
         ChannelMembership grantorMembership = memberships.get(grantorId);
 
@@ -196,7 +192,6 @@ public class Channel {
         return addedPermissionMembership;
     }
 
-    @ActorThreadSafe
     public ChannelMembership removePermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
         ChannelMembership grantorMembership = memberships.get(grantorId);
 
@@ -227,7 +222,6 @@ public class Channel {
         return removedPermissionMembership;
     }
 
-    @ActorThreadSafe
     public void syncMembership(ChannelMembership membership) {
         memberships.put(membership.getUserId(), membership);
     }

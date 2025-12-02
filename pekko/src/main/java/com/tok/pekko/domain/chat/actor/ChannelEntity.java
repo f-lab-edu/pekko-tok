@@ -40,7 +40,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     public static Behavior<ChannelEntityCommand> create(
             Clock clock,
             Long channelId,
-            ChatMessages messages,
+            ChannelEntityChatMessages messages,
             MessageStoragePort messageStoragePort
     ) {
         return Behaviors.setup(
@@ -60,7 +60,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
     private final Clock clock;
     private final Long channelId;
-    private final ChatMessages messages;
+    private final ChannelEntityChatMessages messages;
     private final MessageStoragePort messageStoragePort;
     private final SnowflakeSequenceGenerator sequenceGenerator;
     private final Map<String, ActorRef<ChannelReaderCommand>> readers;
@@ -69,7 +69,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
             ActorContext<ChannelEntityCommand> context,
             Clock clock,
             Long channelId,
-            ChatMessages messages,
+            ChannelEntityChatMessages messages,
             MessageStoragePort messageStoragePort
     ) {
         super(context);

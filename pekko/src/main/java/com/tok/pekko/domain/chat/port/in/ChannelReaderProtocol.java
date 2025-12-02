@@ -1,5 +1,7 @@
 package com.tok.pekko.domain.chat.port.in;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
@@ -30,4 +32,16 @@ public interface ChannelReaderProtocol {
 
     // ChannelEntity-ChannelReaderActor까지 동기화된 채팅 히스토리를 요청받는 메시지 : ClientSessionActor -> ChannelReaderActor
     record RequestInitialHistory(ActorRef<ClientSessionCommand> replyTo) implements ChannelReaderCommand { }
+
+    // ChannelEntity로부터 멤버십 정보를 전달받는 메시지 : ChannelEntity -> ChannelReaderActor
+    record SyncMembership(Long userId, ChannelMembership membership, int membershipCount) implements ChannelReaderCommand { }
+
+    // ChannelEntity로부터 채널 메타데이터를 전달받는 메시지 : ChannelEntity -> ChannelReaderActor
+    record SyncChannelMetadata(Long channelId, String name, ChannelPolicy channelPolicy, int membershipCount) implements ChannelReaderCommand { }
+
+    // 특정 사용자에게 요청 실패를 전달하기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyFailure(Long userId, String reason) implements ChannelReaderCommand { }
+
+    // 멤버 수 변경을 전달하기 위한 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyMembershipCountChanged(int membershipCount) implements ChannelReaderCommand { }
 }

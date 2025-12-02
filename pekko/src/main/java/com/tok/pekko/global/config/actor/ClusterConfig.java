@@ -1,7 +1,7 @@
 package com.tok.pekko.global.config.actor;
 
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
-import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.domain.chat.actor.ChannelEntityChatMessages;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
@@ -41,7 +41,7 @@ public class ClusterConfig {
                         entityContext -> ChannelEntity.create(
                                 clock,
                                 Long.valueOf(entityContext.getEntityId()),
-                                new ChatMessages(),
+                                new ChannelEntityChatMessages(),
                                 messageStoragePort
                         )
                 )

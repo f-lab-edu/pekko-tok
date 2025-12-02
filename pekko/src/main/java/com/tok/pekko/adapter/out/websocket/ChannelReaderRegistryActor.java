@@ -3,7 +3,7 @@ package com.tok.pekko.adapter.out.websocket;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor;
-import com.tok.pekko.domain.chat.actor.ChatMessages;
+import com.tok.pekko.domain.chat.actor.ChannelReaderChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemoveShutdownReader;
@@ -161,7 +161,7 @@ public class ChannelReaderRegistryActor extends AbstractBehavior<ChannelReaderRe
                 Behaviors.supervise(
                         ChannelReaderActor.create(
                                 channelId,
-                                new ChatMessages(),
+                                new ChannelReaderChatMessages(),
                                 channelEntity,
                                 getContext().getSelf()
                         )

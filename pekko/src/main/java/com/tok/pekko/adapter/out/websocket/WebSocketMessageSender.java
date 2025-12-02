@@ -7,11 +7,14 @@ import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.Chann
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelNamePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelPolicyPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChatMessagePayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.DeletedChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ErrorPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.UpdatedChatMessagePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketOutboundMessage;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import reactor.core.publisher.Sinks;
@@ -52,20 +55,20 @@ public class WebSocketMessageSender implements ClientMessageSender {
     }
 
     @Override
-    public void sendDeletedMessage(ChatMessage deletedMessage) {
+    public void sendDeletedMessage(Long deletedMessageId) {
         WebSocketOutboundMessage webSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.DELETED,
-                new ChatMessagePayload(deletedMessage)
+                new DeletedChatMessagePayload(deletedMessageId)
         );
 
         emit(webSocketPayload);
     }
 
     @Override
-    public void sendUpdatedMessage(ChatMessage updatedMessage) {
+    public void sendUpdatedMessage(Long messageId, String updatedMessage, LocalDateTime updatedAt) {
         WebSocketOutboundMessage webSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.UPDATED,
-                new ChatMessagePayload(updatedMessage)
+                new UpdatedChatMessagePayload(messageId, updatedMessage, updatedAt)
         );
 
         emit(webSocketPayload);

@@ -3,6 +3,7 @@ package com.tok.pekko.adapter.out.websocket;
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ClientMessageSender {
@@ -11,9 +12,9 @@ public interface ClientMessageSender {
 
     void sendMessages(List<ChatMessage> messages);
 
-    void sendUpdatedMessage(ChatMessage updatedMessage);
+    void sendUpdatedMessage(Long messageId, String updatedMessage, LocalDateTime updatedAt);
 
-    void sendDeletedMessage(ChatMessage deletedMessage);
+    void sendDeletedMessage(Long deletedMessageId);
 
     void sendWebSocketPing();
 
