@@ -1,5 +1,6 @@
 package com.tok.pekko.domain.chat.actor;
 
+import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor.DeliverSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.DeleteMessage;
@@ -195,4 +196,10 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
     // 채팅 히스토리 동기화를 요청하는 메시지 : ChannelReaderActor -> ChannelEntity
     record RequestSyncMessages(ActorRef<ChannelReaderCommand> secondary) implements ChannelEntityCommand { }
+
+    // 이벤트 처리가 완료되었음을 전파받는 메시지 : ChannelEventHandlerEntity -> ChannelEntity
+    record DomainEventProcessed(Long eventId) implements ChannelEntityCommand { }
+
+    // 영속화된 채널 참여자를 동기화하기 위한 메시지 : ChannelEventHandlerEntity -> ChannelEntity
+    record SyncStoredMembership(ChannelMembership channelMembership) implements ChannelEntityCommand { }
 }

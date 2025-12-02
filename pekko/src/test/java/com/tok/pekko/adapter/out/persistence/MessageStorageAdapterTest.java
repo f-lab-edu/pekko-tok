@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +60,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         ChatMessage message = ChatMessage.create(
                 1L,
                 100L,
@@ -100,7 +102,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         ChatMessage message = ChatMessage.create(
                 1L,
                 100L,
@@ -124,7 +127,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         ChatMessage message = ChatMessage.create(
                 1L,
                 100L,
@@ -148,7 +152,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 2L;
         long messageSequence = 10L;
@@ -180,7 +185,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 2L;
         long messageSequence = 10L;
@@ -202,7 +208,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 2L;
         long messageSequence = 10L;
@@ -222,7 +229,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 3L;
         int size = 50;
@@ -254,7 +262,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 3L;
         int size = 50;
@@ -273,7 +282,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
 
         Long channelId = 3L;
         int size = 50;
@@ -292,7 +302,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         ChatMessage message = ChatMessage.create(1L, 100L, 1L, "Test", LocalDateTime.now(), LocalDateTime.now());
 
         given(messageRepository.save(any())).willReturn(message);
@@ -320,7 +331,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ClientSessionCommand> replyProbe = testKit.createTestProbe(ClientSessionCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         List<ChatMessage> historyMessages = List.of(
                 ChatMessage.create(1L, 100L, 1L, "Message", LocalDateTime.now(), LocalDateTime.now())
         );
@@ -350,7 +362,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         List<ChatMessage> recentMessages = List.of(
                 ChatMessage.create(1L, 100L, 1L, "Recent", LocalDateTime.now(), LocalDateTime.now())
         );
@@ -380,7 +393,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
 
         willDoNothing().given(messageRepository).delete(eq(messageId));
@@ -401,7 +415,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
 
         willThrow(new RuntimeException("Database error")).given(messageRepository).delete(anyLong());
@@ -418,7 +433,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
 
         willDoNothing().given(messageRepository).delete(anyLong());
@@ -446,7 +462,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
         String updatedMessage = "Updated Message";
 
@@ -464,7 +481,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
         String updatedMessage = "Updated Message";
 
@@ -482,7 +500,8 @@ class MessageStorageAdapterTest {
         // given
         TestProbe<ChannelEntityCommand> replyProbe = testKit.createTestProbe(ChannelEntityCommand.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
-        MessageStorageAdapter adapter = new MessageStorageAdapter(messageRepository);
+        Scheduler scheduler = Schedulers.immediate();
+        MessageStorageAdapter adapter = new MessageStorageAdapter(scheduler, messageRepository);
         Long messageId = 1L;
         String updatedMessage = "Updated Message";
 
