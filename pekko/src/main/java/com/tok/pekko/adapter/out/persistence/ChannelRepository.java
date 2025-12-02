@@ -10,11 +10,9 @@ public interface ChannelRepository {
 
     Optional<Channel> findByIdWithMembership(Long channelId, Long... memberIds);
 
+    Optional<Channel> findById(Long channelId);
+
     void update(Channel channel);
 
     void deleteById(ChannelId channelId);
-
-    void incrementMemberCount(ChannelId channelId);
-
-    void decrementMemberCount(ChannelId channelId);
 }

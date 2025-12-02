@@ -18,13 +18,11 @@ public class ChannelMembershipStorageAdapter implements ChannelMembershipStorage
     @Override
     public void joinChannel(ChannelId channelId, ChannelMembership channelMembership) {
         channelMembershipRepository.joinChannel(channelMembership);
-        channelRepository.incrementMemberCount(channelId);
     }
 
     @Override
     public void leaveChannel(ChannelMembership channelMembership) {
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
-        channelRepository.decrementMemberCount(channelMembership.getChannelId());
     }
 
     @Override
@@ -51,6 +49,5 @@ public class ChannelMembershipStorageAdapter implements ChannelMembershipStorage
     public void kickMember(ChannelMembership channelMembership) {
         channelMembershipRepository.delete(channelMembership.getChannelId(), channelMembership.getUserId());
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
-        channelRepository.decrementMemberCount(channelMembership.getChannelId());
     }
 }
