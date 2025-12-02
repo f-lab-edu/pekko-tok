@@ -5,10 +5,12 @@ import com.tok.pekko.domain.channel.model.ChannelPermissionType;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelMembershipId;
 import com.tok.pekko.domain.user.model.vo.UserId;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +34,8 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
                 .addValue("channelRole", channelMembership.getRole().name())
                 .addValue("joinedAt", channelMembership.getJoinedAt());
 
-        var keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
+        KeyHolder keyHolder = new org.springframework.jdbc.support.GeneratedKeyHolder();
+
         jdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
 
         Number generatedId = keyHolder.getKey();
@@ -85,7 +88,8 @@ public class JdbcChannelMembershipRepository implements ChannelMembershipReposit
                 .addValue("membershipId", channelMembership.getId().getValue());
         jdbcTemplate.update(deletePermSql, deleteParams);
 
-        var permissions = channelMembership.getPermissions().getAll();
+        Set<ChannelPermissionType> permissions = channelMembership.getPermissions()
+                                                                  .getAll();
         if (permissions != null && !permissions.isEmpty()) {
             String insertPermSql = """
                     INSERT INTO channel_manager_permissions (manager_membership_id, permission)
