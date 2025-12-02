@@ -24,19 +24,16 @@ public class ChannelMembershipStorageAdapter implements ChannelMembershipStorage
     @Override
     public void leaveChannel(ChannelMembership channelMembership) {
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
-        channelMembershipRepository.leaveChannel(channelMembership.getChannelId(), channelMembership.getUserId());
         channelRepository.decrementMemberCount(channelMembership.getChannelId());
     }
 
     @Override
     public void promoteToManager(ChannelMembership channelMembership) {
-        channelMembershipRepository.updateRole(channelMembership);
         channelManagePermissionRepository.saveAll(channelMembership);
     }
 
     @Override
     public void demoteToMember(ChannelMembership channelMembership) {
-        channelMembershipRepository.updateRole(channelMembership);
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
     }
 
