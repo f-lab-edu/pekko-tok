@@ -365,6 +365,193 @@ public class Channel {
         }
     }
 
+    public boolean canJoinUser(UserId userId) {
+        if (channelPolicy.isPrivate()) {
+            return false;
+        }
+        return !memberships.containsKey(userId);
+    }
+
+    public boolean canInviteMember(UserId inviterId, UserId inviteeId) {
+        ChannelMembership inviterMembership = memberships.get(inviterId);
+
+        if (inviterMembership == null) {
+            return false;
+        }
+        if (inviterMembership.cannotInviteMember()) {
+            return false;
+        }
+        return !memberships.containsKey(inviteeId);
+    }
+
+    public boolean canLeaveMember(UserId memberId) {
+        ChannelMembership channelMembership = memberships.get(memberId);
+
+        if (channelMembership == null) {
+            return false;
+        }
+        return !channelMembership.isOwner();
+    }
+
+    public boolean canKickMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (!executorMembership.canKickMember()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        return targetUserMembership.isMember();
+    }
+
+    public boolean canAddPermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
+
+        if (grantorMembership == null) {
+            return false;
+        }
+        if (grantorMembership.cannotManagePermission()) {
+            return false;
+        }
+
+        ChannelMembership granteeMembership = memberships.get(granteeId);
+
+        if (granteeMembership == null) {
+            return false;
+        }
+        if (granteeMembership.isNotManager()) {
+            return false;
+        }
+        return granteeMembership.lacksPermission(permission);
+    }
+
+    public boolean canRemovePermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
+
+        if (grantorMembership == null) {
+            return false;
+        }
+        if (grantorMembership.cannotManagePermission()) {
+            return false;
+        }
+
+        ChannelMembership granteeMembership = memberships.get(granteeId);
+
+        if (granteeMembership == null) {
+            return false;
+        }
+        if (granteeMembership.isNotManager()) {
+            return false;
+        }
+        return granteeMembership.hasPermission(permission);
+    }
+
+    public boolean canPromoteToManager(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (executorMembership.cannotManageRole()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        if (targetUserMembership.isOwner()) {
+            return false;
+        }
+        return targetUserMembership.isNotManager();
+    }
+
+    public boolean canDemoteToMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (executorMembership.cannotManageRole()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        if (targetUserMembership.isOwner()) {
+            return false;
+        }
+        return !targetUserMembership.isMember();
+    }
+
+    public boolean canEditName(UserId changerId) {
+        ChannelMembership channelMembership = memberships.get(changerId);
+
+        if (channelMembership == null) {
+            return false;
+        }
+        return channelMembership.canEditChannelName();
+    }
+
+    public boolean canChangeChannelPolicy(UserId changerId) {
+        ChannelMembership executorMembership = memberships.get(changerId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        return executorMembership.canChangeChannelPolicy();
+    }
+
+    public boolean canDeleteChannel(UserId deleterId) {
+        ChannelMembership deleterMembership = memberships.get(deleterId);
+
+        if (deleterMembership == null) {
+            return false;
+        }
+        return deleterMembership.canDeleteChannel();
+    }
+
+    public boolean canMemberEditMessage(UserId executorId, ChatMessage message) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotEditMessage()) {
+            return false;
+        }
+        return !channelPolicy.cannotEditOwnMessage();
+    }
+
+    public boolean canMemberDeleteMessage(UserId executorId, ChatMessage message) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotDeleteMessage()) {
+            return false;
+        }
+        return !channelPolicy.cannotDeleteOwnMessage();
+    }
+
+    public boolean canMemberSendMessage(UserId senderId) {
+        ChannelMembership senderMembership = memberships.get(senderId);
+
+        return senderMembership != null;
+    }
+
     public static class ChannelMembershipNotFoundException extends IllegalArgumentException {
 
         public ChannelMembershipNotFoundException() {
