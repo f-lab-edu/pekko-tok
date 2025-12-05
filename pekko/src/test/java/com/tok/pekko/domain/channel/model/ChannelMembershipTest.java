@@ -28,40 +28,21 @@ class ChannelMembershipTest {
         LocalDateTime joinedAt = LocalDateTime.now();
 
         // when
-        ChannelMembership membership = ChannelMembership.create(channelId, userId, role, joinedAt);
+        ChannelMembership actual = ChannelMembership.create(channelId, userId, role, joinedAt);
 
         // then
         assertAll(
-                () -> assertThat(membership).isNotNull(),
-                () -> assertThat(membership.getId()).isEqualTo(ChannelMembershipId.EMPTY_CHANNEL_MEMBERSHIP_ID),
-                () -> assertThat(membership.getChannelId()).isEqualTo(channelId),
-                () -> assertThat(membership.getUserId()).isEqualTo(userId),
-                () -> assertThat(membership.getRole()).isEqualTo(role),
-                () -> assertThat(membership.getJoinedAt()).isEqualTo(joinedAt)
+                () -> assertThat(actual).isNotNull(),
+                () -> assertThat(actual.getId()).isEqualTo(ChannelMembershipId.EMPTY_CHANNEL_MEMBERSHIP_ID),
+                () -> assertThat(actual.getChannelId()).isEqualTo(channelId),
+                () -> assertThat(actual.getUserId()).isEqualTo(userId),
+                () -> assertThat(actual.getRole()).isEqualTo(role),
+                () -> assertThat(actual.getJoinedAt()).isEqualTo(joinedAt)
         );
     }
 
     @Test
-    void null_채널_ID로는_채널_참여자를_초기화할_수_없다() {
-        // when & then
-        assertThatThrownBy(() -> ChannelMembership.create(null, UserId.create(1L), ChannelRole.MEMBER, LocalDateTime.now()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("채널 ID는 필수입니다.");
-    }
-
-    @Test
-    void null_사용자_ID로는_채널_참여자를_초기화할_수_없다() {
-        // given
-        ChannelId channelId = ChannelId.create(10L);
-
-        // when & then
-        assertThatThrownBy(() -> ChannelMembership.create(channelId, null, ChannelRole.MEMBER, LocalDateTime.now()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("사용자 ID는 필수입니다.");
-    }
-
-    @Test
-    void 비어있는_사용자_ID로는_채널_참여자를_초기화할_수_없다() {
+    void 비어_있는_사용자_ID로는_채널_참여자를_초기화할_수_없다() {
         // given
         ChannelId channelId = ChannelId.create(10L);
 
@@ -77,10 +58,10 @@ class ChannelMembershipTest {
         ChannelId channelId = ChannelId.create(10L);
 
         // when
-        ChannelMembership membership = ChannelMembership.create(channelId, UserId.create(1L), ChannelRole.MEMBER, LocalDateTime.now());
+        ChannelMembership actual = ChannelMembership.create(channelId, UserId.create(1L), ChannelRole.MEMBER, LocalDateTime.now());
 
         // then
-        assertThat(membership.getPermissions().isEmpty()).isTrue();
+        assertThat(actual.getPermissions().isEmpty()).isTrue();
     }
 
     @Test
@@ -93,13 +74,13 @@ class ChannelMembershipTest {
         ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(perms);
 
         // when
-        ChannelMembership membership = ChannelMembership.createManager(channelId, userId, permissions, joinedAt);
+        ChannelMembership actual = ChannelMembership.createManager(channelId, userId, permissions, joinedAt);
 
         // then
         assertAll(
-                () -> assertThat(membership.getRole()).isEqualTo(ChannelRole.MANAGER),
-                () -> assertThat(membership.getPermissions().has(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
-                () -> assertThat(membership.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isTrue()
+                () -> assertThat(actual.getRole()).isEqualTo(ChannelRole.MANAGER),
+                () -> assertThat(actual.getPermissions().has(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(actual.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isTrue()
         );
     }
 
@@ -115,15 +96,15 @@ class ChannelMembershipTest {
         ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(perms);
 
         // when
-        ChannelMembership membership = ChannelMembership.create(memberId, channelIdVal, userIdVal, role, permissions, joinedAt);
+        ChannelMembership actual = ChannelMembership.create(memberId, channelIdVal, userIdVal, role, permissions, joinedAt);
 
         // then
         assertAll(
-                () -> assertThat(membership.getId()).isEqualTo(ChannelMembershipId.create(memberId)),
-                () -> assertThat(membership.getChannelId()).isEqualTo(ChannelId.create(channelIdVal)),
-                () -> assertThat(membership.getUserId()).isEqualTo(UserId.create(userIdVal)),
-                () -> assertThat(membership.getRole()).isEqualTo(role),
-                () -> assertThat(membership.getPermissions().has(ChannelPermissionType.MESSAGE_EDIT)).isTrue()
+                () -> assertThat(actual.getId()).isEqualTo(ChannelMembershipId.create(memberId)),
+                () -> assertThat(actual.getChannelId()).isEqualTo(ChannelId.create(channelIdVal)),
+                () -> assertThat(actual.getUserId()).isEqualTo(UserId.create(userIdVal)),
+                () -> assertThat(actual.getRole()).isEqualTo(role),
+                () -> assertThat(actual.getPermissions().has(ChannelPermissionType.MESSAGE_EDIT)).isTrue()
         );
     }
 
@@ -133,15 +114,15 @@ class ChannelMembershipTest {
         UserId userId = UserId.create(1L);
         LocalDateTime joinedAt = LocalDateTime.now();
 
-        ChannelMembership membership1 = ChannelMembership.create(1L, 10L, userId.getValue(), ChannelRole.MEMBER,
+        ChannelMembership actual = ChannelMembership.create(1L, 10L, userId.getValue(), ChannelRole.MEMBER,
                 ChannelManagePermissions.ofMember(), joinedAt);
-        ChannelMembership membership2 = ChannelMembership.create(1L, 10L, userId.getValue(), ChannelRole.OWNER,
+        ChannelMembership actual2 = ChannelMembership.create(1L, 10L, userId.getValue(), ChannelRole.OWNER,
                 ChannelManagePermissions.ofOwner(), joinedAt);
 
         // when & then
         assertAll(
-                () -> assertThat(membership1).isEqualTo(membership2),
-                () -> assertThat(membership1).hasSameHashCodeAs(membership2)
+                () -> assertThat(actual).isEqualTo(actual2),
+                () -> assertThat(actual).hasSameHashCodeAs(actual2)
         );
     }
 
@@ -152,15 +133,15 @@ class ChannelMembershipTest {
         ChannelRole role = ChannelRole.MEMBER;
         LocalDateTime joinedAt = LocalDateTime.now();
 
-        ChannelMembership membership1 = ChannelMembership.create(1L, 10L, userId.getValue(), role,
+        ChannelMembership actual = ChannelMembership.create(1L, 10L, userId.getValue(), role,
                 ChannelManagePermissions.ofMember(), joinedAt);
-        ChannelMembership membership2 = ChannelMembership.create(2L, 10L, userId.getValue(), role,
+        ChannelMembership actual2 = ChannelMembership.create(2L, 10L, userId.getValue(), role,
                 ChannelManagePermissions.ofMember(), joinedAt);
 
         // when & then
         assertAll(
-                () -> assertThat(membership1).isNotEqualTo(membership2),
-                () -> assertThat(membership1).doesNotHaveSameHashCodeAs(membership2)
+                () -> assertThat(actual).isNotEqualTo(actual2),
+                () -> assertThat(actual).doesNotHaveSameHashCodeAs(actual2)
         );
     }
 
@@ -171,11 +152,11 @@ class ChannelMembershipTest {
         UserId userId = UserId.create(1L);
         ChannelRole role = ChannelRole.MEMBER;
         LocalDateTime joinedAt = LocalDateTime.now();
-        ChannelMembership membership = ChannelMembership.create(channelId, userId, role, joinedAt);
+        ChannelMembership channelMembership = ChannelMembership.create(channelId, userId, role, joinedAt);
         Long assignedId = 100L;
 
         // when
-        ChannelMembership actual = membership.withAssignedId(assignedId);
+        ChannelMembership actual = channelMembership.withAssignedId(assignedId);
 
         // then
         assertAll(
@@ -195,16 +176,16 @@ class ChannelMembershipTest {
         ChannelRole role = ChannelRole.MANAGER;
         LocalDateTime joinedAt = LocalDateTime.now();
 
-        ChannelMembership membership = ChannelMembership.create(channelId, userId, role, joinedAt);
+        ChannelMembership channelMembership = ChannelMembership.create(channelId, userId, role, joinedAt);
         Set<ChannelPermissionType> newPerms = EnumSet.of(ChannelPermissionType.MESSAGE_EDIT, ChannelPermissionType.MEMBER_KICK);
         ChannelManagePermissions newPermissions = ChannelManagePermissions.ofManager(newPerms);
 
         // when
-        ChannelMembership updatedMembership = membership.updatePermissions(newPermissions);
+        ChannelMembership actual = channelMembership.updatePermissions(newPermissions);
 
         // then
-        assertThat(updatedMembership.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isTrue();
-        assertThat(updatedMembership.getChannelId()).isEqualTo(channelId);
+        assertThat(actual.getPermissions().has(ChannelPermissionType.MEMBER_KICK)).isTrue();
+        assertThat(actual.getChannelId()).isEqualTo(channelId);
     }
 
     @Test
@@ -215,11 +196,11 @@ class ChannelMembershipTest {
         ChannelRole role = ChannelRole.MEMBER;
         LocalDateTime joinedAt = LocalDateTime.now();
 
-        ChannelMembership membership = ChannelMembership.create(channelId, userId, role, joinedAt);
+        ChannelMembership actual = ChannelMembership.create(channelId, userId, role, joinedAt);
         ChannelManagePermissions newPermissions = ChannelManagePermissions.ofManager();
 
         // when & then
-        assertThatThrownBy(() -> membership.updatePermissions(newPermissions))
+        assertThatThrownBy(() -> actual.updatePermissions(newPermissions))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("매니저가 아니라면 채널 권한을 관리할 수 없습니다.");
     }

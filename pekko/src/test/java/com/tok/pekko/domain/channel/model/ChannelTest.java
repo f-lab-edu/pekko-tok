@@ -14,6 +14,7 @@ import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -210,10 +211,10 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership promoted = channel.promoteToManager(executorId, targetUserId);
+        ChannelMembership actual = channel.promoteToManager(executorId, targetUserId);
 
         // then
-        assertThat(promoted.isManager()).isTrue();
+        assertThat(actual.isManager()).isTrue();
     }
 
     @Test
@@ -295,10 +296,10 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership demoted = channel.demoteToMember(executorId, targetUserId);
+        ChannelMembership actual = channel.demoteToMember(executorId, targetUserId);
 
         // then
-        assertThat(demoted.isMember()).isTrue();
+        assertThat(actual.isMember()).isTrue();
     }
 
     @Test
@@ -380,11 +381,11 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership updatedMembership = channel.addPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK);
+        ChannelMembership actual = channel.addPermission(grantorId, granteeId, ChannelPermissionType.MEMBER_KICK);
 
         // then
         assertAll(
-                () -> assertThat(updatedMembership.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue(),
+                () -> assertThat(actual.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue(),
                 () -> assertThat(channel.getMemberships().get(granteeId).hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue()
         );
     }
@@ -456,11 +457,11 @@ class ChannelTest {
         Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, createdAt);
 
         // when
-        ChannelMembership removedPermissionMembership = channel.removePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT);
+        ChannelMembership actual = channel.removePermission(grantorId, granteeId, ChannelPermissionType.MESSAGE_EDIT);
 
         // then
         assertAll(
-                () -> assertThat(removedPermissionMembership.lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(actual.lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
                 () -> assertThat(channel.getMemberships().get(granteeId).lacksPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue()
         );
     }
@@ -952,5 +953,503 @@ class ChannelTest {
 
         // when & then
         assertThat(channel.canMemberEditMessage(executorId, message)).isFalse();
+    }
+
+    @Test
+    void 도메인_이벤트로_채널_이름과_정책을_적용할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), now);
+        ChannelDomainEvent nameEdited = new ChannelDomainEvent.ChannelNameEdited(1L, 1L, "random", now);
+        ChannelDomainEvent policyChanged = new ChannelDomainEvent.ChannelPolicyChanged(1L, 1L, false, false, false, now);
+
+        // when
+        channel.applyEvents(List.of(nameEdited, policyChanged));
+
+        // then
+        assertAll(
+                () -> assertThat(channel.getName()).isEqualTo("random"),
+                () -> assertThat(channel.getChannelPolicy().canEditOwnMessage()).isFalse(),
+                () -> assertThat(channel.getChannelPolicy().canDeleteOwnMessage()).isFalse(),
+                () -> assertThat(channel.getChannelPolicy().isPublic()).isFalse()
+        );
+    }
+
+    @Test
+    void 도메인_이벤트로_멤버가_추가된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), now);
+        ChannelDomainEvent joinEvent = new ChannelDomainEvent.UserJoined(
+                1L,
+                2L,
+                ChannelRole.MEMBER.name(),
+                List.of(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(joinEvent));
+
+        // then
+        assertThat(channel.getMemberships()).containsKey(UserId.create(2L));
+    }
+
+    @Test
+    void 도메인_이벤트로_매니저가_멤버로_강등된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MESSAGE_EDIT));
+        memberships.put(
+                userId,
+                ChannelMembership.create(1L, 1L, userId.getValue(), ChannelRole.MANAGER, permissions, now)
+        );
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent demoteEvent = new ChannelDomainEvent.DemotedToMember(1L, userId.getValue(), now);
+
+        // when
+        channel.applyEvents(List.of(demoteEvent));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertAll(
+                () -> assertThat(actual.getRole()).isEqualTo(ChannelRole.MEMBER),
+                () -> assertThat(actual.getPermissions().isEmpty()).isTrue()
+        );
+    }
+
+    @Test
+    void 도메인_이벤트로_권한을_추가할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager();
+        memberships.put(
+                userId,
+                ChannelMembership.create(1L, 1L, userId.getValue(), ChannelRole.MANAGER, permissions, now)
+        );
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent addPermission = new ChannelDomainEvent.PermissionAdded(
+                1L,
+                userId.getValue(),
+                ChannelPermissionType.MEMBER_KICK.name(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(addPermission));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertThat(actual.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue();
+    }
+
+    @Test
+    void 도메인_이벤트로_권한을_제거할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MESSAGE_DELETE));
+        memberships.put(
+                userId,
+                ChannelMembership.create(1L, 1L, userId.getValue(), ChannelRole.MANAGER, permissions, now)
+        );
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent removePermission = new ChannelDomainEvent.PermissionRemoved(
+                1L,
+                userId.getValue(),
+                ChannelPermissionType.MESSAGE_DELETE.name(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(removePermission));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertThat(actual.lacksPermission(ChannelPermissionType.MESSAGE_DELETE)).isTrue();
+    }
+
+    @Test
+    void canMemberDeleteMessage는_권한이_없으면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MEMBER_INVITE));
+        memberships.put(executorId, ChannelMembership.create(1L, 1L, executorId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChatMessage message = ChatMessage.create(1L, 99L, 1L, "hello", now, now);
+
+        // when & then
+        assertThat(channel.canMemberDeleteMessage(executorId, message)).isFalse();
+    }
+
+    @Test
+    void canMemberDeleteMessage는_자신의_메시지면_true를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId executorId = UserId.create(1L);
+        memberships.put(executorId, ChannelMembership.create(ChannelId.create(1L), executorId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChatMessage message = ChatMessage.create(1L, executorId.getValue(), 1L, "hello", now, now);
+
+        // when & then
+        assertThat(channel.canMemberDeleteMessage(executorId, message)).isTrue();
+    }
+
+    @Test
+    void applyEvents로_여러_도메인_이벤트를_순서대로_적용할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), now);
+        ChannelDomainEvent join = new ChannelDomainEvent.UserJoined(1L, 2L, ChannelRole.MEMBER.name(), List.of(), now);
+        ChannelDomainEvent promote = new ChannelDomainEvent.PromotedToManager(2L, List.of(ChannelPermissionType.MESSAGE_EDIT.name()), now);
+        ChannelDomainEvent addPermission = new ChannelDomainEvent.PermissionAdded(1L, 2L, ChannelPermissionType.MEMBER_KICK.name(), now);
+        ChannelDomainEvent nameEdit = new ChannelDomainEvent.ChannelNameEdited(1L, 1L, "renamed", now);
+
+        // when
+        channel.applyEvents(List.of(join, promote, addPermission, nameEdit));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(UserId.create(2L));
+        assertAll(
+                () -> assertThat(channel.getName()).isEqualTo("renamed"),
+                () -> assertThat(actual.getRole()).isEqualTo(ChannelRole.MANAGER),
+                () -> assertThat(actual.hasPermission(ChannelPermissionType.MESSAGE_EDIT)).isTrue(),
+                () -> assertThat(actual.hasPermission(ChannelPermissionType.MEMBER_KICK)).isTrue()
+        );
+    }
+
+    @Test
+    void applyMemberLeft_오너면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent left = new ChannelDomainEvent.MemberLeft(1L, ownerId.getValue(), now);
+
+        // when
+        channel.applyEvents(List.of(left));
+
+        // then
+        assertThat(channel.getMemberships()).containsKey(ownerId);
+    }
+
+    @Test
+    void applyMemberKicked_멤버가_아니면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        UserId managerId = UserId.create(1L);
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MEMBER_KICK));
+        memberships.put(managerId, ChannelMembership.create(1L, 1L, managerId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent kick = new ChannelDomainEvent.MemberKicked(1L, 99L, now);
+
+        // when
+        channel.applyEvents(List.of(kick));
+
+        // then
+        assertThat(channel.getMemberships()).hasSize(1);
+    }
+
+    @Test
+    void applyPromotedToManager_이미_매니저면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager();
+        memberships.put(userId, ChannelMembership.create(1L, 1L, userId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent promote = new ChannelDomainEvent.PromotedToManager(userId.getValue(), List.of(), now);
+
+        // when
+        channel.applyEvents(List.of(promote));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertThat(actual.getPermissions().size()).isEqualTo(permissions.size());
+    }
+
+    @Test
+    void applyPromotedToManager_멤버가_없으면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), now);
+        ChannelDomainEvent promote = new ChannelDomainEvent.PromotedToManager(2L, List.of(), now);
+
+        // when
+        channel.applyEvents(List.of(promote));
+
+        // then
+        assertThat(channel.getMemberships()).isEmpty();
+    }
+
+    @Test
+    void applyPermissionAdded_매니저가_아니면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(userId, ChannelMembership.create(ChannelId.create(1L), userId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent addPerm = new ChannelDomainEvent.PermissionAdded(
+                1L,
+                userId.getValue(),
+                ChannelPermissionType.MEMBER_KICK.name(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(addPerm));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertThat(actual.hasPermission(ChannelPermissionType.MEMBER_KICK)).isFalse();
+    }
+
+    @Test
+    void applyPermissionRemoved_매니저가_아니면_무시된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId userId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(userId, ChannelMembership.create(ChannelId.create(1L), userId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+        ChannelDomainEvent removePerm = new ChannelDomainEvent.PermissionRemoved(
+                1L,
+                userId.getValue(),
+                ChannelPermissionType.MEMBER_KICK.name(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(removePerm));
+
+        // then
+        ChannelMembership actual = channel.getMemberships().get(userId);
+        assertThat(actual.hasPermission(ChannelPermissionType.MEMBER_KICK)).isFalse();
+    }
+
+    @Test
+    void 도메인_이벤트로_초대된_멤버가_추가된다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), now);
+        ChannelDomainEvent invitedEvent = new ChannelDomainEvent.UserInvited(
+                1L,
+                2L,
+                ChannelRole.MEMBER.name(),
+                List.of(),
+                now
+        );
+
+        // when
+        channel.applyEvents(List.of(invitedEvent));
+
+        // then
+        assertThat(channel.getMemberships()).containsKey(UserId.create(2L));
+    }
+
+    @Test
+    void canRemovePermission_오너가_권한을_가진_매니저에게서_제거할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        UserId managerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MESSAGE_EDIT));
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        memberships.put(managerId, ChannelMembership.create(1L, 1L, managerId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canRemovePermission(ownerId, managerId, ChannelPermissionType.MESSAGE_EDIT);
+
+        // then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void canRemovePermission_권한_없는_사용자는_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId memberId = UserId.create(1L);
+        UserId managerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager(EnumSet.of(ChannelPermissionType.MESSAGE_EDIT));
+        memberships.put(memberId, ChannelMembership.create(ChannelId.create(1L), memberId, ChannelRole.MEMBER, now));
+        memberships.put(managerId, ChannelMembership.create(1L, 1L, managerId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canRemovePermission(memberId, managerId, ChannelPermissionType.MESSAGE_EDIT);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canRemovePermission_권한이_없는_매니저면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        UserId managerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        ChannelManagePermissions permissions = ChannelManagePermissions.ofManager();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        memberships.put(managerId, ChannelMembership.create(1L, 1L, managerId.getValue(), ChannelRole.MANAGER, permissions, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canRemovePermission(ownerId, managerId, ChannelPermissionType.MESSAGE_DELETE);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canDemoteToMember_오너는_매니저를_강등할_수_있다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        UserId managerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        memberships.put(managerId, ChannelMembership.create(ChannelId.create(1L), managerId, ChannelRole.MANAGER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDemoteToMember(ownerId, managerId);
+
+        // then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void canDemoteToMember_권한이_없으면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId memberId = UserId.create(1L);
+        UserId managerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(memberId, ChannelMembership.create(ChannelId.create(1L), memberId, ChannelRole.MEMBER, now));
+        memberships.put(managerId, ChannelMembership.create(ChannelId.create(1L), managerId, ChannelRole.MANAGER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDemoteToMember(memberId, managerId);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canDemoteToMember_타겟이_멤버면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        UserId targetId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        memberships.put(targetId, ChannelMembership.create(ChannelId.create(1L), targetId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDemoteToMember(ownerId, targetId);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canDemoteToMember_타겟이_오너면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        UserId targetOwnerId = UserId.create(2L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        memberships.put(targetOwnerId, ChannelMembership.create(ChannelId.create(1L), targetOwnerId, ChannelRole.OWNER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDemoteToMember(ownerId, targetOwnerId);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canChangeChannelPolicy_오너는_true를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canChangeChannelPolicy(ownerId);
+
+        // then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void canChangeChannelPolicy_오너가_아니면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId memberId = UserId.create(1L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(memberId, ChannelMembership.create(ChannelId.create(1L), memberId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canChangeChannelPolicy(memberId);
+
+        // then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void canDeleteChannel_오너면_true를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId ownerId = UserId.create(1L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(ownerId, ChannelMembership.create(ChannelId.create(1L), ownerId, ChannelRole.OWNER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDeleteChannel(ownerId);
+
+        // then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void canDeleteChannel_오너가_아니면_false를_반환한다() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UserId memberId = UserId.create(1L);
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        memberships.put(memberId, ChannelMembership.create(ChannelId.create(1L), memberId, ChannelRole.MEMBER, now));
+        Channel channel = Channel.create(1L, "general", 1L, ChannelPolicy.defaultPolicy(), memberships, now);
+
+        // when
+        boolean actual = channel.canDeleteChannel(memberId);
+
+        // then
+        assertThat(actual).isFalse();
     }
 }
