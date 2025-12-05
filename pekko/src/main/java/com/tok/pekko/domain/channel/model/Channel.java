@@ -7,8 +7,11 @@ import com.tok.pekko.domain.chat.actor.ChatMessage;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import com.tok.pekko.global.common.ActorThreadSafe;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -17,12 +20,12 @@ import lombok.Getter;
 @ActorThreadSafe
 public class Channel {
 
-    private final ChannelId channelId;
-    private final String name;
+    private ChannelId channelId;
+    private String name;
+    private ChannelPolicy channelPolicy;
     private final UserId creatorId;
-    private final ChannelPolicy channelPolicy;
-    private final Map<UserId, ChannelMembership> memberships;
     private final LocalDateTime createdAt;
+    private final Map<UserId, ChannelMembership> memberships;
 
     public static Channel create(String name, Long creatorId, ChannelPolicy channelPolicy, LocalDateTime createdAt) {
         validateName(name);
@@ -80,14 +83,8 @@ public class Channel {
     }
 
     public Channel withAssignedId(Long id) {
-        return new Channel(
-                ChannelId.create(id),
-                this.name,
-                this.creatorId,
-                this.channelPolicy,
-                this.memberships,
-                this.createdAt
-        );
+        this.channelId = ChannelId.create(id);
+        return this;
     }
 
     public ChannelMembership joinUser(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
@@ -288,14 +285,8 @@ public class Channel {
 
         validateName(newName);
 
-        return new Channel(
-                this.channelId,
-                newName,
-                this.creatorId,
-                this.channelPolicy,
-                this.memberships,
-                this.createdAt
-        );
+        this.name = newName;
+        return this;
     }
 
     public Channel changeChannelPolicy(UserId changerId, ChannelPolicy channelPolicy) {
@@ -308,14 +299,8 @@ public class Channel {
             throw new ChannelOperationForbiddenException("채널 정책을 변경할 권한이 없습니다.");
         }
 
-        return new Channel(
-                this.channelId,
-                this.name,
-                this.creatorId,
-                channelPolicy,
-                this.memberships,
-                this.createdAt
-        );
+        this.channelPolicy = channelPolicy;
+        return this;
     }
 
     public void validateDeleteChannel(UserId deleterId) {
@@ -363,6 +348,346 @@ public class Channel {
         if (senderMembership == null) {
             throw new ChannelMembershipNotFoundException();
         }
+    }
+
+    public boolean canJoinUser(UserId userId) {
+        if (channelPolicy.isPrivate()) {
+            return false;
+        }
+        return !memberships.containsKey(userId);
+    }
+
+    public boolean canInviteMember(UserId inviterId, UserId inviteeId) {
+        ChannelMembership inviterMembership = memberships.get(inviterId);
+
+        if (inviterMembership == null) {
+            return false;
+        }
+        if (inviterMembership.cannotInviteMember()) {
+            return false;
+        }
+        return !memberships.containsKey(inviteeId);
+    }
+
+    public boolean canLeaveMember(UserId memberId) {
+        ChannelMembership channelMembership = memberships.get(memberId);
+
+        if (channelMembership == null) {
+            return false;
+        }
+        return !channelMembership.isOwner();
+    }
+
+    public boolean canKickMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (!executorMembership.canKickMember()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        return targetUserMembership.isMember();
+    }
+
+    public boolean canAddPermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
+
+        if (grantorMembership == null) {
+            return false;
+        }
+        if (grantorMembership.cannotManagePermission()) {
+            return false;
+        }
+
+        ChannelMembership granteeMembership = memberships.get(granteeId);
+
+        if (granteeMembership == null) {
+            return false;
+        }
+        if (granteeMembership.isNotManager()) {
+            return false;
+        }
+        return granteeMembership.lacksPermission(permission);
+    }
+
+    public boolean canRemovePermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
+        ChannelMembership grantorMembership = memberships.get(grantorId);
+
+        if (grantorMembership == null) {
+            return false;
+        }
+        if (grantorMembership.cannotManagePermission()) {
+            return false;
+        }
+
+        ChannelMembership granteeMembership = memberships.get(granteeId);
+
+        if (granteeMembership == null) {
+            return false;
+        }
+        if (granteeMembership.isNotManager()) {
+            return false;
+        }
+
+        return granteeMembership.hasPermission(permission);
+    }
+
+    public boolean canPromoteToManager(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (executorMembership.cannotManageRole()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        if (targetUserMembership.isOwner()) {
+            return false;
+        }
+
+        return targetUserMembership.isNotManager();
+    }
+
+    public boolean canDemoteToMember(UserId executorId, UserId targetUserId) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (executorMembership.cannotManageRole()) {
+            return false;
+        }
+
+        ChannelMembership targetUserMembership = memberships.get(targetUserId);
+
+        if (targetUserMembership == null) {
+            return false;
+        }
+        if (targetUserMembership.isOwner()) {
+            return false;
+        }
+
+        return !targetUserMembership.isMember();
+    }
+
+    public boolean canEditName(UserId changerId) {
+        ChannelMembership channelMembership = memberships.get(changerId);
+
+        if (channelMembership == null) {
+            return false;
+        }
+
+        return channelMembership.canEditChannelName();
+    }
+
+    public boolean canChangeChannelPolicy(UserId changerId) {
+        ChannelMembership executorMembership = memberships.get(changerId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+
+        return executorMembership.canChangeChannelPolicy();
+    }
+
+    public boolean canDeleteChannel(UserId deleterId) {
+        ChannelMembership deleterMembership = memberships.get(deleterId);
+
+        if (deleterMembership == null) {
+            return false;
+        }
+        return deleterMembership.canDeleteChannel();
+    }
+
+    public boolean canMemberEditMessage(UserId executorId, ChatMessage message) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotEditMessage()) {
+            return false;
+        }
+
+        return !channelPolicy.cannotEditOwnMessage();
+    }
+
+    public boolean canMemberDeleteMessage(UserId executorId, ChatMessage message) {
+        ChannelMembership executorMembership = memberships.get(executorId);
+
+        if (executorMembership == null) {
+            return false;
+        }
+        if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotDeleteMessage()) {
+            return false;
+        }
+
+        return !channelPolicy.cannotDeleteOwnMessage();
+    }
+
+    public boolean canMemberSendMessage(UserId senderId) {
+        ChannelMembership senderMembership = memberships.get(senderId);
+
+        return senderMembership != null;
+    }
+
+    public void applyEvents(List<ChannelDomainEvent> events) {
+        events.forEach(this::applyEvent);
+    }
+
+    private void applyEvent(ChannelDomainEvent event) {
+        event.apply(this);
+    }
+
+    private ChannelMembership createMembershipFromPrimitives(
+            Long channelId,
+            Long userId,
+            String role,
+            List<String> managerPermissions,
+            LocalDateTime joinedAt
+    ) {
+        ChannelRole channelRole = ChannelRole.find(role);
+        ChannelId channelIdValue = ChannelId.create(channelId);
+        UserId userIdValue = UserId.create(userId);
+
+        if (channelRole.isManager()) {
+            Set<ChannelPermissionType> permissions = toPermissionSet(managerPermissions);
+            ChannelManagePermissions managePermissions = ChannelManagePermissions.ofManager(permissions);
+
+            return ChannelMembership.createManager(channelIdValue, userIdValue, managePermissions, joinedAt);
+        }
+
+        return ChannelMembership.create(channelIdValue, userIdValue, channelRole, joinedAt);
+    }
+
+    private Set<ChannelPermissionType> toPermissionSet(List<String> permissions) {
+        if (permissions == null || permissions.isEmpty()) {
+            return EnumSet.noneOf(ChannelPermissionType.class);
+        }
+
+        EnumSet<ChannelPermissionType> permissionSet = EnumSet.noneOf(ChannelPermissionType.class);
+        permissions.forEach(permission -> permissionSet.add(ChannelPermissionType.valueOf(permission)));
+
+        return permissionSet;
+    }
+
+    void applyChannelNameEdited(String newName) {
+        validateName(newName);
+
+        this.name = newName;
+    }
+
+    void applyChannelPolicyChanged(boolean canEditOwnMessage, boolean canDeleteOwnMessage, boolean isPublic) {
+        this.channelPolicy = new ChannelPolicy(canEditOwnMessage, canDeleteOwnMessage, isPublic);
+    }
+
+    void applyUserJoined(Long channelId, Long userId, String role, List<String> managerPermissions, LocalDateTime joinedAt) {
+        UserId userIdValue = UserId.create(userId);
+
+        if (!canJoinUser(userIdValue)) {
+            return;
+        }
+
+        ChannelMembership membership = createMembershipFromPrimitives(channelId, userId, role, managerPermissions, joinedAt);
+
+        memberships.put(membership.getUserId(), membership);
+    }
+
+    void applyUserInvited(Long channelId, Long userId, String role, List<String> managerPermissions, LocalDateTime joinedAt) {
+        applyUserJoined(channelId, userId, role, managerPermissions, joinedAt);
+    }
+
+    void applyMemberLeft(Long userId) {
+        UserId userIdValue = UserId.create(userId);
+        ChannelMembership membership = memberships.get(userIdValue);
+
+        if (membership == null || membership.isOwner()) {
+            return;
+        }
+
+        memberships.remove(userIdValue);
+    }
+
+    void applyMemberKicked(Long userId) {
+        UserId userIdValue = UserId.create(userId);
+        ChannelMembership membership = memberships.get(userIdValue);
+
+        if (membership == null || membership.isNotMember()) {
+            return;
+        }
+
+        memberships.remove(userIdValue);
+    }
+
+    void applyPromotedToManager(Long userId, List<String> managerPermissions) {
+        UserId userIdValue = UserId.create(userId);
+        ChannelMembership existingMembership = memberships.get(userIdValue);
+
+        if (existingMembership == null || existingMembership.isOwner() || existingMembership.isManager()) {
+            return;
+        }
+
+        Set<ChannelPermissionType> permissions = toPermissionSet(managerPermissions);
+        ChannelMembership membership = existingMembership.promoteToManager(ChannelManagePermissions.ofManager(permissions));
+
+        memberships.put(membership.getUserId(), membership);
+    }
+
+    void applyDemotedToMember(Long userId) {
+        ChannelMembership existing = memberships.get(UserId.create(userId));
+
+        if (existing == null) {
+            return;
+        }
+
+        ChannelMembership membership = existing.demoteToMember();
+
+        memberships.put(membership.getUserId(), membership);
+    }
+
+    void applyPermissionAdded(Long userId, String permissionType) {
+        ChannelMembership membership = memberships.get(UserId.create(userId));
+
+        if (membership == null) {
+            return;
+        }
+        if (membership.isNotManager()) {
+            return;
+        }
+
+        ChannelPermissionType permission = ChannelPermissionType.valueOf(permissionType);
+        ChannelMembership updated = membership.addPermission(permission);
+
+        memberships.put(updated.getUserId(), updated);
+    }
+
+    void applyPermissionRemoved(Long userId, String permissionType) {
+        ChannelMembership membership = memberships.get(UserId.create(userId));
+
+        if (membership == null) {
+            return;
+        }
+        if (membership.isNotManager()) {
+            return;
+        }
+
+        ChannelPermissionType permission = ChannelPermissionType.valueOf(permissionType);
+        ChannelMembership updated = membership.removePermission(permission);
+
+        memberships.put(updated.getUserId(), updated);
     }
 
     public static class ChannelMembershipNotFoundException extends IllegalArgumentException {
