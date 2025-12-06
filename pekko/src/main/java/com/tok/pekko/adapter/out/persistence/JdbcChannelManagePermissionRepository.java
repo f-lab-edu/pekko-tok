@@ -2,7 +2,9 @@ package com.tok.pekko.adapter.out.persistence;
 
 import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelMembershipId;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -38,14 +40,14 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
                 VALUES (:membershipId, :permission)
                 """;
         SqlParameterSource[] batchParameter = channelMembership.getPermissions()
-                           .getAll()
-                           .stream()
-                           .map(
-                                   permission -> new MapSqlParameterSource()
-                                           .addValue("membershipId", channelMembership.getId().getValue())
-                                           .addValue("permission", permission.name())
-                           )
-                           .toArray(SqlParameterSource[]::new);
+                                                               .getAll()
+                                                               .stream()
+                                                               .map(
+                                                                       permission -> new MapSqlParameterSource()
+                                                                               .addValue("membershipId", channelMembership.getId().getValue())
+                                                                               .addValue("permission", permission.name())
+                                                               )
+                                                               .toArray(SqlParameterSource[]::new);
 
         jdbcTemplate.batchUpdate(sql, batchParameter);
     }
@@ -74,6 +76,23 @@ public class JdbcChannelManagePermissionRepository implements ChannelManagePermi
                 """;
         MapSqlParameterSource parameter = new MapSqlParameterSource()
                 .addValue("membershipId", channelMembershipId.getValue());
+
+        jdbcTemplate.update(sql, parameter);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAll(ChannelId channelId, UserId userId) {
+        String sql = """
+                DELETE FROM channel_manager_permissions
+                WHERE manager_membership_id IN (
+                    SELECT id FROM channel_memberships
+                    WHERE channel_id = :channelId AND user_id = :userId
+                )
+                """;
+        MapSqlParameterSource parameter = new MapSqlParameterSource()
+                .addValue("channelId", channelId.getValue())
+                .addValue("userId", userId.getValue());
 
         jdbcTemplate.update(sql, parameter);
     }
