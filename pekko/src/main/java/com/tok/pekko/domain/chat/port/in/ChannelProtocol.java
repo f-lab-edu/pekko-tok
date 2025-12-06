@@ -5,7 +5,9 @@ import com.tok.pekko.domain.channel.model.ChannelDomainEvent;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.pekko.actor.typed.ActorRef;
 
@@ -62,5 +64,36 @@ public interface ChannelProtocol {
     record ChannelBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success, String errorMessage) implements ChannelEntityCommand { }
 
     // Channel 멤버십 도메인 이벤트 배치의 영속화 결과를 전달받는 메시지 : 비동기 콜백 -> ChannelEntity
-    record ChannelMembershipBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success, String errorMessage) implements ChannelEntityCommand { }
+    record ChannelMembershipBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success) implements ChannelEntityCommand { }
+
+    // Channel 이름 변경 메시지 : 외부 -> ChannelEntity
+    record ApplyChannelNameEdited(Long channelId, UserId changerId, String newName, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // Channel 정책 변경 메시지 : 외부 -> ChannelEntity
+    record ApplyChannelPolicyChanged(Long channelId, UserId changerId, boolean canEditOwnMessage, boolean canDeleteOwnMessage, boolean isPublic, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // Channel 참여 메시지 : 외부 -> ChannelEntity
+    record ApplyUserJoined(Long channelId, UserId userId, String role, List<String> managerPermissions, LocalDateTime joinedAt) implements ChannelEntityCommand { }
+
+    // Channel 초대 메시지 : 외부 -> ChannelEntity
+    record ApplyUserInvited(Long channelId, UserId inviterId, UserId inviteeId, String role, List<String> managerPermissions, LocalDateTime joinedAt) implements ChannelEntityCommand { }
+
+    // Channel 탈퇴 메시지 : 외부 -> ChannelEntity
+    record ApplyMemberLeft(Long channelId, UserId userId, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // Channel 강퇴 메시지 : 외부 -> ChannelEntity
+    record ApplyMemberKicked(Long channelId, UserId executorId, UserId targetUserId, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // 매니저 승격 메시지 : 외부 -> ChannelEntity
+    record ApplyPromotedToManager(Long channelId, UserId executorId, UserId targetUserId, List<String> managerPermissions, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // 멤버 강등 메시지 : 외부 -> ChannelEntity
+    record ApplyDemotedToMember(Long channelId, UserId executorId, UserId targetUserId, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // 권한 추가 메시지 : 외부 -> ChannelEntity
+    record ApplyPermissionAdded(Long channelId, UserId grantorId, UserId granteeId, String permissionType, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
+    // 권한 삭제 메시지 : 외부 -> ChannelEntity
+    record ApplyPermissionRemoved(Long channelId, UserId grantorId, UserId granteeId, String permissionType, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
 }

@@ -2,7 +2,34 @@ package com.tok.pekko.domain.chat.actor;
 
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.ChannelDomainEvent;
+import com.tok.pekko.domain.channel.model.ChannelPermissionType;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.ChannelNameEdited;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.ChannelPolicyChanged;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.DemotedToMember;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.MemberKicked;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.MemberLeft;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.PermissionAdded;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.PermissionRemoved;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.PromotedToManager;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.UserInvited;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent.UserJoined;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor.DeliverSyncMessages;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyChangeChannelMembership;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyChangeChannelPolicy;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyEditChannelName;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyKickedMember;
+import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyMemberLeft;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelNameEdited;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelPolicyChanged;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyDemotedToMember;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberKicked;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberLeft;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyPermissionAdded;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyPermissionRemoved;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyPromotedToManager;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyUserInvited;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyUserJoined;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelBatchPersisted;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelLoadFailed;
@@ -20,13 +47,17 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncMembership;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
 import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
@@ -93,7 +124,6 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
     // 채널 도메인 상태
     private final ChannelStateHolder channelState;
-    private final Deque<ChannelDomainEvent> pendingChannelEvents;
 
     // 채널 / 멤버십 DB 영속화 Port
     private final ChannelActorStoragePort channelActorStoragePort;
@@ -102,10 +132,13 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     // Reader 관리
     private final Map<String, ActorRef<ChannelReaderCommand>> readers;
 
-    // 명령 버퍼링 / 배치 관련 상태
-    private final Deque<ChannelEntityCommand> bufferedCommandsBeforeInit;
+    // 배치 관련
     private boolean channelBatchRunning;
-    private long channelBatchSequence;
+    private final SnowflakeSequenceGenerator batchSequenceGenerator;
+
+    // 커맨드 버퍼링
+    private final Deque<ChannelDomainEvent> pendingChannelEvents;
+    private final Deque<ChannelEntityCommand> bufferedCommandsBeforeInit;
     private final Deque<Consumer<ChannelEntity>> pendingNotifications;
     private final Map<Long, ChannelBatchState> channelBatchStates;
 
@@ -129,12 +162,12 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         this.messages = messages;
         this.messageStoragePort = messageStoragePort;
         this.messageSequenceGenerator = new SnowflakeSequenceGenerator(channelId);
+        this.batchSequenceGenerator = new SnowflakeSequenceGenerator(channelId);
 
         // 채널 상태 & 배치 관련
         this.channelState = channelState;
         this.pendingChannelEvents = new ArrayDeque<>();
         this.channelBatchRunning = false;
-        this.channelBatchSequence = 0L;
         this.pendingNotifications = new ArrayDeque<>();
         this.channelBatchStates = new HashMap<>();
 
@@ -176,6 +209,18 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
                 // 배치 처리
                 .onMessage(ChannelMembershipBatchPersisted.class, this::onChannelMembershipBatchPersisted)
+                .onMessage(ChannelBatchPersisted.class, this::onChannelBatchPersisted)
+
+                .onMessage(ApplyChannelNameEdited.class, this::onApplyChannelNameEdited)
+                .onMessage(ApplyChannelPolicyChanged.class, this::onApplyChannelPolicyChanged)
+                .onMessage(ApplyUserJoined.class, this::onApplyUserJoined)
+                .onMessage(ApplyUserInvited.class, this::onApplyUserInvited)
+                .onMessage(ApplyMemberLeft.class, this::onApplyMemberLeft)
+                .onMessage(ApplyMemberKicked.class, this::onApplyMemberKicked)
+                .onMessage(ApplyPromotedToManager.class, this::onApplyPromotedToManager)
+                .onMessage(ApplyDemotedToMember.class, this::onApplyDemotedToMember)
+                .onMessage(ApplyPermissionAdded.class, this::onApplyPermissionAdded)
+                .onMessage(ApplyPermissionRemoved.class, this::onApplyPermissionRemoved)
 
                 .build();
     }
@@ -193,8 +238,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     }
 
     private Behavior<ChannelEntityCommand> onResolveHistory(ResolveHistory command) {
-        List<ChatMessage> history = this.messages.getHistory(
-                command.messageSequence(), command.size());
+        List<ChatMessage> history = this.messages.getHistory(command.messageSequence(), command.size());
 
         command.replyTo()
                .tell(new DeliverHistory(channelId, command.messageSequence(), command.size(), history));
@@ -215,13 +259,13 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     // 채팅 메시지 커맨드(보내기 / 수정 / 삭제) 요청 핸들러
     private Behavior<ChannelEntityCommand> onSendMessage(SendMessage command) {
         ChatMessage message = createChatMessage(command);
+
         messageStoragePort.store(message, getContext().getSelf());
         return this;
     }
 
     private Behavior<ChannelEntityCommand> onUpdateMessage(UpdateMessage command) {
-        messageStoragePort.update(
-                command.messageId(), command.updatedMessage(), getContext().getSelf());
+        messageStoragePort.update(command.messageId(), command.updatedMessage(), getContext().getSelf());
         return this;
     }
 
@@ -265,7 +309,6 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         channelState.initialize((command.channel().copy()), true);
         flushPendingCommands();
         tryStartChannelBatch();
-
         return this;
     }
 
@@ -277,6 +320,7 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         return Behaviors.stopped();
     }
 
+    // 배치 핸들러
     private Behavior<ChannelEntityCommand> onChannelMembershipBatchPersisted(ChannelMembershipBatchPersisted command) {
         if (enqueueUntilInitialized(command)) {
             return this;
@@ -284,6 +328,342 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
         handleBatchPersisted(command.batchId(), command.success());
         return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onChannelBatchPersisted(ChannelBatchPersisted command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        handleBatchPersisted(command.batchId(), command.success());
+        return this;
+    }
+
+    // 채널 도메인 비즈니스 로직 관련 핸들러
+    private Behavior<ChannelEntityCommand> onApplyChannelNameEdited(ApplyChannelNameEdited command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null || !committed.canEditName(command.changerId())) {
+            return this;
+        }
+
+        ChannelNameEdited event = new ChannelNameEdited(
+                command.channelId(),
+                command.changerId().getValue(),
+                command.newName(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.sendToAll(new NotifyEditChannelName(committedState.getName()));
+            entity.sendToAll(new NotifyChangeChannelPolicy(committedState.getChannelPolicy()));
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyChannelPolicyChanged(ApplyChannelPolicyChanged command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null || !committed.canChangeChannelPolicy(command.changerId())) {
+            return this;
+        }
+
+        ChannelPolicyChanged event = new ChannelPolicyChanged(
+                command.channelId(),
+                command.changerId().getValue(),
+                command.canEditOwnMessage(),
+                command.canDeleteOwnMessage(),
+                command.isPublic(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.sendToAll(new NotifyEditChannelName(committedState.getName()));
+            entity.sendToAll(new NotifyChangeChannelPolicy(committedState.getChannelPolicy()));
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyUserJoined(ApplyUserJoined command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null || !committed.canJoinUser(command.userId())) {
+            return this;
+        }
+
+        UserJoined event = new UserJoined(
+                command.channelId(),
+                command.userId().getValue(),
+                command.role(),
+                command.managerPermissions(),
+                command.joinedAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.userId().getValue(), committedState, membershipCount);
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+            entity.sendToAll(new NotifyMembershipCountChanged(membershipCount));
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyUserInvited(ApplyUserInvited command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null
+                || !committed.canInviteMember(command.inviterId(),
+                                              command.inviteeId())) {
+            return this;
+        }
+
+        UserInvited event = new UserInvited(
+                command.channelId(),
+                command.inviteeId().getValue(),
+                command.role(),
+                command.managerPermissions(),
+                command.joinedAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.inviteeId().getValue(), committedState, membershipCount);
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+            entity.sendToAll(new NotifyMembershipCountChanged(membershipCount));
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyMemberLeft(ApplyMemberLeft command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null || !committed.canLeaveMember(command.userId())) {
+            return this;
+        }
+
+        MemberLeft event = new MemberLeft(
+                command.channelId(),
+                command.userId().getValue(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.sendToAll(new NotifyMemberLeft(command.userId().getValue()));
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+            entity.sendToAll(new NotifyMembershipCountChanged(membershipCount));
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyMemberKicked(ApplyMemberKicked command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null
+                || !committed.canKickMember(command.executorId(),
+                                            command.targetUserId())) {
+            return this;
+        }
+
+        MemberKicked event = new MemberKicked(
+                command.channelId(),
+                command.targetUserId().getValue(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.sendToAll(new NotifyKickedMember(command.targetUserId().getValue()));
+            entity.sendToAll(
+                    new SyncChannelMetadata(
+                            channelId,
+                            committedState.getName(),
+                            committedState.getChannelPolicy(),
+                            membershipCount
+                    )
+            );
+            entity.sendToAll(new NotifyMembershipCountChanged(membershipCount));
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyPromotedToManager(ApplyPromotedToManager command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null
+                || !committed.canPromoteToManager(command.executorId(),
+                                                  command.targetUserId())) {
+            return this;
+        }
+
+        PromotedToManager event = new PromotedToManager(
+                command.targetUserId().getValue(),
+                command.managerPermissions(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.targetUserId().getValue(), committedState, membershipCount);
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyDemotedToMember(ApplyDemotedToMember command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null
+                || !committed.canDemoteToMember(command.executorId(),
+                                                command.targetUserId())) {
+            return this;
+        }
+
+        DemotedToMember event = new DemotedToMember(
+                command.channelId(),
+                command.targetUserId().getValue(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.targetUserId().getValue(), committedState, membershipCount);
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyPermissionAdded(ApplyPermissionAdded command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        ChannelPermissionType permission = ChannelPermissionType.valueOf(command.permissionType());
+        if (committed == null
+                || !committed.canAddPermission(command.grantorId(),
+                                               command.granteeId(),
+                                               permission)) {
+            return this;
+        }
+
+        PermissionAdded event = new PermissionAdded(
+                command.channelId(),
+                command.granteeId().getValue(),
+                command.permissionType(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.granteeId().getValue(), committedState, membershipCount);
+        });
+        return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyPermissionRemoved(ApplyPermissionRemoved command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        ChannelPermissionType permission = ChannelPermissionType.valueOf(command.permissionType());
+        if (committed == null
+                || !committed.canRemovePermission(command.grantorId(),
+                                                  command.granteeId(),
+                                                  permission)) {
+            return this;
+        }
+
+        PermissionRemoved event = new PermissionRemoved(
+                command.channelId(),
+                command.granteeId().getValue(),
+                command.permissionType(),
+                command.occurredAt()
+        );
+        enqueueEvent(event, entity -> {
+            Channel committedState = entity.channelState.committed();
+            int membershipCount = committedState.getMemberships().size();
+
+            entity.notifyMembershipChange(command.granteeId().getValue(), committedState, membershipCount);
+        });
+        return this;
+    }
+
+    private void enqueueEvent(ChannelDomainEvent event, Consumer<ChannelEntity> notification) {
+        pendingChannelEvents.add(event);
+        pendingNotifications.add(notification);
+        tryStartChannelBatch();
     }
 
     // 배치 처리 관련 메서드
@@ -295,52 +675,100 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
     }
 
     private void tryStartChannelBatch() {
-        if (!channelState.isInitialized() || channelBatchRunning || pendingChannelEvents.isEmpty()) {
+        if (!canStartBatch()) {
             return;
         }
 
         channelBatchRunning = true;
-        long batchId = ++channelBatchSequence;
-        List<ChannelDomainEvent> batch = pendingChannelEvents.stream().toList();
+
+        long batchId = batchSequenceGenerator.nextSequence();
+        List<ChannelDomainEvent> batch = List.copyOf(pendingChannelEvents);
         pendingChannelEvents.clear();
 
-        List<Consumer<ChannelEntity>> batchNotifications = new ArrayList<>();
-        for (int i = 0; i < batch.size(); i++) {
-            batchNotifications.add(pendingNotifications.pollFirst());
-        }
+        List<Consumer<ChannelEntity>> batchNotifications = collectBatchNotifications(batch.size());
 
         try {
             applyEventsToUncommitted(batch);
-            List<ChannelDomainEvent> membershipEvents = batch.stream()
-                                                             .filter(ChannelDomainEvent::isMembershipEvent)
-                                                             .toList();
-            List<ChannelDomainEvent> channelEvents = batch.stream()
-                                                          .filter(event -> !event.isMembershipEvent())
-                                                          .toList();
 
-            int operations = 0;
-            if (!channelEvents.isEmpty()) operations++;
-            if (!membershipEvents.isEmpty()) operations++;
+            List<ChannelDomainEvent> membershipEvents = filterMembershipEvents(batch);
+            List<ChannelDomainEvent> channelEvents = filterChannelEvents(batch);
 
+            int operations = countPersistOperations(membershipEvents, channelEvents);
             if (operations == 0) {
-                channelBatchRunning = false;
-                handleBatchPersisted(batchId, true);
+                completeBatchWithNoOperations(batchId);
                 return;
             }
 
             channelBatchStates.put(batchId, new ChannelBatchState(operations, batch, batchNotifications));
 
-            if (!channelEvents.isEmpty()) {
-                persistChannelBatch(batchId, channelEvents, channelState.working());
-            }
-            if (!membershipEvents.isEmpty()) {
-                persistMembershipBatch(batchId, membershipEvents, channelState.working());
-            }
+            persistBatches(batchId, channelEvents, membershipEvents);
         } catch (Exception e) {
-            getContext().getSelf()
-                        .tell(new ChannelBatchPersisted(batchId, batch, false, e.getMessage()));
+            sendBatchFailureMessage(batchId, batch, e);
         }
     }
+
+    private boolean canStartBatch() {
+        return channelState.isInitialized() && !channelBatchRunning && !pendingChannelEvents.isEmpty();
+    }
+
+    private List<Consumer<ChannelEntity>> collectBatchNotifications(int size) {
+        List<Consumer<ChannelEntity>> notifications = new ArrayList<>(size);
+
+        for (int i = 0; i < size; i++) {
+            notifications.add(pendingNotifications.pollFirst());
+        }
+
+        return notifications;
+    }
+
+    private List<ChannelDomainEvent> filterMembershipEvents(List<ChannelDomainEvent> batch) {
+        return batch.stream()
+                    .filter(ChannelDomainEvent::isMembershipEvent)
+                    .toList();
+    }
+
+    private List<ChannelDomainEvent> filterChannelEvents(List<ChannelDomainEvent> batch) {
+        return batch.stream()
+                    .filter(event -> !event.isMembershipEvent())
+                    .toList();
+    }
+
+    private int countPersistOperations(List<ChannelDomainEvent> membershipEvents,
+            List<ChannelDomainEvent> channelEvents) {
+        int count = 0;
+        if (!channelEvents.isEmpty()) {
+            count++;
+        }
+        if (!membershipEvents.isEmpty()) {
+            count++;
+        }
+
+        return count;
+    }
+
+    private void completeBatchWithNoOperations(long batchId) {
+        channelBatchRunning = false;
+        handleBatchPersisted(batchId, true);
+    }
+
+    private void persistBatches(
+            long batchId,
+            List<ChannelDomainEvent> channelEvents,
+            List<ChannelDomainEvent> membershipEvents
+    ) {
+        if (!channelEvents.isEmpty()) {
+            persistChannelBatch(batchId, channelEvents, channelState.working());
+        }
+        if (!membershipEvents.isEmpty()) {
+            persistMembershipBatch(batchId, membershipEvents, channelState.working());
+        }
+    }
+
+    private void sendBatchFailureMessage(long batchId, List<ChannelDomainEvent> batch, Exception e) {
+        getContext().getSelf()
+                    .tell(new ChannelBatchPersisted(batchId, batch, false, e.getMessage()));
+    }
+
 
     private void applyEventsToUncommitted(List<ChannelDomainEvent> batch) {
         for (ChannelDomainEvent event : batch) {
@@ -348,22 +776,20 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
         }
     }
 
-    private void persistChannelBatch(
-            long batchId, List<ChannelDomainEvent> batch, Channel channelToPersist) {
+    private void persistChannelBatch(long batchId, List<ChannelDomainEvent> batch, Channel channelToPersist) {
         channelActorStoragePort.update(channelToPersist, getContext().getSelf(), batchId, batch);
     }
 
-    private void persistMembershipBatch(
-            long batchId, List<ChannelDomainEvent> batch, Channel channelToPersist) {
+    private void persistMembershipBatch(long batchId, List<ChannelDomainEvent> batch, Channel channelToPersist) {
         try {
             for (ChannelDomainEvent event : batch) {
                 event.persistMembership(channelMembershipActorStoragePort, channelToPersist);
             }
             getContext().getSelf()
-                        .tell(new ChannelMembershipBatchPersisted(batchId, batch, true, ""));
+                        .tell(new ChannelMembershipBatchPersisted(batchId, batch, true));
         } catch (Exception e) {
             getContext().getSelf()
-                        .tell(new ChannelMembershipBatchPersisted(batchId, batch, false, e.getMessage()));
+                        .tell(new ChannelMembershipBatchPersisted(batchId, batch, false));
         }
     }
 
@@ -373,27 +799,49 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
             return;
         }
 
-        if (!success) {
-            state.success = false;
-        }
-
-        state.pendingOperations--;
-        if (state.pendingOperations > 0) {
+        updateBatchSuccessFlag(state, success);
+        if (hasPendingOperations(state)) {
             return;
         }
 
-        if (state.success) {
-            channelState.commitWorking();
-            if (state.notifications != null) {
-                state.notifications.forEach(notification -> notification.accept(this));
-            }
-        } else {
-            channelState.resetWorking();
-        }
+        finalizeBatchState(state);
+        cleanupBatch(batchId);
+        tryStartChannelBatch();
+    }
 
+    private void updateBatchSuccessFlag(ChannelBatchState state, boolean success) {
+        if (!success) {
+            state.success = false;
+        }
+    }
+
+    private boolean hasPendingOperations(ChannelBatchState state) {
+        state.pendingOperations--;
+        return state.pendingOperations > 0;
+    }
+
+    private void finalizeBatchState(ChannelBatchState state) {
+        if (state.success) {
+            commitBatch(state);
+            return;
+        }
+        rollbackBatch();
+    }
+
+    private void commitBatch(ChannelBatchState state) {
+        channelState.commitWorking();
+        if (state.notifications != null) {
+            state.notifications.forEach(notification -> notification.accept(this));
+        }
+    }
+
+    private void rollbackBatch() {
+        channelState.resetWorking();
+    }
+
+    private void cleanupBatch(long batchId) {
         channelBatchStates.remove(batchId);
         channelBatchRunning = false;
-        tryStartChannelBatch();
     }
 
     private boolean enqueueUntilInitialized(ChannelEntityCommand command) {
@@ -403,6 +851,21 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
 
         bufferedCommandsBeforeInit.add(command);
         return true;
+    }
+
+    private void sendToAll(ChannelReaderCommand command) {
+        readers.values().forEach(reader -> reader.tell(command));
+    }
+
+    private void notifyMembershipChange(Long userId, Channel committed, int membershipCount) {
+        ChannelMembership membership = committed.getMemberships().get(UserId.create(userId));
+
+        if (membership == null) {
+            return;
+        }
+
+        sendToAll(new SyncMembership(userId, membership, membershipCount));
+        sendToAll(new NotifyChangeChannelMembership(userId, membership, membershipCount));
     }
 
     // 도메인 관련 메서드
