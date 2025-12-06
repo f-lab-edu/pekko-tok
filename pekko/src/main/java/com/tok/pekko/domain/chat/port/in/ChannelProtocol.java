@@ -1,5 +1,7 @@
 package com.tok.pekko.domain.chat.port.in;
 
+import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.global.common.CborSerializable;
 import com.tok.pekko.domain.chat.actor.ChatMessage;
@@ -40,4 +42,13 @@ public interface ChannelProtocol {
 
     // ChannelEntity가 관리하고 있는 ChannelReaderActor 중 유효하지 않은 ChannelReaderActor의 제거 요청을 받는 메시지 : ChannelReaderRegistryActor -> ChannelEntity
     record RemoveShutdownReader(String readerName) implements ChannelEntityCommand { }
+
+    // 영속화된 채널과 모든 채널 참여자를 동기화하기 위한 메시지 : 외부 -> ChannelEntity
+    record SyncChannel(Channel channel) implements ChannelEntityCommand { }
+
+    // ChannelEntity를 외부에서 종료시키기 위한 메시지 : 외부 -> ChannelEntity
+    record Shutdown() implements ChannelEntityCommand { }
+
+    // Channel 도메인 이벤트 배치의 영속화 결과를 전달받는 메시지 : 비동기 콜백 -> ChannelEntity
+    record ChannelBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success, String errorMessage) implements ChannelEntityCommand { }
 }
