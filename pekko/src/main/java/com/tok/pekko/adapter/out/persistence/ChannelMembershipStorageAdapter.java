@@ -11,21 +11,18 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChannelMembershipStorageAdapter implements ChannelMembershipStoragePort {
 
-    private final ChannelRepository channelRepository;
     private final ChannelMembershipRepository channelMembershipRepository;
     private final ChannelManagePermissionRepository channelManagePermissionRepository;
 
     @Override
     public void joinChannel(ChannelId channelId, ChannelMembership channelMembership) {
         channelMembershipRepository.joinChannel(channelMembership);
-        channelRepository.incrementMemberCount(channelId);
     }
 
     @Override
     public void leaveChannel(ChannelMembership channelMembership) {
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
         channelMembershipRepository.leaveChannel(channelMembership.getChannelId(), channelMembership.getUserId());
-        channelRepository.decrementMemberCount(channelMembership.getChannelId());
     }
 
     @Override
@@ -54,6 +51,5 @@ public class ChannelMembershipStorageAdapter implements ChannelMembershipStorage
     public void kickMember(ChannelMembership channelMembership) {
         channelMembershipRepository.delete(channelMembership.getChannelId(), channelMembership.getUserId());
         channelManagePermissionRepository.deleteAll(channelMembership.getId());
-        channelRepository.decrementMemberCount(channelMembership.getChannelId());
     }
 }
