@@ -49,6 +49,18 @@ public interface ChannelProtocol {
     // ChannelEntity를 외부에서 종료시키기 위한 메시지 : 외부 -> ChannelEntity
     record Shutdown() implements ChannelEntityCommand { }
 
+    // 영속화된 Channel 스냅샷을 전달하는 메시지 : ChannelStorageAdapter -> ChannelEntity
+    record ChannelLoaded(Channel channel) implements ChannelEntityCommand { }
+
+    // Channel 스냅샷을 찾지 못했음을 알리는 메시지 : ChannelStorageAdapter -> ChannelEntity
+    record ChannelNotFound(Long channelId) implements ChannelEntityCommand { }
+
+    // Channel 스냅샷 조회 실패 메시지 : ChannelStorageAdapter -> ChannelEntity
+    record ChannelLoadFailed(Long channelId, String reason) implements ChannelEntityCommand { }
+
     // Channel 도메인 이벤트 배치의 영속화 결과를 전달받는 메시지 : 비동기 콜백 -> ChannelEntity
     record ChannelBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success, String errorMessage) implements ChannelEntityCommand { }
+
+    // Channel 멤버십 도메인 이벤트 배치의 영속화 결과를 전달받는 메시지 : 비동기 콜백 -> ChannelEntity
+    record ChannelMembershipBatchPersisted(long batchId, List<ChannelDomainEvent> events, boolean success, String errorMessage) implements ChannelEntityCommand { }
 }

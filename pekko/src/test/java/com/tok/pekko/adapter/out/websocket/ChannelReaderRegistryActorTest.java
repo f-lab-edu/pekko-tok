@@ -2,15 +2,20 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.ChannelReaderRegistryActor.GetChannelReaderActor;
 import com.tok.pekko.adapter.out.websocket.ClientSessionActor.FoundChannelReaders;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.actor.ChannelEntityChatMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ChannelReaderRegistryCommand;
 import com.tok.pekko.domain.chat.port.out.ChannelReaderRegistryProtocol.ReleaseClientSessionActor;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ClientSessionCommand;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -46,12 +51,17 @@ class ChannelReaderRegistryActorTest {
     private static ActorTestKit testKit;
     private static ClusterSharding clusterSharding;
     private static MessageStoragePort mockMessageStoragePort;
+    private static ChannelActorStoragePort mockChannelStoragePort;
+    private static ChannelMembershipActorStoragePort mockChannelMembershipStoragePort;
 
     @BeforeAll
     static void setup() {
         testKit = ActorTestKit.create(ConfigFactory.load());
 
         mockMessageStoragePort = mock(MessageStoragePort.class);
+        mockChannelStoragePort = mock(ChannelActorStoragePort.class);
+        mockChannelMembershipStoragePort = mock(ChannelMembershipActorStoragePort.class);
+        givenAllMembershipNoOps();
 
         clusterSharding = ClusterSharding.get(testKit.system());
         clusterSharding.init(
@@ -61,10 +71,24 @@ class ChannelReaderRegistryActorTest {
                                 Clock.systemDefaultZone(),
                                 Long.parseLong(entityContext.getEntityId()),
                                 new ChannelEntityChatMessages(),
-                                mockMessageStoragePort
+                                mockMessageStoragePort,
+                                mockChannelStoragePort,
+                                mockChannelMembershipStoragePort
                         )
                 )
         );
+    }
+
+    private static void givenAllMembershipNoOps() {
+        doNothing().when(mockChannelMembershipStoragePort).joinChannel(any(), any());
+        doNothing().when(mockChannelMembershipStoragePort).leaveChannel(any(ChannelMembership.class));
+        doNothing().when(mockChannelMembershipStoragePort).leaveChannel(any(ChannelId.class), any(UserId.class));
+        doNothing().when(mockChannelMembershipStoragePort).promoteToManager(any());
+        doNothing().when(mockChannelMembershipStoragePort).demoteToMember(any());
+        doNothing().when(mockChannelMembershipStoragePort).addPermission(any(), any());
+        doNothing().when(mockChannelMembershipStoragePort).removePermission(any(), any());
+        doNothing().when(mockChannelMembershipStoragePort).kickMember(any(ChannelMembership.class));
+        doNothing().when(mockChannelMembershipStoragePort).kickMember(any(ChannelId.class), any(UserId.class));
     }
 
     @AfterAll

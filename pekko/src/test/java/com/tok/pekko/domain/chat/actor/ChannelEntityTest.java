@@ -1,7 +1,14 @@
 package com.tok.pekko.domain.chat.actor;
 
+import com.tok.pekko.domain.channel.model.Channel;
+import com.tok.pekko.domain.channel.model.ChannelDomainEvent;
+import com.tok.pekko.domain.channel.model.ChannelMembership;
+import com.tok.pekko.domain.channel.model.vo.ChannelId;
+import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor.DeliverSyncMessages;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelBatchPersisted;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelLoaded;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.DeleteMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RegisterReader;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.RemoveShutdownReader;
@@ -16,7 +23,10 @@ import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderComm
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncNewMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncUpdate;
+import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
+import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.Clock;
 import org.apache.pekko.actor.testkit.typed.javadsl.ActorTestKit;
 import org.apache.pekko.actor.testkit.typed.javadsl.TestProbe;
@@ -29,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +49,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
@@ -55,7 +67,7 @@ class ChannelEntityTest {
     }
 
     @AfterAll
-    static void teardown() {
+    static void tearDown() {
         testKit.shutdownTestKit();
     }
 
@@ -64,6 +76,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -72,7 +86,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -87,6 +103,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -95,7 +113,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -148,6 +168,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -156,7 +178,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -177,6 +201,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -185,7 +211,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         Long userId = 100L;
@@ -201,6 +229,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -209,7 +239,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         Long userId = 100L;
@@ -234,6 +266,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -242,7 +276,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         LocalDateTime timestamp1 = LocalDateTime.of(2025, 10, 17, 10, 0, 0);
@@ -270,6 +306,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -278,7 +316,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -329,6 +369,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -336,7 +378,9 @@ class ChannelEntityTest {
                 Clock.systemDefaultZone(),
                 channelId,
                 messages,
-                messageStoragePort
+                messageStoragePort,
+                channelActorStoragePort,
+                membershipStoragePort
         ));
 
         verify(messageStoragePort, timeout(1000)).findRecentMessages(eq(channelId), eq(50), any());
@@ -347,6 +391,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -355,7 +401,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -383,6 +431,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -391,7 +441,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         Long messageId = 1L;
@@ -406,6 +458,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -414,7 +468,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> reader1Probe = testKit.createTestProbe();
@@ -446,6 +502,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -454,7 +512,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -490,6 +550,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -498,7 +560,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         Long messageId = 1L;
@@ -514,6 +578,8 @@ class ChannelEntityTest {
         Long channelId = 1L;
         ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
         MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelActorStoragePort channelActorStoragePort = mockChannelActorStoragePort(channelId);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
 
         doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
 
@@ -522,7 +588,9 @@ class ChannelEntityTest {
                         Clock.systemDefaultZone(),
                         channelId,
                         messages,
-                        messageStoragePort
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
                 ));
 
         TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
@@ -563,5 +631,49 @@ class ChannelEntityTest {
                         .extracting(ChatMessage::message)
                         .containsExactly("Message 2")
         );
+    }
+
+    private ChannelActorStoragePort mockChannelActorStoragePort(Long channelId) {
+        ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
+        Channel channel = Channel.create(
+                channelId,
+                "channel-" + channelId,
+                channelId,
+                ChannelPolicy.defaultPolicy(),
+                new HashMap<>(),
+                LocalDateTime.now()
+        ).withAssignedId(channelId);
+
+        doAnswer(invocation -> {
+            ActorRef<ChannelEntityCommand> replyTo = invocation.getArgument(1);
+            replyTo.tell(new ChannelLoaded(channel));
+            return null;
+        }).when(channelActorStoragePort).find(anyLong(), any());
+
+        doAnswer(invocation -> {
+            ActorRef<ChannelEntityCommand> replyTo = invocation.getArgument(1);
+            Long batchId = invocation.getArgument(2);
+            List<ChannelDomainEvent> batch = invocation.getArgument(3);
+            replyTo.tell(new ChannelBatchPersisted(batchId, batch, true, ""));
+            return null;
+        }).when(channelActorStoragePort).update(any(), any(), anyLong(), any());
+
+        return channelActorStoragePort;
+    }
+
+    private ChannelMembershipActorStoragePort mockMembershipStoragePort() {
+        ChannelMembershipActorStoragePort membershipStoragePort = mock(ChannelMembershipActorStoragePort.class);
+
+        doNothing().when(membershipStoragePort).joinChannel(any(), any());
+        doNothing().when(membershipStoragePort).leaveChannel(any(ChannelMembership.class));
+        doNothing().when(membershipStoragePort).leaveChannel(any(ChannelId.class), any(UserId.class));
+        doNothing().when(membershipStoragePort).promoteToManager(any());
+        doNothing().when(membershipStoragePort).demoteToMember(any());
+        doNothing().when(membershipStoragePort).addPermission(any(), any());
+        doNothing().when(membershipStoragePort).removePermission(any(), any());
+        doNothing().when(membershipStoragePort).kickMember(any(ChannelMembership.class));
+        doNothing().when(membershipStoragePort).kickMember(any(ChannelId.class), any(UserId.class));
+
+        return membershipStoragePort;
     }
 }

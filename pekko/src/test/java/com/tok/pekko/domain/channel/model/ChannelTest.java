@@ -81,6 +81,28 @@ class ChannelTest {
     }
 
     @Test
+    void 기존_채널을_복사한다() {
+        // given
+        Long channelId = 1L;
+        String name = "general";
+        Long creatorId = 1L;
+        ChannelPolicy channelPolicy = ChannelPolicy.defaultPolicy();
+        Map<UserId, ChannelMembership> memberships = new HashMap<>();
+        LocalDateTime createdAt = LocalDateTime.now();
+        Channel channel = Channel.create(channelId, name, creatorId, channelPolicy, memberships, createdAt);
+
+        // when
+        Channel actual = channel.copy();
+
+        // then
+        assertAll(
+                () -> assertThat(actual.getChannelId().getValue()).isEqualTo(channelId),
+                () -> assertThat(actual.getName()).isEqualTo(name),
+                () -> assertThat(actual.getCreatorId().getValue()).isEqualTo(creatorId)
+        );
+    }
+
+    @Test
     void 채널_ID를_할당할_수_있다() {
         // given
         Channel channel = Channel.create("general", 1L, ChannelPolicy.defaultPolicy(), LocalDateTime.now());

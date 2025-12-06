@@ -87,6 +87,17 @@ public class Channel {
         return this;
     }
 
+    public Channel copy() {
+        return new Channel(
+                this.channelId,
+                this.name,
+                this.creatorId,
+                this.channelPolicy,
+                new HashMap<>(this.memberships),
+                this.createdAt
+        );
+    }
+
     public ChannelMembership joinUser(UserId userId, ChannelRole role, LocalDateTime joinedAt) {
         if (channelPolicy.isPrivate()) {
             throw new ChannelMembershipOperationForbiddenException("비공개 채널입니다. 초대를 통해 참여할 수 있습니다.");

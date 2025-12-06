@@ -2,6 +2,8 @@ package com.tok.pekko.global.config.actor;
 
 import com.tok.pekko.domain.chat.actor.ChannelEntity;
 import com.tok.pekko.domain.chat.actor.ChannelEntityChatMessages;
+import com.tok.pekko.domain.chat.port.out.ChannelActorStoragePort;
+import com.tok.pekko.domain.chat.port.out.ChannelMembershipActorStoragePort;
 import com.tok.pekko.domain.chat.port.out.MessageStoragePort;
 import com.tok.pekko.global.actor.GuardianActor;
 import com.tok.pekko.global.actor.GuardianActor.GuardianCommand;
@@ -32,7 +34,11 @@ public class ClusterConfig {
     private final Environment environment;
 
     @Bean
-    public ClusterSharding clusterSharding(MessageStoragePort messageStoragePort) {
+    public ClusterSharding clusterSharding(
+            MessageStoragePort messageStoragePort,
+            ChannelActorStoragePort channelActorStoragePort,
+            ChannelMembershipActorStoragePort channelMembershipActorStoragePort
+    ) {
         ClusterSharding clusterSharding = ClusterSharding.get(actorSystem());
 
         clusterSharding.init(
@@ -42,7 +48,9 @@ public class ClusterConfig {
                                 clock,
                                 Long.valueOf(entityContext.getEntityId()),
                                 new ChannelEntityChatMessages(),
-                                messageStoragePort
+                                messageStoragePort,
+                                channelActorStoragePort,
+                                channelMembershipActorStoragePort
                         )
                 )
         );
