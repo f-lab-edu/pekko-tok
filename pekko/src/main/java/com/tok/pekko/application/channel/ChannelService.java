@@ -4,10 +4,17 @@ import com.tok.pekko.application.channel.exception.ChannelNotFoundException;
 import com.tok.pekko.domain.channel.model.Channel;
 import com.tok.pekko.domain.channel.model.vo.ChannelId;
 import com.tok.pekko.domain.channel.model.vo.ChannelPolicy;
+import com.tok.pekko.domain.chat.actor.ChannelEntity;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelDeleted;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelNameEdited;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelPolicyChanged;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ChannelEntityCommand;
 import com.tok.pekko.domain.channel.port.out.ChannelStoragePort;
 import com.tok.pekko.domain.user.model.vo.UserId;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
+import org.apache.pekko.cluster.sharding.typed.javadsl.EntityRef;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChannelService {
 
     private final ChannelStoragePort channelStoragePort;
+    private final ClusterSharding clusterSharding;
+    private final java.time.Clock clock;
 
     public ChannelId createChannel(String name, Long creatorId) {
         Channel channel = Channel.create(name, creatorId, ChannelPolicy.defaultPolicy(), LocalDateTime.now());
@@ -31,6 +40,14 @@ public class ChannelService {
         UserId deleter = UserId.create(deleterId);
 
         channel.validateDeleteChannel(deleter);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
+        channelEntity.tell(
+                new ApplyChannelDeleted(
+                        channelId,
+                        deleter,
+                        LocalDateTime.now(clock)
+                )
+        );
         channelStoragePort.delete(channel.getChannelId());
     }
 
@@ -41,21 +58,32 @@ public class ChannelService {
             boolean canDeleteOwnMessage,
             boolean isPublic
     ) {
-        Channel channel = channelStoragePort.findChannel(channelId, changerId)
-                                            .orElseThrow();
-        UserId changer = UserId.create(changerId);
-        ChannelPolicy updatedChannelPolicy = new ChannelPolicy(canEditOwnMessage, canDeleteOwnMessage, isPublic);
-        Channel updatedPolicyChannel = channel.changeChannelPolicy(changer, updatedChannelPolicy);
-
-        channelStoragePort.update(updatedPolicyChannel);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
+        channelEntity.tell(
+                new ApplyChannelPolicyChanged(
+                        channelId,
+                        UserId.create(changerId),
+                        canEditOwnMessage,
+                        canDeleteOwnMessage,
+                        isPublic,
+                        LocalDateTime.now(clock)
+                )
+        );
     }
 
     public void changeChannelName(Long channelId, Long changerId, String changedName) {
-        Channel channel = channelStoragePort.findChannel(channelId, changerId)
-                                            .orElseThrow(ChannelNotFoundException::new);
-        UserId changer = UserId.create(changerId);
-        Channel updatedChannel = channel.editName(changer, changedName);
+        EntityRef<ChannelEntityCommand> channelEntity = getChannelEntity(channelId);
+        channelEntity.tell(
+                new ApplyChannelNameEdited(
+                        channelId,
+                        UserId.create(changerId),
+                        changedName,
+                        LocalDateTime.now(clock)
+                )
+        );
+    }
 
-        channelStoragePort.update(updatedChannel);
+    private EntityRef<ChannelEntityCommand> getChannelEntity(Long channelId) {
+        return clusterSharding.entityRefFor(ChannelEntity.ENTITY_TYPE_KEY, String.valueOf(channelId));
     }
 }

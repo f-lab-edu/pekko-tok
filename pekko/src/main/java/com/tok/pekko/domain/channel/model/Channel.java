@@ -230,10 +230,6 @@ public class Channel {
         return removedPermissionMembership;
     }
 
-    public void syncMembership(ChannelMembership membership) {
-        memberships.put(membership.getUserId(), membership);
-    }
-
     public ChannelMembership promoteToManager(UserId executorId, UserId targetUserId) {
         ChannelMembership executorMembership = memberships.get(executorId);
 
