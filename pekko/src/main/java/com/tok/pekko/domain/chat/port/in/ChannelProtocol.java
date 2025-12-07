@@ -72,6 +72,9 @@ public interface ChannelProtocol {
     // Channel 정책 변경 메시지 : 외부 -> ChannelEntity
     record ApplyChannelPolicyChanged(Long channelId, UserId changerId, boolean canEditOwnMessage, boolean canDeleteOwnMessage, boolean isPublic, LocalDateTime occurredAt) implements ChannelEntityCommand { }
 
+    // Channel 삭제 메시지 : 외부 -> ChannelEntity
+    record ApplyChannelDeleted(Long channelId, UserId deleterId, LocalDateTime occurredAt) implements ChannelEntityCommand { }
+
     // Channel 참여 메시지 : 외부 -> ChannelEntity
     record ApplyUserJoined(Long channelId, UserId userId, String role, List<String> managerPermissions, LocalDateTime joinedAt) implements ChannelEntityCommand { }
 

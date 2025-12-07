@@ -15,6 +15,7 @@ import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyKickedMember;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyMemberLeft;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelPolicyChanged;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelNameEdited;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelDeleted;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyDemotedToMember;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberKicked;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberLeft;
@@ -38,6 +39,7 @@ import com.tok.pekko.domain.chat.actor.ChannelEntity.RequestSyncMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyChannelDeleted;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
@@ -62,6 +64,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1212,6 +1215,66 @@ class ChannelEntityTest {
         channelEntity.tell(new ChannelNotFound(channelId));
 
         // then
+        terminationProbe.expectTerminated(channelEntity, Duration.ofSeconds(1));
+    }
+
+    @Test
+    void ApplyChannelDeleted_메시지를_받으면_reader에게_삭제를_알리고_자신을_종료한다() {
+        // given
+        Long channelId = 1L;
+        Long deleterId = 20L;
+        ChannelEntityChatMessages messages = new ChannelEntityChatMessages();
+        MessageStoragePort messageStoragePort = mock(MessageStoragePort.class);
+        ChannelMembershipActorStoragePort membershipStoragePort = mockMembershipStoragePort();
+        ChannelMembership deleterMembership = ChannelMembership.create(
+                ChannelId.create(channelId),
+                UserId.create(deleterId),
+                ChannelRole.OWNER,
+                LocalDateTime.now()
+        );
+        Channel channel = Channel.create(
+                channelId,
+                "channel-" + channelId,
+                channelId,
+                ChannelPolicy.defaultPolicy(),
+                new HashMap<>(Map.of(UserId.create(deleterId), deleterMembership)),
+                LocalDateTime.now()
+        );
+        ChannelActorStoragePort channelActorStoragePort = mock(ChannelActorStoragePort.class);
+
+        doNothing().when(messageStoragePort).findRecentMessages(anyLong(), anyInt(), any());
+        doAnswer(invocation -> {
+            ActorRef<ChannelEntityCommand> replyTo = invocation.getArgument(1);
+            replyTo.tell(new ChannelLoaded(channel));
+            return null;
+        }).when(channelActorStoragePort).find(anyLong(), any());
+        doAnswer(invocation -> {
+            ActorRef<ChannelEntityCommand> replyTo = invocation.getArgument(1);
+            Long batchId = invocation.getArgument(2);
+            List<ChannelDomainEvent> batch = invocation.getArgument(3);
+            replyTo.tell(new ChannelBatchPersisted(batchId, batch, true, ""));
+            return null;
+        }).when(channelActorStoragePort).update(any(), any(), anyLong(), any());
+
+        ActorRef<ChannelEntityCommand> channelEntity =
+                testKit.spawn(ChannelEntity.create(
+                        Clock.systemDefaultZone(),
+                        channelId,
+                        messages,
+                        messageStoragePort,
+                        channelActorStoragePort,
+                        membershipStoragePort
+                ));
+
+        TestProbe<ChannelReaderCommand> readerProbe = testKit.createTestProbe();
+        channelEntity.tell(new RegisterReader("reader", readerProbe.ref()));
+        TestProbe<ChannelEntityCommand> terminationProbe = testKit.createTestProbe();
+
+        // when
+        channelEntity.tell(new ApplyChannelDeleted(channelId, UserId.create(deleterId), LocalDateTime.now()));
+
+        // then
+        readerProbe.expectMessageClass(NotifyChannelDeleted.class);
         terminationProbe.expectTerminated(channelEntity, Duration.ofSeconds(1));
     }
 

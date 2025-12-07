@@ -53,6 +53,9 @@ public interface ClientSessionProtocol {
     // 채널 참여자가 강퇴되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
     record PropagateKickedMember(Long channelId) implements ClientSessionCommand { }
 
+    // 채널이 삭제되었음을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
+    record PropagateChannelDeleted(Long channelId) implements ClientSessionCommand { }
+
     // 채널 멤버 수 변경을 전파받기 위한 메시지 : ChannelReaderActor -> ClientSessionActor
     record PropagateMembershipCount(Long channelId, int membershipCount) implements ClientSessionCommand { }
 

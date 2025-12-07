@@ -22,6 +22,7 @@ import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyKickedMember;
 import com.tok.pekko.domain.chat.actor.ChannelReaderActor.NotifyMemberLeft;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelNameEdited;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelPolicyChanged;
+import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyChannelDeleted;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyDemotedToMember;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberKicked;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.ApplyMemberLeft;
@@ -47,6 +48,7 @@ import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncRecentMessages;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.SyncUpdatedMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelProtocol.UpdateMessage;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.ChannelReaderCommand;
+import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyChannelDeleted;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.NotifyMembershipCountChanged;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncChannelMetadata;
 import com.tok.pekko.domain.chat.port.in.ChannelReaderProtocol.SyncDeletion;
@@ -211,8 +213,10 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
                 .onMessage(ChannelMembershipBatchPersisted.class, this::onChannelMembershipBatchPersisted)
                 .onMessage(ChannelBatchPersisted.class, this::onChannelBatchPersisted)
 
+                // 채널 도메인 비즈니스 로직 처리
                 .onMessage(ApplyChannelNameEdited.class, this::onApplyChannelNameEdited)
                 .onMessage(ApplyChannelPolicyChanged.class, this::onApplyChannelPolicyChanged)
+                .onMessage(ApplyChannelDeleted.class, this::onApplyChannelDeleted)
                 .onMessage(ApplyUserJoined.class, this::onApplyUserJoined)
                 .onMessage(ApplyUserInvited.class, this::onApplyUserInvited)
                 .onMessage(ApplyMemberLeft.class, this::onApplyMemberLeft)
@@ -408,6 +412,20 @@ public class ChannelEntity extends AbstractBehavior<ChannelEntityCommand> {
             );
         });
         return this;
+    }
+
+    private Behavior<ChannelEntityCommand> onApplyChannelDeleted(ApplyChannelDeleted command) {
+        if (enqueueUntilInitialized(command)) {
+            return this;
+        }
+
+        Channel committed = channelState.committed();
+        if (committed == null || !committed.canDeleteChannel(command.deleterId())) {
+            return this;
+        }
+
+        sendToAll(new NotifyChannelDeleted());
+        return Behaviors.stopped();
     }
 
     private Behavior<ChannelEntityCommand> onApplyUserJoined(ApplyUserJoined command) {

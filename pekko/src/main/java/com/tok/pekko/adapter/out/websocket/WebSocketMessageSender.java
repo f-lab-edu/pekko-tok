@@ -2,6 +2,7 @@ package com.tok.pekko.adapter.out.websocket;
 
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelInvitePayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelKickedPayload;
+import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelDeletedPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelMembershipCountPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelMembershipPayload;
 import com.tok.pekko.adapter.out.websocket.message.WebSocketMessagePayload.ChannelNamePayload;
@@ -138,6 +139,17 @@ public class WebSocketMessageSender implements ClientMessageSender {
         WebSocketOutboundMessage webSocketPayload = new WebSocketOutboundMessage(
                 WebSocketMessageType.CHANNEL_KICKED,
                 channelKickedPayload
+        );
+
+        emit(webSocketPayload);
+    }
+
+    @Override
+    public void sendChannelDeleted(Long channelId) {
+        ChannelDeletedPayload channelDeletedPayload = new ChannelDeletedPayload(channelId);
+        WebSocketOutboundMessage webSocketPayload = new WebSocketOutboundMessage(
+                WebSocketMessageType.CHANNEL_DELETED,
+                channelDeletedPayload
         );
 
         emit(webSocketPayload);

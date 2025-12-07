@@ -16,10 +16,11 @@ import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.DeliverUpdatedMessage;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundHistory;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.FoundRegisteredChannelIds;
-import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelMembership;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChangeChannelPolicy;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateChannelDeleted;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateEditChannelName;
+import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateFailure;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateKickedMember;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.PropagateMembershipCount;
 import com.tok.pekko.domain.chat.port.out.ClientSessionProtocol.ReSyncSession;
@@ -128,6 +129,7 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
                                   .onMessage(PropagateChangeChannelPolicy.class, this::onPropagateChangeChannelPolicy)
                                   .onMessage(PropagateEditChannelName.class, this::onPropagateEditChannelName)
                                   .onMessage(PropagateKickedMember.class, this::onPropagateKickedMember)
+                                  .onMessage(PropagateChannelDeleted.class, this::onPropagateChannelDeleted)
                                   .onMessage(ReSyncSession.class, this::onReSyncSession)
                                   .onMessage(PropagateFailure.class, this::onPropagateFailure)
                                   .build();
@@ -289,6 +291,14 @@ public class ClientSessionActor extends AbstractBehavior<ClientSessionCommand> {
 
     private Behavior<ClientSessionCommand> onPropagateKickedMember(PropagateKickedMember command) {
         clientMessageSender.sendKickedFromChannel(command.channelId());
+        readers.remove(command.channelId());
+        readerRegistry.tell(new ReleaseClientSessionActor(userId, List.of(command.channelId())));
+
+        return this;
+    }
+
+    private Behavior<ClientSessionCommand> onPropagateChannelDeleted(PropagateChannelDeleted command) {
+        clientMessageSender.sendChannelDeleted(command.channelId());
         readers.remove(command.channelId());
         readerRegistry.tell(new ReleaseClientSessionActor(userId, List.of(command.channelId())));
 

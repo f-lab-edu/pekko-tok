@@ -30,6 +30,8 @@ public interface ClientMessageSender {
 
     void sendKickedFromChannel(Long channelId);
 
+    void sendChannelDeleted(Long channelId);
+
     void sendChangedChannelPolicy(Long channelId, ChannelPolicy channelPolicy);
 
     void sendError(Long channelId, String reason);

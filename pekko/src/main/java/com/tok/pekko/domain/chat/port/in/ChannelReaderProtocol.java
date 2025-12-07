@@ -39,6 +39,9 @@ public interface ChannelReaderProtocol {
     // ChannelEntity로부터 채널 메타데이터를 전달받는 메시지 : ChannelEntity -> ChannelReaderActor
     record SyncChannelMetadata(Long channelId, String name, ChannelPolicy channelPolicy, int membershipCount) implements ChannelReaderCommand { }
 
+    // ChannelEntity로부터 채널 삭제를 전달받는 메시지 : ChannelEntity -> ChannelReaderActor
+    record NotifyChannelDeleted() implements ChannelReaderCommand { }
+
     // 특정 사용자에게 요청 실패를 전달하기 위한 메시지 : ChannelEntity -> ChannelReaderActor
     record NotifyFailure(Long userId, String reason) implements ChannelReaderCommand { }
 
