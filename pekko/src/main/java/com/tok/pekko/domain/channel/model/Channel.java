@@ -252,12 +252,15 @@ public class Channel {
 
     private void validateAddPermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
         validateMembershipExists(grantorId);
+
         ChannelMembership grantorMembership = getMembership(grantorId);
 
         if (grantorMembership.cannotManagePermission()) {
             throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
+
         validateMembershipExists(granteeId);
+
         ChannelMembership granteeMembership = getMembership(granteeId);
 
         if (granteeMembership.isNotManager()) {
@@ -270,12 +273,15 @@ public class Channel {
 
     private void validateRemovePermission(UserId grantorId, UserId granteeId, ChannelPermissionType permission) {
         validateMembershipExists(grantorId);
+
         ChannelMembership grantorMembership = getMembership(grantorId);
 
         if (grantorMembership.cannotManagePermission()) {
             throw new ChannelMembershipOperationForbiddenException("매니저의 권한을 추가할 권한이 없습니다.");
         }
+
         validateMembershipExists(granteeId);
+
         ChannelMembership granteeMembership = getMembership(granteeId);
 
         if (granteeMembership.isNotManager()) {
@@ -288,12 +294,15 @@ public class Channel {
 
     private void validatePromoteToManager(UserId executorId, UserId targetUserId) {
         validateMembershipExists(executorId);
+
         ChannelMembership executorMembership = getMembership(executorId);
 
         if (executorMembership.cannotManageRole()) {
             throw new ChannelMembershipOperationForbiddenException("역할을 변경할 권한이 없습니다.");
         }
+
         validateMembershipExists(targetUserId);
+
         ChannelMembership targetUserMembership = getMembership(targetUserId);
 
         if (targetUserMembership.isOwner()) {
@@ -306,12 +315,15 @@ public class Channel {
 
     private void validateDemoteToMember(UserId executorId, UserId targetUserId) {
         validateMembershipExists(executorId);
+
         ChannelMembership executorMembership = getMembership(executorId);
 
         if (executorMembership.cannotManageRole()) {
             throw new ChannelMembershipOperationForbiddenException("역할을 변경할 권한이 없습니다.");
         }
+
         validateMembershipExists(targetUserId);
+
         ChannelMembership targetUserMembership = getMembership(targetUserId);
 
         if (targetUserMembership.isOwner()) {
@@ -324,16 +336,19 @@ public class Channel {
 
     private void validateEditName(UserId changerId, String newName) {
         validateMembershipExists(changerId);
+
         ChannelMembership channelMembership = getMembership(changerId);
 
         if (channelMembership.cannotEditChannelName()) {
             throw new ChannelOperationForbiddenException("채널 이름을 변경할 권한이 없습니다.");
         }
+
         validateName(newName);
     }
 
     private void validateChangeChannelPolicy(UserId changerId) {
         validateMembershipExists(changerId);
+
         ChannelMembership executorMembership = getMembership(changerId);
 
         if (executorMembership.cannotChangeChannelPolicy()) {
@@ -343,6 +358,7 @@ public class Channel {
 
     private void validateDeleteChannelPermission(UserId deleterId) {
         validateMembershipExists(deleterId);
+
         ChannelMembership deleterMembership = getMembership(deleterId);
 
         if (deleterMembership.cannotDeleteChannel()) {
@@ -354,7 +370,11 @@ public class Channel {
         validateMembershipExists(executorId);
     }
 
-    private void validateMemberEditMessage(ChannelMembership executorMembership, UserId executorId, ChatMessage message) {
+    private void validateMemberEditMessage(
+            ChannelMembership executorMembership,
+            UserId executorId,
+            ChatMessage message
+    ) {
         if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotEditMessage()) {
             throw new ChannelMembershipOperationForbiddenException("메시지를 수정할 권한이 없습니다.");
         }
@@ -367,7 +387,10 @@ public class Channel {
         validateMembershipExists(executorId);
     }
 
-    private void validateMemberDeleteMessage(ChannelMembership executorMembership, UserId executorId, ChatMessage message) {
+    private void validateMemberDeleteMessage(
+            ChannelMembership executorMembership,
+            UserId executorId, ChatMessage message
+    ) {
         if (message.isNotWriter(executorId.getValue()) && executorMembership.cannotDeleteMessage()) {
             throw new ChannelMembershipOperationForbiddenException("메시지를 삭제할 권한이 없습니다.");
         }
